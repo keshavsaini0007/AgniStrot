@@ -2502,16 +2502,14 @@ docs/
 | Name | Role |
 |---|---|
 | Keshav Saini | Full-Stack / MERN Developer |
-| Team Member | — |
-| Team Member | — |
-| Team Member | — |
-| Team Member | — |
+| Ujjwal Kesarwani | Backend Developer |
+| Ritwiz Shukla|Full-Stack / MERN Developer |
 
 ---
 
 # 📜 Disclaimer
 
-This project is a **Smart India Hackathon prototype/concept implementation**.
+This project is a **Smart India Hackathon Prototype/Concept Implementation**.
 
 Any mine names, operational records, compliance data, inspection records, users, contractors, locations, and statistics used in the prototype are **synthetic/demo data unless explicitly identified otherwise**.
 
@@ -2561,7 +2559,6 @@ The goal is to build a system that **clearly solves the problem, works during th
 [ ] Reports
 [ ] Testing
 [ ] Deployment
-[ ] SIH Demo Preparation
 ```
 
 ---
