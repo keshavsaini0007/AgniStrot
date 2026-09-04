@@ -1,6 +1,5 @@
 import "dotenv/config";
 import mongoose, { type HydratedDocument } from "mongoose";
-import bcrypt from "bcryptjs";
 import { v4 as uuidv4 } from "uuid";
 import Site from "../models/Site.js";
 import User from "../models/User.js";
@@ -101,16 +100,14 @@ const seed = async (): Promise<void> => {
   console.log(`Created ${sites.length} sites.`);
 
   // ── Create Users ─────────────────────────────────────────────────────────
-  // Passwords are hashed manually here since User.create() with a `password`
-  // field won't trigger the pre-save hook (which only fires on passwordHash changes)
+  // Pass plain password as passwordHash — pre-save hook will hash it.
   type UserDoc = HydratedDocument<IUser>;
-  const hashedPassword = await bcrypt.hash("password123", 12);
   const users: UserDoc[] = await Promise.all(
     USERS.map((u) =>
       User.create({
         name: u.name,
         email: u.email,
-        passwordHash: hashedPassword,
+        passwordHash: "password123", // plain text — pre-save hook hashes it
         role: u.role,
         siteId: u.siteIndex !== null ? sites[u.siteIndex]!._id : null,
       })
