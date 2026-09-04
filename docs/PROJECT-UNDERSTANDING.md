@@ -21,7 +21,6 @@ Coal mining companies in India run many mine sites, under multiple subsidiaries,
 
 ## 2. What the Platform Must Do (Core Requirements)
 
-Directly from the problem statement, restated as concrete capabilities:
 
 | # | Requirement | What it means in practice |
 |---|---|---|
@@ -34,9 +33,7 @@ Directly from the problem statement, restated as concrete capabilities:
 | 7 | Reduced paperwork | The platform *is* the record — not a summary of a paper record kept elsewhere |
 | 8 | Scalable across mines/subsidiaries | Designed to be rolled out to more sites without rearchitecting |
 
-**Optional/suggested techniques** (the problem statement explicitly says "may use," not "must use"): AI/ML, GIS mapping, OCR, workflow automation, blockchain-style audit trails, multilingual conversational interfaces. These are tools to reach the requirements above — not requirements themselves. We should pick from this list based on what's achievable in our timeline, not implement all of it just because it's listed.
 
----
 
 ## 3. The Five System Components (as specified)
 
@@ -48,25 +45,13 @@ Directly from the problem statement, restated as concrete capabilities:
 
 These five map directly to five backend/frontend problem domains we'll need to build, in roughly this priority order for a working demo: **mobile capture → dashboard visibility → alert/analytics logic → workflow automation → GIS/OCR polish.**
 
----
 
-## 4. What Success Looks Like
-
-The problem statement frames impact as:
-- Faster, more transparent governance
-- Fewer errors/delays in compliance reporting
-- Data-driven, faster decisions
-- Stronger accountability and real-time field tracking
-- Less paperwork, more digital-first process
-- A system that could realistically scale to more mines
-
-For a hackathon/MVP context, the practical translation is: **can we demonstrate the full loop — a field officer logs an inspection offline → it syncs → the system detects a compliance issue → an alert routes to the right role → it shows up on a live dashboard → and there's a traceable record of the whole thing?** If that loop works convincingly, the core ask is proven.
 
 ---
 
 ## 5. Recommended Tech Stack
 
-Given the team's existing strength (MERN stack, JavaScript, React), the stack should stay within that ecosystem rather than introducing new languages under time pressure:
+
 
 | Layer | Choice | Why |
 |---|---|---|
@@ -101,22 +86,4 @@ Given the team's existing strength (MERN stack, JavaScript, React), the stack sh
 | Database design | Schema/data modeling (relational or document), indexing for query performance |
 | DevOps (minimal) | Environment config, basic deployment (Vercel/Render), version control (Git) |
 
-**Team implication**: this is naturally a 3–5 person split — e.g., one person on mobile/offline sync, one on dashboard/frontend, one on backend/API + auth, one on the alert engine + workflow automation, and GIS/OCR/audit trail distributed across whoever has bandwidth once the core loop works. Given the SIH timeline, it's worth agreeing on this split early rather than everyone touching everything.
 
----
-
-## 7. Scope Judgment Calls to Make as a Team (Before Coding)
-
-These are genuine open decisions the problem statement leaves to us — better to decide explicitly now than discover disagreement mid-build:
-
-1. **MongoDB vs PostgreSQL** — speed of iteration vs. relational correctness for compliance data.
-2. **True ML vs rule-based "AI"** — a rule-based engine is honest and demoable; only add real ML (e.g., a simple anomaly-detection model) if there's clear time budget left after the core loop works.
-3. **How many of the five components get built for the demo vs. described as roadmap** — for a hackathon, it's usually stronger to fully build 3 components end-to-end (mobile capture, dashboard, alerts) than to half-build all five.
-4. **Multilingual/conversational interface** — explicitly optional in the problem statement; likely a stretch goal, not core scope, given the timeline.
-5. **"Blockchain-based audit trail"** — recommend the hash-chained append-only log approach (Section 5) rather than a literal blockchain, and be ready to explain that trade-off if judges ask — it's a stronger engineering answer than forcing in real blockchain infra under time pressure.
-
----
-
-## 8. Suggested Next Step
-
-Once the team agrees on Section 7's open decisions, the next document should be a scoped MVP architecture (data models + API contracts + phased build order) — similar in shape to what's already been drafted for the fuller platform concept, but trimmed to exactly what's needed for the SIH demo timeline.
