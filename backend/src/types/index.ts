@@ -78,7 +78,6 @@ export interface IUser {
   role: UserRole;
   siteId: Types.ObjectId | null; // null for corporate_manager and regulator
   createdAt: Date;
-  comparePassword(plain: string): Promise<boolean>;
 }
 
 export interface IChecklistItem {

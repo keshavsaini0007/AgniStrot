@@ -1,12 +1,11 @@
 import "dotenv/config";
-import mongoose, { type HydratedDocument } from "mongoose";
+import mongoose from "mongoose";
 import { v4 as uuidv4 } from "uuid";
 import Site from "../models/Site.js";
 import User from "../models/User.js";
 import Inspection from "../models/Inspection.js";
 import Incident from "../models/Incident.js";
 import Attendance from "../models/Attendance.js";
-import type { ISite, IUser, IInspection, IIncident, IAttendance } from "../types/index.js";
 
 // ── Seed Data ────────────────────────────────────────────────────────────────
 
@@ -95,28 +94,30 @@ const seed = async (): Promise<void> => {
   console.log("Cleared existing data.");
 
   // ── Create Sites ─────────────────────────────────────────────────────────
-  type SiteDoc = HydratedDocument<ISite>;
-  const sites: SiteDoc[] = await Site.insertMany(SITES) as SiteDoc[];
+  // Let TypeScript infer the return type — no explicit cast needed
+  const sites = await Site.insertMany(SITES);
   console.log(`Created ${sites.length} sites.`);
 
   // ── Create Users ─────────────────────────────────────────────────────────
-  // Pass plain password as passwordHash — pre-save hook will hash it.
-  type UserDoc = HydratedDocument<IUser>;
-  const users: UserDoc[] = await Promise.all(
+  // Pass the plain password as `passwordHash` — the User pre-save hook
+  // will hash it automatically. Do NOT pre-hash here or it will be double-hashed.
+  const users = await Promise.all(
     USERS.map((u) =>
       User.create({
         name: u.name,
         email: u.email,
-        passwordHash: "password123", // plain text — pre-save hook hashes it
+        passwordHash: "password123", // pre-save hook hashes this
         role: u.role,
-        siteId: u.siteIndex !== null ? sites[u.siteIndex]!._id : null,
+        // ?._id returns ObjectId | undefined; ?? null converts undefined → null
+        // satisfying exactOptionalPropertyTypes (undefined ≠ null in strict TS)
+        siteId: u.siteIndex !== null ? (sites[u.siteIndex]?._id ?? null) : null,
       })
     )
-  ) as UserDoc[];
+  );
   console.log(`Created ${users.length} users.`);
 
   // ── Create Inspections ───────────────────────────────────────────────────
-  const fieldOfficers = users.filter((u) => u.role === "field_officer") as HydratedDocument<IUser>[];
+  const fieldOfficers = users.filter((u) => u.role === "field_officer");
   const safetyChecklists = [
     [
       { item: "Fire extinguisher present and charged", result: "pass" as const },
@@ -227,7 +228,7 @@ const seed = async (): Promise<void> => {
     },
   ];
 
-  const inspections: HydratedDocument<IInspection>[] = await Inspection.insertMany(inspectionData) as HydratedDocument<IInspection>[];
+  const inspections = await Inspection.insertMany(inspectionData);
   console.log(`Created ${inspections.length} inspections.`);
 
   // ── Create Incidents ─────────────────────────────────────────────────────
@@ -336,7 +337,7 @@ const seed = async (): Promise<void> => {
     },
   ];
 
-  const incidents: HydratedDocument<IIncident>[] = await Incident.insertMany(incidentData) as HydratedDocument<IIncident>[];
+  const incidents = await Incident.insertMany(incidentData);
   console.log(`Created ${incidents.length} incidents.`);
 
   // ── Create Attendance Records ────────────────────────────────────────────
@@ -367,7 +368,7 @@ const seed = async (): Promise<void> => {
     };
   });
 
-  const attendance: HydratedDocument<IAttendance>[] = await Attendance.insertMany(attendanceData) as HydratedDocument<IAttendance>[];
+  const attendance = await Attendance.insertMany(attendanceData);
   console.log(`Created ${attendance.length} attendance records.`);
 
   // ── Summary ──────────────────────────────────────────────────────────────

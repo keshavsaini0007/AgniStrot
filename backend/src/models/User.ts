@@ -1,8 +1,16 @@
 import { Schema, model } from "mongoose";
+import type { Model } from "mongoose";
 import bcrypt from "bcryptjs";
 import type { IUser } from "../types/index.js";
 
-const userSchema = new Schema<IUser>(
+// ── Methods interface — tells TypeScript about instance methods ───────────────
+interface IUserMethods {
+  comparePassword(plainPassword: string): Promise<boolean>;
+}
+
+type UserModel = Model<IUser, object, IUserMethods>;
+
+const userSchema = new Schema<IUser, UserModel, IUserMethods>(
   {
     name: {
       type: String,
@@ -55,6 +63,6 @@ userSchema.pre("save", async function () {
   this.passwordHash = await bcrypt.hash(this.passwordHash, salt);
 });
 
-const User = model<IUser>("User", userSchema);
+const User = model<IUser, UserModel>("User", userSchema);
 
 export default User;

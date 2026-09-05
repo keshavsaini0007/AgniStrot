@@ -75,6 +75,10 @@ alertSchema.index({ severity: 1, status: 1 });
 // Workflow engine: "find alerts that are overdue and not yet escalated"
 alertSchema.index({ status: 1, createdAt: 1 });
 
+// Dedup safety net: one alert per (source record + rule) combination
+// This is the DB-level guarantee — application-level atomic upsert is the first line of defence
+alertSchema.index({ sourceId: 1, ruleCode: 1 }, { unique: true });
+
 const Alert = model<IAlert>("Alert", alertSchema);
 
 export default Alert;
