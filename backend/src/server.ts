@@ -9,6 +9,7 @@ import incidentRoutes from "./routes/incidents.js";
 import attendanceRoutes from "./routes/attendance.js";
 import mediaRoutes from "./routes/media.js";
 import alertRoutes from "./routes/alerts.js";
+import dashboardRoutes from "./routes/dashboard.js";
 import { authenticate } from "./middleware/auth.js";
 
 const app = express();
@@ -32,6 +33,7 @@ app.use("/api/v1/incidents", authenticate, incidentRoutes);
 app.use("/api/v1/attendance", authenticate, attendanceRoutes);
 app.use("/api/v1/media", authenticate, mediaRoutes);
 app.use("/api/v1/alerts", authenticate, alertRoutes);
+app.use("/api/v1/dashboard", authenticate, dashboardRoutes);
 
 // ── Start server ───────────────────────────────────────────
 const start = async (): Promise<void> => {
