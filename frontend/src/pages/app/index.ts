@@ -1,0 +1,17 @@
+export { DashboardPage } from './DashboardPage';
+export { MinesPage } from './MinesPage';
+export { MineDetailPage } from './MineDetailPage';
+export { InspectionsPage } from './InspectionsPage';
+export { InspectionDetailPage } from './InspectionDetailPage';
+export { ObservationsPage } from './ObservationsPage';
+export { ObservationDetailPage } from './ObservationDetailPage';
+export { CorrectiveActionsPage } from './CorrectiveActionsPage';
+export { CompliancePage } from './CompliancePage';
+export { DocumentsPage } from './DocumentsPage';
+export { AnalyticsPage } from './AnalyticsPage';
+export { GISPage } from './GISPage';
+export { ReportsPage } from './ReportsPage';
+export { NotificationsPage } from './NotificationsPage';
+export { UsersPage } from './UsersPage';
+export { AuditLogsPage } from './AuditLogsPage';
+export { SettingsPage } from './SettingsPage';
