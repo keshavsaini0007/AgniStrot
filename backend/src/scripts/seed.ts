@@ -14,16 +14,19 @@ const SITES = [
     name: "Jharia Underground Mine",
     subsidiary: "Bharat Coking Coal Ltd",
     location: { lat: 23.7461, lng: 86.4123 },
+    expectedWorkers: 50,
   },
   {
     name: "Rajpur Opencast Mine",
     subsidiary: "Northern Coalfields Ltd",
     location: { lat: 24.1845, lng: 82.6774 },
+    expectedWorkers: 45,
   },
   {
     name: "Dhanbad Coal Mine",
     subsidiary: "Central Coalfields Ltd",
     location: { lat: 23.7957, lng: 86.4304 },
+    expectedWorkers: 60,
   },
 ];
 

@@ -67,6 +67,7 @@ export interface ISite {
     lat: number;
     lng: number;
   };
+  expectedWorkers: number;
   createdAt: Date;
 }
 

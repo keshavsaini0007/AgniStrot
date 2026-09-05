@@ -17,6 +17,12 @@ const siteSchema = new Schema<ISite>(
       lat: { type: Number, required: [true, "Latitude is required."] },
       lng: { type: Number, required: [true, "Longitude is required."] },
     },
+    expectedWorkers: {
+      type: Number,
+      required: [true, "Expected number of workers is required."],
+      min: [1, "Expected workers must be at least 1."],
+      default: 50,
+    },
   },
   {
     timestamps: { createdAt: true, updatedAt: false }, // we only need createdAt for sites
