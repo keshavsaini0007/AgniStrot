@@ -6,6 +6,9 @@ import User from "../models/User.js";
 import Inspection from "../models/Inspection.js";
 import Incident from "../models/Incident.js";
 import Attendance from "../models/Attendance.js";
+import Alert from "../models/Alert.js";
+import WorkflowState from "../models/WorkflowState.js";
+import { evaluateRules } from "../services/ruleEngine.js";
 
 // ── Seed Data ────────────────────────────────────────────────────────────────
 
@@ -94,7 +97,9 @@ const seed = async (): Promise<void> => {
   await Inspection.deleteMany({});
   await Incident.deleteMany({});
   await Attendance.deleteMany({});
-  console.log("Cleared existing data.");
+  await Alert.deleteMany({});
+  await WorkflowState.deleteMany({});
+  console.log("Cleared existing data (including alerts & workflows).");
 
   // ── Create Sites ─────────────────────────────────────────────────────────
   // Let TypeScript infer the return type — no explicit cast needed
@@ -343,6 +348,26 @@ const seed = async (): Promise<void> => {
   const incidents = await Incident.insertMany(incidentData);
   console.log(`Created ${incidents.length} incidents.`);
 
+  // ── Fire rule engine on seeded records ───────────────────────────────────
+  // This populates Alert + WorkflowState so the dashboard shows real data.
+  for (const doc of inspections) {
+    try {
+      await evaluateRules("inspection", doc._id, doc.siteId, doc);
+    } catch (err) {
+      console.error(`Rule engine error for inspection ${doc._id.toString()}:`, err);
+    }
+  }
+  for (const doc of incidents) {
+    try {
+      await evaluateRules("incident", doc._id, doc.siteId, doc);
+    } catch (err) {
+      console.error(`Rule engine error for incident ${doc._id.toString()}:`, err);
+    }
+  }
+  const alertCount = await Alert.countDocuments();
+  const workflowCount = await WorkflowState.countDocuments();
+  console.log(`Rule engine produced ${alertCount} alerts and ${workflowCount} workflow states.`);
+
   // ── Create Attendance Records ────────────────────────────────────────────
   const workerNames = [
     "Suresh Yadav", "Ramesh Verma", "Sanjay Gupta", "Manoj Kumar",
@@ -355,10 +380,19 @@ const seed = async (): Promise<void> => {
     const worker = workerNames[i % workerNames.length];
     const site = pick(sites);
     const isCheckOut = i % 3 === 0;
-    const capturedAt = randomDate(3);
-    // check-out should be after check-in on same day
-    if (isCheckOut) {
-      capturedAt.setHours(capturedAt.getHours() + 8);
+
+    // Pin first 8 records to today so the dashboard has present > 0
+    let capturedAt: Date;
+    if (i < 8) {
+      const today = new Date();
+      const hour = 7 + (i % 4) * 2; // 7:00, 9:00, 11:00, 13:00
+      today.setHours(hour, Math.floor(Math.random() * 60), 0, 0);
+      capturedAt = today;
+    } else {
+      capturedAt = randomDate(3);
+      if (isCheckOut) {
+        capturedAt.setHours(capturedAt.getHours() + 8);
+      }
     }
 
     return {
