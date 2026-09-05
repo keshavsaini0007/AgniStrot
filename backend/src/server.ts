@@ -8,6 +8,7 @@ import inspectionRoutes from "./routes/inspections.js";
 import incidentRoutes from "./routes/incidents.js";
 import attendanceRoutes from "./routes/attendance.js";
 import mediaRoutes from "./routes/media.js";
+import alertRoutes from "./routes/alerts.js";
 import { authenticate } from "./middleware/auth.js";
 
 const app = express();
@@ -30,6 +31,7 @@ app.use("/api/v1/inspections", authenticate, inspectionRoutes);
 app.use("/api/v1/incidents", authenticate, incidentRoutes);
 app.use("/api/v1/attendance", authenticate, attendanceRoutes);
 app.use("/api/v1/media", authenticate, mediaRoutes);
+app.use("/api/v1/alerts", authenticate, alertRoutes);
 
 // ── Start server ───────────────────────────────────────────
 const start = async (): Promise<void> => {
