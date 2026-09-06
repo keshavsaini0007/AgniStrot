@@ -28,7 +28,12 @@ export type AlertSeverity = "low" | "medium" | "high" | "critical";
 
 export type AlertStatus = "open" | "acknowledged" | "escalated" | "closed";
 
-export type WorkflowState = "assigned" | "reminded" | "escalated" | "resolved";
+export type WorkflowState =
+  | "assigned"
+  | "reminded"
+  | "acknowledged" // user acknowledged the alert — halts auto-escalation
+  | "escalated"
+  | "resolved";
 
 export type SourceType = "inspection" | "incident" | "attendance";
 
@@ -138,7 +143,10 @@ export interface IAlert {
   _id: Types.ObjectId;
   siteId: Types.ObjectId;
   sourceType: SourceType;
-  sourceId: Types.ObjectId;   // ID of the inspection/incident/attendance that triggered this
+  sourceId?: Types.ObjectId; // ID of the inspection/incident/attendance that triggered this (sync alerts only)
+  ruleKey: string;           // universal dedup key:
+                             //   sync alerts:  "sync:<sourceId>:<ruleCode>"
+                             //   batch alerts: "overdue:siteId:type", "anomaly:siteId:date", "repeat:siteId:ruleCode"
   ruleCode: RuleCode;
   severity: AlertSeverity;
   status: AlertStatus;

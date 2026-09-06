@@ -6,6 +6,7 @@ import Inspection from "../models/Inspection.js";
 import Incident from "../models/Incident.js";
 import Attendance from "../models/Attendance.js";
 import { evaluateRules } from "../services/ruleEngine.js";
+import { logAction } from "../services/auditLogger.js";
 import { syncBatchSchema } from "../validators/sync.validator.js";
 import {
   inspectionRecordSchema,
@@ -66,6 +67,20 @@ async function processRecord(
       const doc = result.value as { _id: Types.ObjectId } | undefined;
       if (doc) {
         const siteId = new Types.ObjectId(validated.siteId as string);
+        await logAction({
+          entityType: sourceType,
+          entityId: doc._id,
+          action: "created",
+          actorId: new Types.ObjectId(userId),
+          payload: {
+            siteId: validated.siteId,
+            type: validated.type,
+            severity: validated.severity,
+            category: validated.category,
+            workerRef: validated.workerRef,
+            checkType: validated.checkType,
+          },
+        });
         await evaluateRules(sourceType, doc._id, siteId, safeDoc);
       }
     } catch (ruleErr) {

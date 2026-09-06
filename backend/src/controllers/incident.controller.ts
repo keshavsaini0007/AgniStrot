@@ -17,7 +17,9 @@ export const listIncidents = async (
     // Build filter
     const filter: Record<string, unknown> = { ...scope };
 
-    if (q.siteId)   filter.siteId = q.siteId;
+    // Site-scoped users (mine_official) must never override their scope with
+    // a client-supplied ?siteId= — that would leak another site's incidents.
+    if (!filter.siteId && q.siteId) filter.siteId = q.siteId;
     if (q.severity) filter.severity = q.severity;
     if (q.category) filter.category = q.category;
     if (q.status)   filter.status = q.status;

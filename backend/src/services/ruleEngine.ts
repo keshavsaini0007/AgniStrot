@@ -2,6 +2,8 @@ import { Types } from "mongoose";
 import Alert from "../models/Alert.js";
 import User from "../models/User.js";
 import WorkflowState from "../models/WorkflowState.js";
+import { emitAlertEvent } from "../sockets/index.js";
+import { logAction } from "./auditLogger.js";
 import type {
   SourceType,
   AlertSeverity,
@@ -86,7 +88,7 @@ function evaluateAttendanceRules(_record: Record<string, unknown>): RuleResult[]
 // Three-level fallback to find a valid mine_official to assign the alert to.
 // Returns null only if no mine_official exists anywhere in the system.
 
-async function resolveAssignee(
+export async function resolveAssignee(
   siteId: Types.ObjectId
 ): Promise<Types.ObjectId | null> {
   // Level 1: mine_official for this specific site
@@ -137,23 +139,25 @@ export async function evaluateRules(
       continue;
     }
 
-    // ── Atomic upsert — fix Issue 4 race condition ─────────────────────────
-    // findOneAndUpdate with upsert is atomic: one request wins, the rest see
+    // ── Atomic upsert — one request wins, the rest see ─────────────────────
     // lastErrorObject.upserted = undefined and skip workflow creation.
+    // Dedup key = "sync:<sourceId>:<ruleCode>" — unique per record+rule.
+    const alertRuleKey = `sync:${sourceId.toString()}:${rule.ruleCode}`;
     const alertResult = await Alert.findOneAndUpdate(
-      { sourceId, ruleCode: rule.ruleCode },
+      { ruleKey: alertRuleKey },
       {
         $setOnInsert: {
           siteId,
           sourceType,
           sourceId,
+          ruleKey: alertRuleKey,
           ruleCode: rule.ruleCode,
           severity: rule.severity,
           status: "open" as AlertStatus,
           assignedTo,
         },
       },
-      { upsert: true, new: true, includeResultMetadata: true }
+      { upsert: true, returnDocument: "after", includeResultMetadata: true }
     );
 
     // If upserted is falsy, the alert already existed — skip workflow creation
@@ -169,6 +173,26 @@ export async function evaluateRules(
       alertId,
       state: "assigned" as WorkflowStateType,
       deadline,
+    });
+
+    emitAlertEvent("alert:new", siteId.toString(), {
+      alertId: alertId.toString(),
+      ruleCode: rule.ruleCode,
+      severity: rule.severity,
+      siteId: siteId.toString(),
+    });
+
+    await logAction({
+      entityType: "alert",
+      entityId: alertId,
+      action: "created",
+      payload: {
+        ruleCode: rule.ruleCode,
+        severity: rule.severity,
+        siteId: siteId.toString(),
+        sourceType,
+        sourceId: sourceId.toString(),
+      },
     });
 
     console.log(

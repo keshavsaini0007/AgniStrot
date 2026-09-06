@@ -18,9 +18,18 @@ const alertSchema = new Schema<IAlert>(
     },
     sourceId: {
       type: Schema.Types.ObjectId,
-      required: [true, "sourceId is required."],
       // points to the exact inspection/incident/attendance record that triggered this alert
-      // this is how every alert stays traceable — no black-box detection (PRD FR6 + NFR Explainability)
+      // this is how every sync alert stays traceable — no black-box detection (PRD FR6)
+      // undefined for batch/synthetic alerts (overdue/anomaly) — they derive from absence,
+      // and ruleKey identifies them instead.
+    },
+    ruleKey: {
+      type: String,
+      required: [true, "ruleKey is required."],
+      // universal dedup key — present on EVERY alert:
+      //   sync alerts:  "sync:<sourceId>:<ruleCode>" (idempotent re-evaluation)
+      //   batch alerts: "overdue:siteId:type", "anomaly:siteId:date", "repeat:siteId:ruleCode"
+      // Backed by the unique ruleKey_1 index — the DB-level dedup guarantee.
     },
     ruleCode: {
       type: String,
@@ -75,9 +84,15 @@ alertSchema.index({ severity: 1, status: 1 });
 // Workflow engine: "find alerts that are overdue and not yet escalated"
 alertSchema.index({ status: 1, createdAt: 1 });
 
-// Dedup safety net: one alert per (source record + rule) combination
-// This is the DB-level guarantee — application-level atomic upsert is the first line of defence
-alertSchema.index({ sourceId: 1, ruleCode: 1 }, { unique: true });
+// Query help: find alerts by source record + rule (sync dedup filter uses ruleKey)
+// NOTE: deliberately NOT unique — Mongo indexes missing fields as null on sparse
+// unique indexes, so a unique {sourceId, ruleCode} would collide batch alerts
+// (which have no sourceId). Unique dedup lives on ruleKey_1 instead.
+alertSchema.index({ sourceId: 1, ruleCode: 1 });
+
+// Universal dedup index — sync (sync:sourceId:ruleCode) + batch (derived keys).
+// Unique: no sparse needed — ruleKey is present on every alert.
+alertSchema.index({ ruleKey: 1 }, { unique: true });
 
 const Alert = model<IAlert>("Alert", alertSchema);
 

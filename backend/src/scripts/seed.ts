@@ -1,5 +1,6 @@
 import "dotenv/config";
 import mongoose from "mongoose";
+import { Types } from "mongoose";
 import { v4 as uuidv4 } from "uuid";
 import Site from "../models/Site.js";
 import User from "../models/User.js";
@@ -9,6 +10,10 @@ import Attendance from "../models/Attendance.js";
 import Alert from "../models/Alert.js";
 import WorkflowState from "../models/WorkflowState.js";
 import { evaluateRules } from "../services/ruleEngine.js";
+import { runBatchRules } from "../services/batchRules.js";
+import { runEscalations } from "../services/workflowEngine.js";
+import { ensureAlertIndexes } from "../config/db.js";
+import type { InspectionType } from "../types/index.js";
 
 // ── Seed Data ────────────────────────────────────────────────────────────────
 
@@ -62,6 +67,20 @@ const USERS = [
     role: "regulator" as const,
     siteIndex: null, // read-only
   },
+  {
+    name: "Kavita Verma",
+    email: "kavita@agnistrot.com",
+    password: "password123",
+    role: "mine_official" as const,
+    siteIndex: 1, // Rajpur — needed so batch alerts get a site-level assignee
+  },
+  {
+    name: "Ramesh Nair",
+    email: "ramesh@agnistrot.com",
+    password: "password123",
+    role: "mine_official" as const,
+    siteIndex: 2, // Dhanbad
+  },
 ];
 
 // ── Helper: random date within last N days ──────────────────────────────────
@@ -71,6 +90,11 @@ const randomDate = (daysAgo: number): Date => {
   const offset = Math.random() * daysAgo * 24 * 60 * 60 * 1000;
   return new Date(now - offset);
 };
+
+// ── Helper: exact date N days in the past (deterministic) ───────────────────
+
+const daysAgo = (days: number): Date =>
+  new Date(Date.now() - days * 24 * 60 * 60 * 1000);
 
 // ── Helper: pick random item from array ─────────────────────────────────────
 
@@ -91,7 +115,7 @@ const seed = async (): Promise<void> => {
   await mongoose.connect(uri);
   console.log("Connected to MongoDB for seeding.");
 
-  // ── Clear existing data ──────────────────────────────────────────────────
+  // ── Clear existing data (before index sync — avoids null-ruleKey collisions) ──
   await Site.deleteMany({});
   await User.deleteMany({});
   await Inspection.deleteMany({});
@@ -101,9 +125,14 @@ const seed = async (): Promise<void> => {
   await WorkflowState.deleteMany({});
   console.log("Cleared existing data (including alerts & workflows).");
 
+  // The {sourceId, ruleCode} unique index was originally shipped WITHOUT sparse;
+  // a previous seed's collisions were caused by that stale copy. Self-heal it.
+  await ensureAlertIndexes();
+
   // ── Create Sites ─────────────────────────────────────────────────────────
-  // Let TypeScript infer the return type — no explicit cast needed
   const sites = await Site.insertMany(SITES);
+  const [jharia, rajpur, dhanbad] = sites;
+  if (!jharia || !rajpur || !dhanbad) throw new Error("Expected 3 sites");
   console.log(`Created ${sites.length} sites.`);
 
   // ── Create Users ─────────────────────────────────────────────────────────
@@ -125,7 +154,13 @@ const seed = async (): Promise<void> => {
   console.log(`Created ${users.length} users.`);
 
   // ── Create Inspections ───────────────────────────────────────────────────
+  // DETERMINISTIC: explicit site + capturedAt per inspection so the batch
+  // rules fire exactly where the demo expects them (planned lapses → OVERDUE,
+  // 3x Jharia safety failures → REPEAT_VIOLATION).
   const fieldOfficers = users.filter((u) => u.role === "field_officer");
+  const rahul = fieldOfficers[0];
+  if (!rahul) throw new Error("Expected at least 1 field officer");
+
   const safetyChecklists = [
     [
       { item: "Fire extinguisher present and charged", result: "pass" as const },
@@ -175,65 +210,42 @@ const seed = async (): Promise<void> => {
     ],
   ];
 
+  const inspection = (
+    siteId: Types.ObjectId,
+    type: InspectionType,
+    checklist: Array<{ item: string; result: "pass" | "fail" | "na"; notes?: string }>,
+    capturedAt: Date
+  ) => ({
+    clientUuid: uuidv4(),
+    siteId,
+    inspectorId: rahul._id,
+    type,
+    checklist,
+    location: { lat: 23.7 + Math.random() * 0.5, lng: 86.4 + Math.random() * 0.5 },
+    photoUrls: [],
+    capturedAt,
+  });
+
+  // Interval note: production=1d, safety=7d, environmental=14d, labour=30d.
   const inspectionData = [
-    // 5 safety inspections (triggers SAFETY_CHECKLIST_FAIL for failed items)
-    ...Array.from({ length: 5 }, (_, i) => ({
-      clientUuid: uuidv4(),
-      siteId: pick(sites)._id,
-      inspectorId: pick(fieldOfficers)._id,
-      type: "safety" as const,
-      checklist: safetyChecklists[i % safetyChecklists.length],
-      location: { lat: 23.7 + Math.random() * 0.5, lng: 86.4 + Math.random() * 0.5 },
-      photoUrls: [],
-      capturedAt: randomDate(14),
-    })),
-    // 3 environmental inspections
-    ...Array.from({ length: 3 }, () => ({
-      clientUuid: uuidv4(),
-      siteId: pick(sites)._id,
-      inspectorId: pick(fieldOfficers)._id,
-      type: "environmental" as const,
-      checklist: otherChecklists[0],
-      location: { lat: 23.7 + Math.random() * 0.5, lng: 86.4 + Math.random() * 0.5 },
-      photoUrls: [],
-      capturedAt: randomDate(14),
-    })),
-    // 2 production inspections
-    ...Array.from({ length: 2 }, () => ({
-      clientUuid: uuidv4(),
-      siteId: pick(sites)._id,
-      inspectorId: pick(fieldOfficers)._id,
-      type: "production" as const,
-      checklist: otherChecklists[1],
-      location: { lat: 23.7 + Math.random() * 0.5, lng: 86.4 + Math.random() * 0.5 },
-      photoUrls: [],
-      capturedAt: randomDate(14),
-    })),
-    // 2 labour inspections (1 with missing result → triggers MISSING_MANDATORY_FIELD)
-    {
-      clientUuid: uuidv4(),
-      siteId: pick(sites)._id,
-      inspectorId: pick(fieldOfficers)._id,
-      type: "labour" as const,
-      checklist: otherChecklists[2],
-      location: { lat: 23.7 + Math.random() * 0.5, lng: 86.4 + Math.random() * 0.5 },
-      photoUrls: [],
-      capturedAt: randomDate(14),
-    },
-    {
-      clientUuid: uuidv4(),
-      siteId: pick(sites)._id,
-      inspectorId: pick(fieldOfficers)._id,
-      type: "labour" as const,
-      checklist: [
-        { item: "Worker safety training records", result: "pass" as const },
-        { item: "Working hours compliance", result: "pass" as const },
-        { item: "Wage disbursement records", result: "pass" as const },
-      ],
-      location: { lat: 23.7 + Math.random() * 0.5, lng: 86.4 + Math.random() * 0.5 },
-      photoUrls: [],
-      capturedAt: randomDate(14),
-    },
+    // ── Jharia: 3 safety checks with failures → REPEAT_VIOLATION (3 alerts) ──
+    inspection(jharia._id, "safety", safetyChecklists[4]!, daysAgo(5)),
+    inspection(jharia._id, "safety", safetyChecklists[0]!, daysAgo(3)),
+    inspection(jharia._id, "safety", safetyChecklists[1]!, daysAgo(1)),
+    // Jharia non-safety all within interval → no OVERDUE
+    inspection(jharia._id, "environmental", otherChecklists[0]!, daysAgo(6)),
+    inspection(jharia._id, "production", otherChecklists[1]!, new Date(Date.now() - 12 * 60 * 60 * 1000)),
+    inspection(jharia._id, "labour", otherChecklists[2]!, daysAgo(10)),
+    // ── Rajpur: safety fail (1 alert) + environmental lapsed 20d → OVERDUE ──
+    inspection(rajpur._id, "safety", safetyChecklists[1]!, daysAgo(2)),
+    inspection(rajpur._id, "environmental", otherChecklists[0]!, daysAgo(20)),
+    inspection(rajpur._id, "production", otherChecklists[1]!, new Date(Date.now() - 12 * 60 * 60 * 1000)),
+    inspection(rajpur._id, "labour", otherChecklists[2]!, daysAgo(5)),
+    // ── Dhanbad: production lapsed 2d + safety lapsed 10d → 2× OVERDUE ─────
+    inspection(dhanbad._id, "safety", safetyChecklists[3]!, daysAgo(10)), // all-pass → no sync alert
+    inspection(dhanbad._id, "production", otherChecklists[1]!, daysAgo(2)),
+    inspection(dhanbad._id, "environmental", otherChecklists[0]!, daysAgo(7)),
+    inspection(dhanbad._id, "labour", otherChecklists[2]!, daysAgo(25)),
   ];
 
   const inspections = await Inspection.insertMany(inspectionData);
@@ -241,11 +253,6 @@ const seed = async (): Promise<void> => {
 
   // ── Create Incidents ─────────────────────────────────────────────────────
   // Mix of severities to trigger CRITICAL_INCIDENT rule for critical ones
-  const [jharia, rajpur, dhanbad] = sites;
-  const [rahul] = fieldOfficers;
-  if (!jharia || !rajpur || !dhanbad) throw new Error("Expected 3 sites");
-  if (!rahul) throw new Error("Expected at least 1 field officer");
-
   const incidentData = [
     {
       clientUuid: uuidv4(),
@@ -364,11 +371,14 @@ const seed = async (): Promise<void> => {
       console.error(`Rule engine error for incident ${doc._id.toString()}:`, err);
     }
   }
-  const alertCount = await Alert.countDocuments();
+  const syncAlertCount = await Alert.countDocuments();
   const workflowCount = await WorkflowState.countDocuments();
-  console.log(`Rule engine produced ${alertCount} alerts and ${workflowCount} workflow states.`);
+  console.log(`Sync rules produced ${syncAlertCount} alerts and ${workflowCount} workflow states.`);
 
   // ── Create Attendance Records ────────────────────────────────────────────
+  // DETERMINISTIC: Rajpur's today's check-ins are ~49% below its 14-day
+  // average (→ ATTENDANCE_ANOMALY). Jharia stays stable (±30%). Dhanbad has
+  // only today's data — no 14-day baseline, so the rule skips it.
   const workerNames = [
     "Suresh Yadav", "Ramesh Verma", "Sanjay Gupta", "Manoj Kumar",
     "Deepak Singh", "Vikram Patel", "Rajesh Das", "Pankaj Mahto",
@@ -376,37 +386,67 @@ const seed = async (): Promise<void> => {
     "Arun Kisku", "Ravi Tudu", "Manish Soren",
   ];
 
-  const attendanceData = Array.from({ length: 25 }, (_, i) => {
-    const worker = workerNames[i % workerNames.length];
-    const site = pick(sites);
-    const isCheckOut = i % 3 === 0;
+  const attendanceData: Array<{
+    clientUuid: string;
+    siteId: Types.ObjectId;
+    workerRef: string;
+    checkType: "in" | "out";
+    location: { lat: number; lng: number };
+    capturedAt: Date;
+  }> = [];
 
-    // Pin first 8 records to today so the dashboard has present > 0
-    let capturedAt: Date;
-    if (i < 8) {
-      const today = new Date();
-      const hour = 7 + (i % 4) * 2; // 7:00, 9:00, 11:00, 13:00
-      today.setHours(hour, Math.floor(Math.random() * 60), 0, 0);
-      capturedAt = today;
-    } else {
-      capturedAt = randomDate(3);
-      if (isCheckOut) {
-        capturedAt.setHours(capturedAt.getHours() + 8);
-      }
+  // One shared timestamp per day → Attendance.distinct counts distinct DAYS
+  // (the daily-average divisor), not individual records.
+  const pushDay = (
+    site: { _id: Types.ObjectId; location: { lat: number; lng: number } },
+    dayOffset: number,
+    hour: number,
+    count: number,
+    checkType: "in" | "out"
+  ): void => {
+    const base = new Date();
+    base.setDate(base.getDate() - dayOffset);
+    base.setHours(hour, 0, 0, 0);
+    for (let j = 0; j < count; j++) {
+      attendanceData.push({
+        clientUuid: uuidv4(),
+        siteId: site._id,
+        workerRef: pick(workerNames),
+        checkType,
+        location: {
+          lat: site.location.lat + Math.random() * 0.01,
+          lng: site.location.lng + Math.random() * 0.01,
+        },
+        capturedAt: new Date(base),
+      });
     }
+  };
 
-    return {
-      clientUuid: uuidv4(),
-      siteId: site._id,
-      workerRef: worker,
-      checkType: (isCheckOut ? "out" : "in") as "in" | "out",
-      location: { lat: site.location.lat + Math.random() * 0.01, lng: site.location.lng + Math.random() * 0.01 },
-      capturedAt,
-    };
-  });
+  // Rajpur: 11 working days × 35 in (~avg 35), today 18 in → 49% below
+  for (let i = 1; i <= 11; i++) pushDay(rajpur, i, 7, 35, "in");
+  pushDay(rajpur, 0, 7, 18, "in");
+  pushDay(rajpur, 0, 9, 3, "out");
+  // Jharia: 6 days × 40 + today 42 in → within ±30% (no alert)
+  for (let i = 1; i <= 6; i++) pushDay(jharia, i, 7, 40, "in");
+  pushDay(jharia, 0, 7, 42, "in");
+  pushDay(jharia, 0, 9, 4, "out");
+  // Dhanbad: today only (no baseline → rule skips)
+  pushDay(dhanbad, 0, 7, 25, "in");
+  pushDay(dhanbad, 0, 9, 2, "out");
 
   const attendance = await Attendance.insertMany(attendanceData);
   console.log(`Created ${attendance.length} attendance records.`);
+
+  // ── Run batch rules + one escalation pass ────────────────────────────────
+  // batchRules derives OVERDUE_INSPECTION, ATTENDANCE_ANOMALY and
+  // REPEAT_VIOLATION alerts from the aggregate data (idempotent via ruleKey).
+  // runEscalations is a no-op right after seed (all deadlines are in the
+  // future) but proves the cron pipeline works end-to-end.
+  await runBatchRules();
+  await runEscalations();
+  const finalAlerts = await Alert.countDocuments();
+  const finalWorkflows = await WorkflowState.countDocuments();
+  console.log(`After batch rules: ${finalAlerts} alerts, ${finalWorkflows} workflow states.`);
 
   // ── Summary ──────────────────────────────────────────────────────────────
   console.log("\n── Seed Complete ──────────────────────────────────────");
@@ -415,10 +455,13 @@ const seed = async (): Promise<void> => {
   console.log(`Inspections: ${inspections.length}`);
   console.log(`Incidents:   ${incidents.length}`);
   console.log(`Attendance:  ${attendance.length}`);
+  console.log(`Alerts:      ${finalAlerts} (${finalAlerts - syncAlertCount} from batch rules)`);
   console.log("──────────────────────────────────────────────────────");
   console.log("\nDemo accounts:");
   console.log("  Field Officer:  rahul@agnistrot.com / password123");
   console.log("  Mine Official:  priya@agnistrot.com / password123");
+  console.log("  Mine Official:  kavita@agnistrot.com / password123");
+  console.log("  Mine Official:  ramesh@agnistrot.com / password123");
   console.log("  Corporate:      amit@agnistrot.com / password123");
   console.log("  Regulator:      meena@agnistrot.com / password123");
 };
