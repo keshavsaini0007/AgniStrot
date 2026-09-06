@@ -1,6 +1,7 @@
 import "dotenv/config";
 import express from "express";
 import cors from "cors";
+import cron from "node-cron";
 import connectDB from "./config/db.js";
 import { connectCloudinary } from "./config/cloudinary.js";
 import authRoutes from "./routes/auth.js";
@@ -11,6 +12,8 @@ import mediaRoutes from "./routes/media.js";
 import alertRoutes from "./routes/alerts.js";
 import dashboardRoutes from "./routes/dashboard.js";
 import { authenticate } from "./middleware/auth.js";
+import { runBatchRules } from "./services/batchRules.js";
+import { runEscalations } from "./services/workflowEngine.js";
 
 const app = express();
 const PORT = process.env.PORT ?? 5000;
@@ -39,6 +42,18 @@ app.use("/api/v1/dashboard", authenticate, dashboardRoutes);
 const start = async (): Promise<void> => {
   await connectDB();
   connectCloudinary();
+
+  // ── Scheduler: batch rules + workflow escalation every 15 minutes ───────
+  // Idempotent by design (ruleKey upserts + state-transition guards).
+  cron.schedule("*/15 * * * *", async () => {
+    try {
+      await runBatchRules();
+      await runEscalations();
+    } catch (err) {
+      console.error("Scheduled task error:", err);
+    }
+  });
+  console.log("Scheduler started: batch rules + escalations every 15 minutes.");
 
   app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
