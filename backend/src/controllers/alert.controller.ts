@@ -17,7 +17,7 @@ export const listAlerts = async (
 ): Promise<void> => {
   try {
     const q = req.query as unknown as ListAlertsQuery;
-    const scope = buildScope(req, "inspection"); // scope.siteId for mine_official
+    const scope = buildScope(req, "alert"); // scope.siteId for mine_official
 
     const filter: Record<string, unknown> = { ...scope };
 

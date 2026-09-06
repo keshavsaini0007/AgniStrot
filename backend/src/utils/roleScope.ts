@@ -9,12 +9,21 @@ export const ALERT_ROLES: readonly UserRole[] = [
   "regulator",
 ];
 
+// ── Deny-by-default sentinel ─────────────────────────────────────────────────
+// A 24-hex ObjectId that never matches any real document. Site-scoped roles with
+// no site binding get this instead of an empty filter — an empty filter would
+// match EVERYTHING, leaking all sites' data to an unbound official.
+
+const IMPOSSIBLE_ID = new Types.ObjectId("000000000000000000000000");
+
 // ── Scope filter built from the authenticated user ─────────────────────────
 // Returns a MongoDB filter scoped to what the user is allowed to see.
 //
-// mine_official  → only data at their site
+// mine_official  → only data at their site (none if the site is unbound)
 // field_officer  → only their own submissions
 // corporate/regulator → no filter (all data)
+
+export type ScopeResource = "inspection" | "incident" | "alert";
 
 type ScopeFilter = {
   siteId?: Types.ObjectId;
@@ -24,7 +33,7 @@ type ScopeFilter = {
 
 export function buildScope(
   req: Request,
-  resource: "inspection" | "incident"
+  resource: ScopeResource
 ): ScopeFilter {
   const user = req.user;
 
@@ -32,14 +41,16 @@ export function buildScope(
 
   switch (user.role) {
     case "mine_official":
+      // Deny-by-default: an official with no site binding sees no site data.
       return user.siteId
         ? { siteId: new Types.ObjectId(user.siteId) }
-        : {};
+        : { siteId: IMPOSSIBLE_ID };
 
     case "field_officer":
-      return resource === "inspection"
-        ? { inspectorId: new Types.ObjectId(user.id) }
-        : { reportedBy: new Types.ObjectId(user.id) };
+      if (resource === "inspection") return { inspectorId: new Types.ObjectId(user.id) };
+      if (resource === "incident") return { reportedBy: new Types.ObjectId(user.id) };
+      // alerts have no inspector concept — fail closed if ever granted
+      return { inspectorId: IMPOSSIBLE_ID };
 
     case "corporate_manager":
     case "regulator":

@@ -62,6 +62,14 @@ export const register = async (req: Request, res: Response): Promise<void> => {
   try {
     const { name, email, password, role, siteId } = req.body as RegisterInput;
 
+    // Site-scoped roles must be bound to a site — otherwise buildScope would
+    // deny them data (see roleScope.ts), and a floating official is a misconfig.
+    const siteScoped = role === "mine_official" || role === "field_officer";
+    if (siteScoped && !siteId) {
+      res.status(400).json({ error: `siteId is required for role "${role}".` });
+      return;
+    }
+
     const existing = await User.findOne({ email });
     if (existing) {
       res.status(409).json({ error: "A user with this email already exists." });
