@@ -47,8 +47,12 @@ export const validateQuery =
       return;
     }
 
-    // Replace req.query with the parsed (safe) value
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (req as any).query = result.data;
+    // Merge the parsed (safe) value into req.query. Express 5 defines req.query
+    // as a getter-only property — reassigning it throws TypeError, so we mutate
+    // the existing object in place (coerced values + defaults overwrite originals).
+    Object.assign(
+      req.query as Record<string, unknown>,
+      result.data as Record<string, unknown>
+    );
     next();
   };

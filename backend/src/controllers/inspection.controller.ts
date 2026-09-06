@@ -17,7 +17,9 @@ export const listInspections = async (
     // Build filter
     const filter: Record<string, unknown> = { ...scope };
 
-    if (q.siteId)  filter.siteId = q.siteId;
+    // Site-scoped users (mine_official) must never override their scope with
+    // a client-supplied ?siteId= — that would leak another site's inspections.
+    if (!filter.siteId && q.siteId) filter.siteId = q.siteId;
     if (q.type)    filter.type = q.type;
     if (q.from || q.to) {
       filter.capturedAt = {};

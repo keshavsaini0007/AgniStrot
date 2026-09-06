@@ -17,7 +17,9 @@ export const listAlerts = async (
 
     const filter: Record<string, unknown> = { ...scope };
 
-    if (q.siteId)   filter.siteId = q.siteId;
+    // Site-scoped users (mine_official) must never override their scope with
+    // a client-supplied ?siteId= — that would leak another site's alerts.
+    if (!filter.siteId && q.siteId) filter.siteId = q.siteId;
     if (q.severity) filter.severity = q.severity;
     if (q.ruleCode) filter.ruleCode = q.ruleCode;
     if (q.status)   filter.status = q.status;
@@ -31,17 +33,21 @@ export const listAlerts = async (
       .populate("assignedTo", "name")
       .lean();
 
-    const data = rows.map((r) => ({
-      id: (r._id as unknown as string).toString(),
-      siteId: (r.siteId as unknown as string).toString(),
-      siteName: (r.siteId as unknown as { name: string })?.name ?? "Unknown",
-      sourceType: r.sourceType,
-      ruleCode: r.ruleCode,
-      severity: r.severity,
-      status: r.status,
-      assignedToName: (r.assignedTo as unknown as { name: string })?.name ?? "Unassigned",
-      createdAt: r.createdAt,
-    }));
+    const data = rows.map((r) => {
+      // siteId is populated (lean), so it's a { _id, name } ref, not a bare ObjectId
+      const siteRef = (r.siteId as unknown as { _id?: string; name?: string }) ?? {};
+      return {
+        id: (r._id as unknown as string).toString(),
+        siteId: (siteRef._id ?? (r.siteId as unknown as string)).toString(),
+        siteName: siteRef.name ?? "Unknown",
+        sourceType: r.sourceType,
+        ruleCode: r.ruleCode,
+        severity: r.severity,
+        status: r.status,
+        assignedToName: (r.assignedTo as unknown as { name: string })?.name ?? "Unassigned",
+        createdAt: r.createdAt,
+      };
+    });
 
     res.json({ data });
   } catch (err) {
