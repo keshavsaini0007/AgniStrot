@@ -22,7 +22,11 @@ import type {
 const ESCALATION_MULTIPLIER = 0.25;
 
 // Latest workflow state per alert, joined with the alert's severity.
+// The FIRST stage is a $match that bounds the working set to actionable rows
+// (assigned/reminded) — acknowledged/escalated/resolved entries are excluded
+// BEFORE the sort, so the sort/group/$lookup never scan full history.
 const LATEST_STATE_PIPELINE = [
+  { $match: { state: { $in: ["assigned", "reminded"] } } },
   { $sort: { changedAt: -1 } },
   {
     $group: {
@@ -49,7 +53,7 @@ export async function runEscalations(): Promise<void> {
   const dueAssigned = await WorkflowState.aggregate([
     ...LATEST_STATE_PIPELINE,
     { $match: { state: "assigned", deadline: { $lt: now } } },
-  ]);
+  ]).allowDiskUse(true);
 
   for (const ws of dueAssigned) {
     await escalateWorkflow(ws._id as Types.ObjectId, "reminded");
@@ -59,7 +63,7 @@ export async function runEscalations(): Promise<void> {
   const dueEscalation = await WorkflowState.aggregate([
     ...LATEST_STATE_PIPELINE,
     { $match: { state: "reminded" } },
-  ]);
+  ]).allowDiskUse(true);
 
   for (const ws of dueEscalation) {
     const severity = ws.severity as AlertSeverity | undefined;

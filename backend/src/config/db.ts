@@ -1,5 +1,7 @@
 import mongoose from "mongoose";
 import Alert from "../models/Alert.js";
+import WorkflowState from "../models/WorkflowState.js";
+import AuditLog from "../models/AuditLog.js";
 
 // ── Index sync ───────────────────────────────────────────────────────────────
 // MongoDB's createIndex() does NOT rebuild an index whose key pattern already
@@ -14,6 +16,8 @@ import Alert from "../models/Alert.js";
 
 async function fixAlertIndexes(): Promise<void> {
   await Alert.syncIndexes();
+  await WorkflowState.syncIndexes();
+  await AuditLog.syncIndexes();
   console.log("Alert indexes synced with schema.");
 }
 
