@@ -86,7 +86,7 @@ function evaluateAttendanceRules(_record: Record<string, unknown>): RuleResult[]
 // Three-level fallback to find a valid mine_official to assign the alert to.
 // Returns null only if no mine_official exists anywhere in the system.
 
-async function resolveAssignee(
+export async function resolveAssignee(
   siteId: Types.ObjectId
 ): Promise<Types.ObjectId | null> {
   // Level 1: mine_official for this specific site
