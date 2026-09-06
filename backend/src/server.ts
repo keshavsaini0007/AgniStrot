@@ -12,6 +12,7 @@ import attendanceRoutes from "./routes/attendance.js";
 import mediaRoutes from "./routes/media.js";
 import alertRoutes from "./routes/alerts.js";
 import dashboardRoutes from "./routes/dashboard.js";
+import auditRoutes from "./routes/audit.js";
 import { authenticate } from "./middleware/auth.js";
 import { runBatchRules } from "./services/batchRules.js";
 import { runEscalations } from "./services/workflowEngine.js";
@@ -40,6 +41,7 @@ app.use("/api/v1/attendance", authenticate, attendanceRoutes);
 app.use("/api/v1/media", authenticate, mediaRoutes);
 app.use("/api/v1/alerts", authenticate, alertRoutes);
 app.use("/api/v1/dashboard", authenticate, dashboardRoutes);
+app.use("/api/v1/audit", authenticate, auditRoutes);
 
 // ── Start server ───────────────────────────────────────────
 const start = async (): Promise<void> => {

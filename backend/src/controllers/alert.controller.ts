@@ -3,6 +3,7 @@ import { Types } from "mongoose";
 import Alert from "../models/Alert.js";
 import WorkflowState from "../models/WorkflowState.js";
 import { buildScope } from "../utils/roleScope.js";
+import { logAction } from "../services/auditLogger.js";
 import { ALERT_DEADLINES } from "../types/index.js";
 import type { ListAlertsQuery } from "../validators/query.validator.js";
 
@@ -118,6 +119,15 @@ export const acknowledgeAlert = async (
     });
     await Alert.updateOne({ _id: alertId }, { status: "acknowledged" });
 
+    const { note } = req.body as { note?: string };
+    await logAction({
+      entityType: "alert",
+      entityId: new Types.ObjectId(alertId),
+      action: "acknowledged",
+      actorId: new Types.ObjectId(req.user!.id),
+      payload: { fromStatus: alert.status, note },
+    });
+
     res.json({ alertId, status: "acknowledged" });
   } catch (err) {
     console.error("Acknowledge alert error:", err);
@@ -162,6 +172,15 @@ export const resolveAlert = async (
       changedBy: new Types.ObjectId(req.user!.id),
     });
     await Alert.updateOne({ _id: alertId }, { status: "closed" });
+
+    const { resolutionNote } = req.body as { resolutionNote?: string };
+    await logAction({
+      entityType: "alert",
+      entityId: new Types.ObjectId(alertId),
+      action: "resolved",
+      actorId: new Types.ObjectId(req.user!.id),
+      payload: { fromStatus: alert.status, resolutionNote },
+    });
 
     res.json({ alertId, status: "closed" });
   } catch (err) {

@@ -4,6 +4,7 @@ import Alert from "../models/Alert.js";
 import Inspection from "../models/Inspection.js";
 import Attendance from "../models/Attendance.js";
 import { resolveAssignee } from "./ruleEngine.js";
+import { logAction } from "./auditLogger.js";
 import { emitAlertEvent } from "../sockets/index.js";
 import { INSPECTION_INTERVALS, ALERT_DEADLINES } from "../types/index.js";
 import type {
@@ -209,6 +210,18 @@ async function createBatchAlert(input: BatchAlertInput): Promise<void> {
     ruleCode: input.ruleCode,
     severity: input.severity,
     siteId: input.siteId.toString(),
+  });
+
+  await logAction({
+    entityType: "alert",
+    entityId: alertId,
+    action: "created",
+    payload: {
+      ruleCode: input.ruleCode,
+      severity: input.severity,
+      siteId: input.siteId.toString(),
+      derived: true,
+    },
   });
 
   console.log(

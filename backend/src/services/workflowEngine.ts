@@ -2,6 +2,7 @@ import { Types } from "mongoose";
 import WorkflowState from "../models/WorkflowState.js";
 import Alert from "../models/Alert.js";
 import { emitAlertEvent } from "../sockets/index.js";
+import { logAction } from "./auditLogger.js";
 import { ALERT_DEADLINES } from "../types/index.js";
 import type {
   WorkflowState as WorkflowStateType,
@@ -104,6 +105,13 @@ async function escalateWorkflow(
     alertId,
     state: newState as WorkflowStateType,
     deadline: current.deadline,
+  });
+
+  await logAction({
+    entityType: "alert",
+    entityId: alertId,
+    action: newState === "escalated" ? "escalated" : "reminded",
+    payload: { fromState: current.state, toState: newState },
   });
 
   if (newState === "escalated") {

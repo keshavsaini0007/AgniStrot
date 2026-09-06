@@ -3,6 +3,7 @@ import Alert from "../models/Alert.js";
 import User from "../models/User.js";
 import WorkflowState from "../models/WorkflowState.js";
 import { emitAlertEvent } from "../sockets/index.js";
+import { logAction } from "./auditLogger.js";
 import type {
   SourceType,
   AlertSeverity,
@@ -179,6 +180,19 @@ export async function evaluateRules(
       ruleCode: rule.ruleCode,
       severity: rule.severity,
       siteId: siteId.toString(),
+    });
+
+    await logAction({
+      entityType: "alert",
+      entityId: alertId,
+      action: "created",
+      payload: {
+        ruleCode: rule.ruleCode,
+        severity: rule.severity,
+        siteId: siteId.toString(),
+        sourceType,
+        sourceId: sourceId.toString(),
+      },
     });
 
     console.log(

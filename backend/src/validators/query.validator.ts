@@ -59,3 +59,15 @@ export const listAlertsSchema = z.object({
 });
 
 export type ListAlertsQuery = z.infer<typeof listAlertsSchema>;
+
+// ── Audit trail list query ───────────────────────────────────────────────────
+
+export const listAuditSchema = z.object({
+  entityType: z
+    .enum(["inspection", "incident", "attendance", "alert"])
+    .optional(),
+  entityId: z.string().regex(objectIdRegex, "Invalid entityId").optional(),
+  limit: z.coerce.number().int().min(1).max(500).default(200),
+});
+
+export type ListAuditQuery = z.infer<typeof listAuditSchema>;
