@@ -15,6 +15,10 @@ import AuditLog from "../models/AuditLog.js";
 // which is present on every alert.
 
 async function fixAlertIndexes(): Promise<void> {
+  // Pre-ruleKey alerts (inserted before the dedup field existed) have ruleKey:
+  // null in the DB. The unique ruleKey_1 index can't be reconciled until they
+  // are cleaned up — delete them first, then sync.
+  await Alert.deleteMany({ ruleKey: null });
   await Alert.syncIndexes();
   await WorkflowState.syncIndexes();
   await AuditLog.syncIndexes();

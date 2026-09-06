@@ -115,11 +115,7 @@ const seed = async (): Promise<void> => {
   await mongoose.connect(uri);
   console.log("Connected to MongoDB for seeding.");
 
-  // The {sourceId, ruleCode} unique index was originally shipped WITHOUT sparse;
-  // a previous seed's collisions were caused by that stale copy. Self-heal it.
-  await ensureAlertIndexes();
-
-  // ── Clear existing data ──────────────────────────────────────────────────
+  // ── Clear existing data (before index sync — avoids null-ruleKey collisions) ──
   await Site.deleteMany({});
   await User.deleteMany({});
   await Inspection.deleteMany({});
@@ -128,6 +124,10 @@ const seed = async (): Promise<void> => {
   await Alert.deleteMany({});
   await WorkflowState.deleteMany({});
   console.log("Cleared existing data (including alerts & workflows).");
+
+  // The {sourceId, ruleCode} unique index was originally shipped WITHOUT sparse;
+  // a previous seed's collisions were caused by that stale copy. Self-heal it.
+  await ensureAlertIndexes();
 
   // ── Create Sites ─────────────────────────────────────────────────────────
   const sites = await Site.insertMany(SITES);
