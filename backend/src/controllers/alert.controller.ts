@@ -105,7 +105,7 @@ export const acknowledgeAlert = async (
       res.status(403).json({ error: "Not authorized for this alert." });
       return;
     }
-    if (alert.status === "closed" || alert.status === "escalated") {
+    if (alert.status === "closed" || alert.status === "escalated" || alert.status === "acknowledged") {
       res.status(409).json({ error: `Alert is already ${alert.status}; acknowledging is not allowed.` });
       return;
     }

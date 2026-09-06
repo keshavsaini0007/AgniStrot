@@ -1,11 +1,11 @@
 import "dotenv/config";
 import type { Types } from "mongoose";
-import connectDB from "./src/config/db.js";
-import AuditLog from "./src/models/AuditLog.js";
+import connectDB from "../config/db.js";
+import AuditLog from "../models/AuditLog.js";
 import {
   GENESIS_HASH,
   computeThisHash,
-} from "./src/services/auditLogger.js";
+} from "../services/auditLogger.js";
 
 // ── Audit trail verification ─────────────────────────────────────────────────
 // Recomputes the hash chain from the stored (insertion-order) entries and
@@ -44,7 +44,7 @@ type Row = {
       entityType: row.entityType,
       entityId: row.entityId,
       action: row.action,
-      actorId: row.actorId ?? undefined,
+      ...(row.actorId ? { actorId: row.actorId } : {}),
       payload: row.payload,
       prevHash: row.prevHash,
       createdAt: row.createdAt,
