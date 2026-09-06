@@ -138,7 +138,8 @@ export interface IAlert {
   _id: Types.ObjectId;
   siteId: Types.ObjectId;
   sourceType: SourceType;
-  sourceId: Types.ObjectId;   // ID of the inspection/incident/attendance that triggered this
+  sourceId?: Types.ObjectId;  // ID of the inspection/incident/attendance that triggered this (sync alerts only)
+  ruleKey?: string;           // batch/synthetic alerts: e.g. "overdue:siteId:type", "anomaly:siteId:date"
   ruleCode: RuleCode;
   severity: AlertSeverity;
   status: AlertStatus;

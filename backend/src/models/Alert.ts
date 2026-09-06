@@ -18,9 +18,15 @@ const alertSchema = new Schema<IAlert>(
     },
     sourceId: {
       type: Schema.Types.ObjectId,
-      required: [true, "sourceId is required."],
       // points to the exact inspection/incident/attendance record that triggered this alert
-      // this is how every alert stays traceable — no black-box detection (PRD FR6 + NFR Explainability)
+      // this is how every sync alert stays traceable — no black-box detection (PRD FR6)
+      // undefined for batch/synthetic alerts (overdue/anomaly) — they derive from absence,
+      // and ruleKey identifies them instead.
+    },
+    ruleKey: {
+      type: String,
+      // batch/synthetic alerts only — lets idempotent re-firing per site-type-day
+      // without needing a real source record. Sync alerts leave this undefined.
     },
     ruleCode: {
       type: String,
@@ -76,8 +82,13 @@ alertSchema.index({ severity: 1, status: 1 });
 alertSchema.index({ status: 1, createdAt: 1 });
 
 // Dedup safety net: one alert per (source record + rule) combination
+// Sparse: batch alerts (no sourceId) are excluded and dedupe on ruleKey instead.
 // This is the DB-level guarantee — application-level atomic upsert is the first line of defence
-alertSchema.index({ sourceId: 1, ruleCode: 1 }, { unique: true });
+alertSchema.index({ sourceId: 1, ruleCode: 1 }, { unique: true, sparse: true });
+
+// Batch alerts (overdue/anomaly) have no source record — dedupe on ruleKey instead.
+// Sparse: sync alerts (no ruleKey) are excluded from the unique constraint.
+alertSchema.index({ ruleKey: 1 }, { unique: true, sparse: true });
 
 const Alert = model<IAlert>("Alert", alertSchema);
 
