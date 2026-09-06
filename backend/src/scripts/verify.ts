@@ -307,8 +307,11 @@ async function battery(
   }
   check("mine_official GET /audit → 403", (await get(priya, "/audit")).status === 403);
   check("invalid entityType → 400", (await get(meena, "/audit?entityType=banana")).status === 400);
-  const auditFiltered = (await get(meena, "/audit?entityType=alert")).body as { data: unknown[] };
-  check("?entityType=alert filter matches", auditFiltered.data.length === (auditRows?.length ?? -1));
+  const auditFiltered = (await get(meena, "/audit?entityType=alert")).body as { data: { entityType?: string }[] };
+  const onlyAlerts = auditFiltered.data.length > 0 && auditFiltered.data.every((r) => r.entityType === "alert");
+  check("?entityType=alert returns only alert entries",
+      onlyAlerts && auditFiltered.data.length <= (auditRows?.length ?? -1),
+      JSON.stringify({ filtered: auditFiltered.data.length, unfiltered: auditRows?.length }));
 
   // ── F4: scoping + register guard ─────────────────────────────────────────
   console.log("\n== [F4] deny-by-default scoping ==");
