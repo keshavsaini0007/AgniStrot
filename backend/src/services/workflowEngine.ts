@@ -1,6 +1,7 @@
 import { Types } from "mongoose";
 import WorkflowState from "../models/WorkflowState.js";
 import Alert from "../models/Alert.js";
+import { emitAlertEvent } from "../sockets/index.js";
 import { ALERT_DEADLINES } from "../types/index.js";
 import type {
   WorkflowState as WorkflowStateType,
@@ -80,7 +81,7 @@ async function escalateWorkflow(
   newState: "reminded" | "escalated"
 ): Promise<void> {
   // Guard: alert must still be un-closed and not already escalated
-  const alert = await Alert.findById(alertId).select("status");
+  const alert = await Alert.findById(alertId).select("status siteId");
   if (!alert) return;
   if (alert.status === "closed" || alert.status === "escalated") return;
 
@@ -103,6 +104,10 @@ async function escalateWorkflow(
 
   if (newState === "escalated") {
     await Alert.updateOne({ _id: alertId }, { status: "escalated" });
+    emitAlertEvent("alert:escalated", (alert.siteId as Types.ObjectId).toString(), {
+      alertId: alertId.toString(),
+      state: "escalated",
+    });
     console.warn(
       `[workflowEngine] Alert ${alertId.toString()} ESCALATED — deadline passed and no action taken.`
     );

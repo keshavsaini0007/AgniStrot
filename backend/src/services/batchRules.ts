@@ -4,6 +4,7 @@ import Alert from "../models/Alert.js";
 import Inspection from "../models/Inspection.js";
 import Attendance from "../models/Attendance.js";
 import { resolveAssignee } from "./ruleEngine.js";
+import { emitAlertEvent } from "../sockets/index.js";
 import { INSPECTION_INTERVALS, ALERT_DEADLINES } from "../types/index.js";
 import type {
   InspectionType,
@@ -201,6 +202,13 @@ async function createBatchAlert(input: BatchAlertInput): Promise<void> {
     alertId,
     state: "assigned" as WorkflowStateType,
     deadline: new Date(Date.now() + deadlineMs),
+  });
+
+  emitAlertEvent("alert:new", input.siteId.toString(), {
+    alertId: alertId.toString(),
+    ruleCode: input.ruleCode,
+    severity: input.severity,
+    siteId: input.siteId.toString(),
   });
 
   console.log(

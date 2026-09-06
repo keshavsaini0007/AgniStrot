@@ -12,6 +12,22 @@ declare global {
   }
 }
 
+// ── verifyToken ─────────────────────────────────────────────────────────────
+// Shared token verification — used by Express `authenticate` and by the
+// Socket.io handshake middleware. Returns the decoded payload or null.
+
+export const verifyToken = (token: string): JwtPayload | null => {
+  const secret = process.env.JWT_SECRET;
+
+  if (!secret) return null;
+
+  try {
+    return jwt.verify(token, secret) as JwtPayload;
+  } catch {
+    return null;
+  }
+};
+
 // ── authenticate ───────────────────────────────────────────────────────────
 // Verifies the JWT from the Authorization header.
 // Attaches decoded payload to req.user.
@@ -36,20 +52,15 @@ export const authenticate = (
     return;
   }
 
-  const secret = process.env.JWT_SECRET;
+  const user = verifyToken(token);
 
-  if (!secret) {
-    res.status(500).json({ error: "Server misconfiguration: JWT_SECRET missing." });
+  if (!user) {
+    res.status(401).json({ error: "Invalid or expired token." });
     return;
   }
 
-  try {
-    const decoded = jwt.verify(token, secret) as JwtPayload;
-    req.user = decoded;
-    next();
-  } catch {
-    res.status(401).json({ error: "Invalid or expired token." });
-  }
+  req.user = user;
+  next();
 };
 
 // ── authorize ──────────────────────────────────────────────────────────────

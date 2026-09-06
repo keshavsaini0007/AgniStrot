@@ -1,4 +1,5 @@
 import "dotenv/config";
+import { createServer } from "http";
 import express from "express";
 import cors from "cors";
 import cron from "node-cron";
@@ -14,8 +15,10 @@ import dashboardRoutes from "./routes/dashboard.js";
 import { authenticate } from "./middleware/auth.js";
 import { runBatchRules } from "./services/batchRules.js";
 import { runEscalations } from "./services/workflowEngine.js";
+import { initSocket } from "./sockets/index.js";
 
 const app = express();
+const httpServer = createServer(app);
 const PORT = process.env.PORT ?? 5000;
 
 // ── Basic middleware ───────────────────────────────────────
@@ -54,8 +57,10 @@ const start = async (): Promise<void> => {
     }
   });
   console.log("Scheduler started: batch rules + escalations every 15 minutes.");
+  initSocket(httpServer);
+  console.log("Socket.io initialized.");
 
-  app.listen(PORT, () => {
+  httpServer.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
   });
 };

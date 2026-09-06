@@ -2,6 +2,7 @@ import { Types } from "mongoose";
 import Alert from "../models/Alert.js";
 import User from "../models/User.js";
 import WorkflowState from "../models/WorkflowState.js";
+import { emitAlertEvent } from "../sockets/index.js";
 import type {
   SourceType,
   AlertSeverity,
@@ -169,6 +170,13 @@ export async function evaluateRules(
       alertId,
       state: "assigned" as WorkflowStateType,
       deadline,
+    });
+
+    emitAlertEvent("alert:new", siteId.toString(), {
+      alertId: alertId.toString(),
+      ruleCode: rule.ruleCode,
+      severity: rule.severity,
+      siteId: siteId.toString(),
     });
 
     console.log(
