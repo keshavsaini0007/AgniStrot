@@ -1,6 +1,9 @@
 import type { Request, Response } from "express";
+import { Types } from "mongoose";
 import Alert from "../models/Alert.js";
+import WorkflowState from "../models/WorkflowState.js";
 import { buildScope } from "../utils/roleScope.js";
+import { ALERT_DEADLINES } from "../types/index.js";
 import type { ListAlertsQuery } from "../validators/query.validator.js";
 
 // ── GET /api/v1/alerts ─────────────────────────────────────────────────────
@@ -52,6 +55,117 @@ export const listAlerts = async (
     res.json({ data });
   } catch (err) {
     console.error("List alerts error:", err);
+    res.status(500).json({ error: "Internal server error." });
+  }
+};
+
+// ── Escalation guard ─────────────────────────────────────────────────────────
+// mine_official may only act on alerts at their own site; corporate_manager and
+// regulator may act on any alert. field_officer is blocked at the route level.
+
+function canActOnAlert(req: Request, siteId: Types.ObjectId): boolean {
+  const user = req.user;
+  if (!user) return false;
+  if (user.role === "corporate_manager" || user.role === "regulator") return true;
+  if (user.role === "mine_official" && user.siteId) return siteId.toString() === user.siteId;
+  return false;
+}
+
+async function latestDeadline(alertId: string): Promise<Date | null> {
+  const row = await WorkflowState.find({ alertId })
+    .sort({ changedAt: -1 })
+    .limit(1)
+    .lean();
+  return row[0]?.deadline ?? null;
+}
+
+// ── POST /api/v1/alerts/:id/acknowledge ──────────────────────────────────────
+// Halts further auto-escalation. Appends an acknowledged workflow entry so the
+// escalation aggregate (latest state per alert) naturally drops it from the
+// assigned/reminded working set.
+
+export const acknowledgeAlert = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const alertId = String((req.params as { id?: string }).id ?? "");
+    if (!/^[a-f\d]{24}$/i.test(alertId)) {
+      res.status(400).json({ error: "Invalid alert id." });
+      return;
+    }
+
+    const alert = await Alert.findById(alertId).select("siteId severity status");
+    if (!alert) {
+      res.status(404).json({ error: "Alert not found." });
+      return;
+    }
+    if (!canActOnAlert(req, alert.siteId as Types.ObjectId)) {
+      res.status(403).json({ error: "Not authorized for this alert." });
+      return;
+    }
+    if (alert.status === "closed" || alert.status === "escalated") {
+      res.status(409).json({ error: `Alert is already ${alert.status}; acknowledging is not allowed.` });
+      return;
+    }
+
+    const deadline = (await latestDeadline(alertId)) ?? new Date(Date.now() + ALERT_DEADLINES[alert.severity]);
+    await WorkflowState.create({
+      alertId,
+      state: "acknowledged",
+      deadline,
+      changedBy: new Types.ObjectId(req.user!.id),
+    });
+    await Alert.updateOne({ _id: alertId }, { status: "acknowledged" });
+
+    res.json({ alertId, status: "acknowledged" });
+  } catch (err) {
+    console.error("Acknowledge alert error:", err);
+    res.status(500).json({ error: "Internal server error." });
+  }
+};
+
+// ── POST /api/v1/alerts/:id/resolve ──────────────────────────────────────────
+// Closes the alert lifecycle. Allowed from open/acknowledged/escalated —
+// this is the only path that ends an escalated alert.
+
+export const resolveAlert = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const alertId = String((req.params as { id?: string }).id ?? "");
+    if (!/^[a-f\d]{24}$/i.test(alertId)) {
+      res.status(400).json({ error: "Invalid alert id." });
+      return;
+    }
+
+    const alert = await Alert.findById(alertId).select("siteId severity status");
+    if (!alert) {
+      res.status(404).json({ error: "Alert not found." });
+      return;
+    }
+    if (!canActOnAlert(req, alert.siteId as Types.ObjectId)) {
+      res.status(403).json({ error: "Not authorized for this alert." });
+      return;
+    }
+    if (alert.status === "closed") {
+      res.status(409).json({ error: "Alert is already closed." });
+      return;
+    }
+
+    const deadline = (await latestDeadline(alertId)) ?? new Date(Date.now() + ALERT_DEADLINES[alert.severity]);
+    await WorkflowState.create({
+      alertId,
+      state: "resolved",
+      deadline,
+      changedBy: new Types.ObjectId(req.user!.id),
+    });
+    await Alert.updateOne({ _id: alertId }, { status: "closed" });
+
+    res.json({ alertId, status: "closed" });
+  } catch (err) {
+    console.error("Resolve alert error:", err);
     res.status(500).json({ error: "Internal server error." });
   }
 };

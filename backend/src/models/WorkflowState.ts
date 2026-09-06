@@ -12,7 +12,7 @@ const workflowStateSchema = new Schema<IWorkflowState>(
       type: String,
       required: [true, "state is required."],
       enum: {
-        values: ["assigned", "reminded", "escalated", "resolved"],
+        values: ["assigned", "reminded", "acknowledged", "escalated", "resolved"],
         message: "{VALUE} is not a valid workflow state.",
       },
     },

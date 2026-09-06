@@ -123,7 +123,7 @@ async function getPendingWorkflows(siteId: Types.ObjectId) {
   ]);
 
   return latestStates
-    .filter((ws) => ws.state !== "escalated" && ws.state !== "resolved")
+    .filter((ws) => ws.state !== "escalated" && ws.state !== "resolved" && ws.state !== "acknowledged")
     .map((ws) => {
       const alert = openAlerts.find((a) => (a._id as unknown as string).toString() === (ws._id as unknown as string).toString());
       const deadlineMs = ALERT_DEADLINES[alert?.severity ?? "medium"];

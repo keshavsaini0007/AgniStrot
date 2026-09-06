@@ -80,10 +80,10 @@ async function escalateWorkflow(
   alertId: Types.ObjectId,
   newState: "reminded" | "escalated"
 ): Promise<void> {
-  // Guard: alert must still be un-closed and not already escalated
+  // Guard: alert must still be actionable and not already escalated
   const alert = await Alert.findById(alertId).select("status siteId");
   if (!alert) return;
-  if (alert.status === "closed" || alert.status === "escalated") return;
+  if (alert.status === "closed" || alert.status === "escalated" || alert.status === "acknowledged") return;
 
   // Guard: latest state must be the expected predecessor (idempotency)
   const latest = await WorkflowState.find({ alertId })
