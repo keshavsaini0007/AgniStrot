@@ -12,6 +12,7 @@ import WorkflowState from "../models/WorkflowState.js";
 import { evaluateRules } from "../services/ruleEngine.js";
 import { runBatchRules } from "../services/batchRules.js";
 import { runEscalations } from "../services/workflowEngine.js";
+import { ensureAlertIndexes } from "../config/db.js";
 import type { InspectionType } from "../types/index.js";
 
 // ── Seed Data ────────────────────────────────────────────────────────────────
@@ -113,6 +114,10 @@ const seed = async (): Promise<void> => {
 
   await mongoose.connect(uri);
   console.log("Connected to MongoDB for seeding.");
+
+  // The {sourceId, ruleCode} unique index was originally shipped WITHOUT sparse;
+  // a previous seed's collisions were caused by that stale copy. Self-heal it.
+  await ensureAlertIndexes();
 
   // ── Clear existing data ──────────────────────────────────────────────────
   await Site.deleteMany({});

@@ -138,23 +138,25 @@ export async function evaluateRules(
       continue;
     }
 
-    // ── Atomic upsert — fix Issue 4 race condition ─────────────────────────
-    // findOneAndUpdate with upsert is atomic: one request wins, the rest see
+    // ── Atomic upsert — one request wins, the rest see ─────────────────────
     // lastErrorObject.upserted = undefined and skip workflow creation.
+    // Dedup key = "sync:<sourceId>:<ruleCode>" — unique per record+rule.
+    const alertRuleKey = `sync:${sourceId.toString()}:${rule.ruleCode}`;
     const alertResult = await Alert.findOneAndUpdate(
-      { sourceId, ruleCode: rule.ruleCode },
+      { ruleKey: alertRuleKey },
       {
         $setOnInsert: {
           siteId,
           sourceType,
           sourceId,
+          ruleKey: alertRuleKey,
           ruleCode: rule.ruleCode,
           severity: rule.severity,
           status: "open" as AlertStatus,
           assignedTo,
         },
       },
-      { upsert: true, new: true, includeResultMetadata: true }
+      { upsert: true, returnDocument: "after", includeResultMetadata: true }
     );
 
     // If upserted is falsy, the alert already existed — skip workflow creation

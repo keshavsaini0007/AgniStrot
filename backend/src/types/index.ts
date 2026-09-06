@@ -138,8 +138,10 @@ export interface IAlert {
   _id: Types.ObjectId;
   siteId: Types.ObjectId;
   sourceType: SourceType;
-  sourceId?: Types.ObjectId;  // ID of the inspection/incident/attendance that triggered this (sync alerts only)
-  ruleKey?: string;           // batch/synthetic alerts: e.g. "overdue:siteId:type", "anomaly:siteId:date"
+  sourceId?: Types.ObjectId; // ID of the inspection/incident/attendance that triggered this (sync alerts only)
+  ruleKey: string;           // universal dedup key:
+                             //   sync alerts:  "sync:<sourceId>:<ruleCode>"
+                             //   batch alerts: "overdue:siteId:type", "anomaly:siteId:date", "repeat:siteId:ruleCode"
   ruleCode: RuleCode;
   severity: AlertSeverity;
   status: AlertStatus;

@@ -189,7 +189,7 @@ async function createBatchAlert(input: BatchAlertInput): Promise<void> {
         assignedTo,
       },
     },
-    { upsert: true, new: true, includeResultMetadata: true }
+    { upsert: true, returnDocument: "after", includeResultMetadata: true }
   );
 
   if (!result.lastErrorObject?.upserted) return; // already exists — do nothing

@@ -25,8 +25,11 @@ const alertSchema = new Schema<IAlert>(
     },
     ruleKey: {
       type: String,
-      // batch/synthetic alerts only — lets idempotent re-firing per site-type-day
-      // without needing a real source record. Sync alerts leave this undefined.
+      required: [true, "ruleKey is required."],
+      // universal dedup key — present on EVERY alert:
+      //   sync alerts:  "sync:<sourceId>:<ruleCode>" (idempotent re-evaluation)
+      //   batch alerts: "overdue:siteId:type", "anomaly:siteId:date", "repeat:siteId:ruleCode"
+      // Backed by the unique ruleKey_1 index — the DB-level dedup guarantee.
     },
     ruleCode: {
       type: String,
@@ -81,14 +84,15 @@ alertSchema.index({ severity: 1, status: 1 });
 // Workflow engine: "find alerts that are overdue and not yet escalated"
 alertSchema.index({ status: 1, createdAt: 1 });
 
-// Dedup safety net: one alert per (source record + rule) combination
-// Sparse: batch alerts (no sourceId) are excluded and dedupe on ruleKey instead.
-// This is the DB-level guarantee — application-level atomic upsert is the first line of defence
-alertSchema.index({ sourceId: 1, ruleCode: 1 }, { unique: true, sparse: true });
+// Query help: find alerts by source record + rule (sync dedup filter uses ruleKey)
+// NOTE: deliberately NOT unique — Mongo indexes missing fields as null on sparse
+// unique indexes, so a unique {sourceId, ruleCode} would collide batch alerts
+// (which have no sourceId). Unique dedup lives on ruleKey_1 instead.
+alertSchema.index({ sourceId: 1, ruleCode: 1 });
 
-// Batch alerts (overdue/anomaly) have no source record — dedupe on ruleKey instead.
-// Sparse: sync alerts (no ruleKey) are excluded from the unique constraint.
-alertSchema.index({ ruleKey: 1 }, { unique: true, sparse: true });
+// Universal dedup index — sync (sync:sourceId:ruleCode) + batch (derived keys).
+// Unique: no sparse needed — ruleKey is present on every alert.
+alertSchema.index({ ruleKey: 1 }, { unique: true });
 
 const Alert = model<IAlert>("Alert", alertSchema);
 
