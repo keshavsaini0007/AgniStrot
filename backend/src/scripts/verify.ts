@@ -346,6 +346,32 @@ async function battery(
   check("probe users cleaned up", true);
 }
 
+// ── F5: sync + media role guard ──────────────────────────────────────────────
+// SYNC_ROLES = [field_officer, mine_official]. corporate_manager and regulator
+// are read/oversight per PRD §4 and must be 403 on write endpoints. Allowed
+// roles are probed with { records: [] } — empty fails syncBatchSchema (min 1),
+// so they reach validation (400) instead of being blocked (403), with no data
+// written. Media upload (multipart) is probed without a file → 400 once past
+// the guard.
+
+async function syncRoleGuard(t: { priya: string; meena: string; amit: string; rahul: string }): Promise<void> {
+  console.log("\n== [F5] sync / media role guard ==");
+  const { priya, meena, amit, rahul } = t;
+
+  for (const route of ["/inspections/sync", "/incidents/sync", "/attendance/sync"]) {
+    const emptyBatch = { records: [] };
+    check(`corporate blocked from ${route} → 403`, (await post(amit, route, emptyBatch)).status === 403);
+    check(`regulator blocked from ${route} → 403`, (await post(meena, route, emptyBatch)).status === 403);
+    check(`field_officer reaches ${route} (not 403)`, (await post(rahul, route, emptyBatch)).status !== 403);
+    check(`mine_official reaches ${route} (not 403)`, (await post(priya, route, emptyBatch)).status !== 403);
+  }
+
+  check("corporate blocked from media upload → 403", (await post(amit, "/media/upload", {})).status === 403);
+  check("regulator blocked from media upload → 403", (await post(meena, "/media/upload", {})).status === 403);
+  check("field_officer reaches media upload (not 403)", (await post(rahul, "/media/upload", {})).status !== 403);
+  check("mine_official reaches media upload (not 403)", (await post(priya, "/media/upload", {})).status !== 403);
+}
+
 async function socketBattery(rahulToken: string, SJ: string): Promise<void> {
   console.log("\n== [SOCKET] live fan-out over the wire ==");
   const priya = await login("priya@agnistrot.com");
@@ -533,6 +559,7 @@ async function main(): Promise<void> {
     check("bad token → 401", (await api("/alerts", { token: "definitely.not.a.jwt" })).status === 401);
 
     await battery(tokens, { SJ, SD });
+    await syncRoleGuard(tokens);
     await socketBattery(tokens.rahul, SJ);
     await workflowProbes({ priya: tokens.priya, meena: tokens.meena }, SJ);
   } finally {

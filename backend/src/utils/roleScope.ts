@@ -9,6 +9,14 @@ export const ALERT_ROLES: readonly UserRole[] = [
   "regulator",
 ];
 
+// ── Roles allowed to sync field records + upload media ─────────────────────
+// Site-rooted capture roles only — corporate_manager and regulator are
+// read/oversight per PRD §4 and must not write field records into the system.
+export const SYNC_ROLES: readonly UserRole[] = [
+  "field_officer",
+  "mine_official",
+];
+
 // ── Deny-by-default sentinel ─────────────────────────────────────────────────
 // A 24-hex ObjectId that never matches any real document. Site-scoped roles with
 // no site binding get this instead of an empty filter — an empty filter would
