@@ -1,0 +1,296 @@
+import type { User, Mine, Inspection, Observation, CorrectiveAction, ComplianceRequirement, Notification } from '@/types';
+
+export const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+export const mockUsers: User[] = [
+  {
+    id: 'usr-001',
+    name: 'Rahul Kumar',
+    email: 'rahul@coalindia.com',
+    role: 'mine_officer',
+    department: 'Mining Operations',
+    mineId: 'mine-001',
+    status: 'active',
+    createdAt: '2026-01-15T08:00:00Z',
+    updatedAt: '2026-01-15T08:00:00Z',
+  },
+  {
+    id: 'usr-002',
+    name: 'Priya Sharma',
+    email: 'priya@coalindia.com',
+    role: 'corporate_management',
+    department: 'Corporate',
+    status: 'active',
+    createdAt: '2026-01-10T08:00:00Z',
+    updatedAt: '2026-01-10T08:00:00Z',
+  },
+  {
+    id: 'usr-003',
+    name: 'Amit Singh',
+    email: 'amit@coalindia.com',
+    role: 'field_inspector',
+    department: 'Safety',
+    mineId: 'mine-001',
+    status: 'active',
+    createdAt: '2026-02-01T08:00:00Z',
+    updatedAt: '2026-02-01T08:00:00Z',
+  },
+  {
+    id: 'usr-004',
+    name: 'Admin User',
+    email: 'admin@coalindia.com',
+    role: 'system_admin',
+    department: 'IT',
+    status: 'active',
+    createdAt: '2026-01-01T08:00:00Z',
+    updatedAt: '2026-01-01T08:00:00Z',
+  },
+  {
+    id: 'usr-005',
+    name: 'Neha Gupta',
+    email: 'neha@coalindia.com',
+    role: 'department_officer',
+    department: 'Environment',
+    mineId: 'mine-001',
+    status: 'active',
+    createdAt: '2026-02-10T08:00:00Z',
+    updatedAt: '2026-02-10T08:00:00Z',
+  },
+];
+
+export const mockMines: Mine[] = [
+  {
+    id: 'mine-001',
+    name: 'Rajpur Coal Mine',
+    code: 'RCM-001',
+    location: { address: 'Rajpur, Jharkhand, India', latitude: 23.3441, longitude: 85.3096 },
+    subsidiary: 'Central Coalfields',
+    status: 'active',
+    complianceRate: 87.5,
+    riskScore: 72,
+    openObservations: 12,
+    overdueActions: 3,
+    lastInspectionAt: '2026-08-20T10:00:00Z',
+    createdAt: '2026-01-01T08:00:00Z',
+    updatedAt: '2026-08-20T10:00:00Z',
+  },
+  {
+    id: 'mine-002',
+    name: 'Dhanbad Coal Mine',
+    code: 'DCM-002',
+    location: { address: 'Dhanbad, Jharkhand, India', latitude: 23.7957, longitude: 86.4304 },
+    subsidiary: 'Bharat Coking Coal',
+    status: 'active',
+    complianceRate: 92.1,
+    riskScore: 45,
+    openObservations: 5,
+    overdueActions: 1,
+    lastInspectionAt: '2026-08-18T14:00:00Z',
+    createdAt: '2026-01-01T08:00:00Z',
+    updatedAt: '2026-08-18T14:00:00Z',
+  },
+  {
+    id: 'mine-003',
+    name: 'Jharia Coal Mine',
+    code: 'JCM-003',
+    location: { address: 'Jharia, Jharkhand, India', latitude: 23.7445, longitude: 86.4110 },
+    subsidiary: 'Bharat Coking Coal',
+    status: 'maintenance',
+    complianceRate: 78.3,
+    riskScore: 85,
+    openObservations: 18,
+    overdueActions: 7,
+    lastInspectionAt: '2026-08-15T09:00:00Z',
+    createdAt: '2026-01-01T08:00:00Z',
+    updatedAt: '2026-08-15T09:00:00Z',
+  },
+  {
+    id: 'mine-004',
+    name: 'Kusunda Coal Mine',
+    code: 'KCM-004',
+    location: { address: 'Kusunda, Jharkhand, India', latitude: 23.7800, longitude: 86.3500 },
+    subsidiary: 'Central Coalfields',
+    status: 'active',
+    complianceRate: 95.2,
+    riskScore: 28,
+    openObservations: 2,
+    overdueActions: 0,
+    lastInspectionAt: '2026-08-22T11:00:00Z',
+    createdAt: '2026-01-01T08:00:00Z',
+    updatedAt: '2026-08-22T11:00:00Z',
+  },
+  {
+    id: 'mine-005',
+    name: 'Bhowrah Coal Mine',
+    code: 'BCM-005',
+    location: { address: 'Bhowrah, Jharkhand, India', latitude: 23.7200, longitude: 86.3800 },
+    subsidiary: 'Central Coalfields',
+    status: 'active',
+    complianceRate: 81.7,
+    riskScore: 68,
+    openObservations: 9,
+    overdueActions: 4,
+    lastInspectionAt: '2026-08-19T16:00:00Z',
+    createdAt: '2026-01-01T08:00:00Z',
+    updatedAt: '2026-08-19T16:00:00Z',
+  },
+];
+
+export const mockInspections: Inspection[] = [
+  {
+    id: 'insp-001', mineId: 'mine-001', inspectorId: 'usr-003', type: 'safety',
+    scheduledAt: '2026-08-20T09:00:00Z', completedAt: '2026-08-20T11:30:00Z',
+    status: 'completed', observationsCount: 3, createdAt: '2026-08-18T08:00:00Z', updatedAt: '2026-08-20T11:30:00Z',
+  },
+  {
+    id: 'insp-002', mineId: 'mine-001', inspectorId: 'usr-003', type: 'environmental',
+    scheduledAt: '2026-08-25T10:00:00Z', status: 'scheduled', observationsCount: 0,
+    createdAt: '2026-08-22T08:00:00Z', updatedAt: '2026-08-22T08:00:00Z',
+  },
+  {
+    id: 'insp-003', mineId: 'mine-002', inspectorId: 'usr-003', type: 'statutory',
+    scheduledAt: '2026-08-18T09:00:00Z', completedAt: '2026-08-18T12:00:00Z',
+    status: 'completed', observationsCount: 1, createdAt: '2026-08-15T08:00:00Z', updatedAt: '2026-08-18T12:00:00Z',
+  },
+  {
+    id: 'insp-004', mineId: 'mine-003', inspectorId: 'usr-003', type: 'safety',
+    scheduledAt: '2026-08-22T08:00:00Z', startedAt: '2026-08-22T08:15:00Z',
+    status: 'in_progress', observationsCount: 5, createdAt: '2026-08-20T08:00:00Z', updatedAt: '2026-08-22T08:15:00Z',
+  },
+  {
+    id: 'insp-005', mineId: 'mine-004', inspectorId: 'usr-003', type: 'operational',
+    scheduledAt: '2026-08-22T11:00:00Z', completedAt: '2026-08-22T13:00:00Z',
+    status: 'completed', observationsCount: 0, createdAt: '2026-08-20T08:00:00Z', updatedAt: '2026-08-22T13:00:00Z',
+  },
+];
+
+export const mockObservations: Observation[] = [
+  {
+    id: 'obs-001', mineId: 'mine-001', inspectionId: 'insp-001', reportedBy: 'usr-003',
+    category: 'safety', severity: 'high', title: 'Damaged Safety Barricade',
+    description: 'Safety barricade near restricted area is damaged and needs immediate repair.',
+    status: 'open', assignedDepartment: 'Safety', createdAt: '2026-08-20T10:00:00Z', updatedAt: '2026-08-20T10:00:00Z',
+    evidence: [],
+  },
+  {
+    id: 'obs-002', mineId: 'mine-001', inspectionId: 'insp-001', reportedBy: 'usr-003',
+    category: 'environmental', severity: 'medium', title: 'Dust Emission Above Limits',
+    description: 'Dust levels measured at 150mg/m3, exceeding the 100mg/m3 limit.',
+    status: 'in_progress', assignedDepartment: 'Environment', createdAt: '2026-08-20T10:30:00Z', updatedAt: '2026-08-21T08:00:00Z',
+    evidence: [],
+  },
+  {
+    id: 'obs-003', mineId: 'mine-001', inspectionId: 'insp-001', reportedBy: 'usr-003',
+    category: 'safety', severity: 'critical', title: 'Missing PPE Signs',
+    description: 'Multiple workers observed without proper PPE in high-risk zone.',
+    status: 'open', assignedDepartment: 'Safety', createdAt: '2026-08-20T11:00:00Z', updatedAt: '2026-08-20T11:00:00Z',
+    evidence: [],
+  },
+  {
+    id: 'obs-004', mineId: 'mine-003', inspectionId: 'insp-004', reportedBy: 'usr-003',
+    category: 'safety', severity: 'high', title: 'Ventilation System Malfunction',
+    description: 'Primary ventilation fan showing irregular RPM readings.',
+    status: 'open', assignedDepartment: 'Engineering', createdAt: '2026-08-22T09:00:00Z', updatedAt: '2026-08-22T09:00:00Z',
+    evidence: [],
+  },
+  {
+    id: 'obs-005', mineId: 'mine-002', inspectionId: 'insp-003', reportedBy: 'usr-003',
+    category: 'compliance', severity: 'low', title: 'Documentation Update Needed',
+    description: 'Statutory register requires latest entry format update.',
+    status: 'resolved', assignedDepartment: 'Compliance', createdAt: '2026-08-18T10:00:00Z', updatedAt: '2026-08-19T14:00:00Z',
+    evidence: [],
+  },
+];
+
+export const mockCorrectiveActions: CorrectiveAction[] = [
+  {
+    id: 'ca-001', observationId: 'obs-001', mineId: 'mine-001', assignedTo: 'usr-005',
+    department: 'Safety', title: 'Repair Safety Barricade', description: 'Replace damaged barricade near restricted area.',
+    priority: 'high', dueDate: '2026-08-25T00:00:00Z', status: 'in_progress',
+    createdAt: '2026-08-20T12:00:00Z', updatedAt: '2026-08-21T08:00:00Z',
+  },
+  {
+    id: 'ca-002', observationId: 'obs-002', mineId: 'mine-001', assignedTo: 'usr-005',
+    department: 'Environment', title: 'Dust Control Measures', description: 'Implement additional dust suppression measures.',
+    priority: 'medium', dueDate: '2026-08-28T00:00:00Z', status: 'assigned',
+    createdAt: '2026-08-21T10:00:00Z', updatedAt: '2026-08-21T10:00:00Z',
+  },
+  {
+    id: 'ca-003', observationId: 'obs-003', mineId: 'mine-001', assignedTo: 'usr-005',
+    department: 'Safety', title: 'PPE Compliance Enforcement', description: 'Conduct safety briefing and enforce PPE usage.',
+    priority: 'urgent', dueDate: '2026-08-23T00:00:00Z', status: 'in_progress',
+    createdAt: '2026-08-20T12:00:00Z', updatedAt: '2026-08-21T08:00:00Z',
+  },
+  {
+    id: 'ca-004', observationId: 'obs-004', mineId: 'mine-003', assignedTo: 'usr-005',
+    department: 'Engineering', title: 'Ventilation Fan Repair', description: 'Inspect and repair primary ventilation fan.',
+    priority: 'urgent', dueDate: '2026-08-23T00:00:00Z', status: 'reported',
+    createdAt: '2026-08-22T10:00:00Z', updatedAt: '2026-08-22T10:00:00Z',
+  },
+];
+
+export const mockCompliance: ComplianceRequirement[] = [
+  {
+    id: 'comp-001', mineId: 'mine-001', requirement: 'Annual Safety Audit',
+    category: 'Safety', description: 'Complete annual safety audit as per Coal Mines Regulations.',
+    status: 'compliant', dueDate: '2026-12-31T00:00:00Z', responsibleDepartment: 'Safety',
+    documents: [], createdAt: '2026-01-01T08:00:00Z', updatedAt: '2026-06-15T10:00:00Z',
+  },
+  {
+    id: 'comp-002', mineId: 'mine-001', requirement: 'Environmental Clearance Renewal',
+    category: 'Environment', description: 'Renew environmental clearance from MoEF.',
+    status: 'pending', dueDate: '2026-09-30T00:00:00Z', responsibleDepartment: 'Environment',
+    documents: [], createdAt: '2026-01-01T08:00:00Z', updatedAt: '2026-08-01T10:00:00Z',
+  },
+  {
+    id: 'comp-003', mineId: 'mine-001', requirement: 'Worker Safety Training',
+    category: 'Labour', description: 'Quarterly safety training for all workers.',
+    status: 'overdue', dueDate: '2026-08-31T00:00:00Z', responsibleDepartment: 'HR',
+    documents: [], createdAt: '2026-01-01T08:00:00Z', updatedAt: '2026-08-01T10:00:00Z',
+  },
+  {
+    id: 'comp-004', mineId: 'mine-002', requirement: 'Ventilation Report',
+    category: 'Safety', description: 'Monthly ventilation system performance report.',
+    status: 'compliant', dueDate: '2026-09-30T00:00:00Z', responsibleDepartment: 'Engineering',
+    documents: [], createdAt: '2026-01-01T08:00:00Z', updatedAt: '2026-08-20T10:00:00Z',
+  },
+  {
+    id: 'comp-005', mineId: 'mine-003', requirement: 'Fire Safety Equipment Check',
+    category: 'Safety', description: 'Monthly fire safety equipment inspection.',
+    status: 'non_compliant', dueDate: '2026-08-15T00:00:00Z', responsibleDepartment: 'Safety',
+    documents: [], createdAt: '2026-01-01T08:00:00Z', updatedAt: '2026-08-15T10:00:00Z',
+  },
+];
+
+export const mockNotifications: Notification[] = [
+  {
+    id: 'notif-001', userId: 'usr-001', type: 'warning', title: 'Overdue Action',
+    message: 'PPE compliance enforcement is overdue for Rajpur Coal Mine.',
+    severity: 'high', entityType: 'corrective_action', entityId: 'ca-003',
+    read: false, createdAt: '2026-08-23T08:00:00Z',
+  },
+  {
+    id: 'notif-002', userId: 'usr-001', type: 'error', title: 'Critical Observation',
+    message: 'Critical observation recorded: Missing PPE Signs at Rajpur Coal Mine.',
+    severity: 'high', entityType: 'observation', entityId: 'obs-003',
+    read: false, createdAt: '2026-08-20T11:05:00Z',
+  },
+  {
+    id: 'notif-003', userId: 'usr-001', type: 'info', title: 'Inspection Completed',
+    message: 'Safety inspection at Rajpur Coal Mine completed successfully.',
+    severity: 'low', entityType: 'inspection', entityId: 'insp-001',
+    read: true, createdAt: '2026-08-20T11:35:00Z',
+  },
+  {
+    id: 'notif-004', userId: 'usr-001', type: 'warning', title: 'Compliance Overdue',
+    message: 'Worker Safety Training compliance is overdue.',
+    severity: 'medium', entityType: 'compliance', entityId: 'comp-003',
+    read: false, createdAt: '2026-08-31T08:00:00Z',
+  },
+  {
+    id: 'notif-005', userId: 'usr-001', type: 'success', title: 'Action Resolved',
+    message: 'Documentation Update corrective action has been resolved.',
+    severity: 'low', entityType: 'corrective_action', entityId: 'ca-005',
+    read: true, createdAt: '2026-08-19T14:05:00Z',
+  },
+];

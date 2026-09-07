@@ -1,0 +1,77 @@
+import { Tabs } from 'expo-router';
+import { useColorScheme, Text } from 'react-native';
+import { Colors } from '@/constants/theme';
+
+export default function TabLayout() {
+  const colorScheme = useColorScheme();
+  const colors = Colors[colorScheme === 'dark' || colorScheme === 'unspecified' ? 'dark' : 'light'];
+
+  return (
+    <Tabs
+      screenOptions={{
+        headerShown: false,
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.textMuted,
+        tabBarStyle: {
+          backgroundColor: colors.surface,
+          borderTopColor: colors.border,
+          borderTopWidth: 1,
+          height: 85,
+          paddingTop: 8,
+          paddingBottom: 28,
+        },
+        tabBarLabelStyle: {
+          fontSize: 11,
+          fontWeight: '600',
+        },
+      }}
+    >
+      <Tabs.Screen
+        name="dashboard"
+        options={{
+          title: 'Home',
+          tabBarIcon: () => <Text style={{ fontSize: 22 }}>🏠</Text>,
+        }}
+      />
+      <Tabs.Screen
+        name="mines"
+        options={{
+          title: 'Mines',
+          tabBarIcon: () => <Text style={{ fontSize: 22 }}>⛏️</Text>,
+        }}
+      />
+      <Tabs.Screen
+        name="inspections"
+        options={{
+          title: 'Inspect',
+          tabBarIcon: () => <Text style={{ fontSize: 22 }}>📋</Text>,
+        }}
+      />
+      <Tabs.Screen
+        name="observations"
+        options={{
+          title: 'Observe',
+          tabBarIcon: () => <Text style={{ fontSize: 22 }}>👁️</Text>,
+        }}
+      />
+      <Tabs.Screen
+        name="more"
+        options={{
+          title: 'More',
+          tabBarIcon: () => <Text style={{ fontSize: 22 }}>☰</Text>,
+        }}
+      />
+      {/* Hidden screens - accessible from More */}
+      <Tabs.Screen name="corrective-actions" options={{ href: null }} />
+      <Tabs.Screen name="compliance" options={{ href: null }} />
+      <Tabs.Screen name="notifications" options={{ href: null }} />
+      <Tabs.Screen name="documents" options={{ href: null }} />
+      <Tabs.Screen name="analytics" options={{ href: null }} />
+      <Tabs.Screen name="gis" options={{ href: null }} />
+      <Tabs.Screen name="reports" options={{ href: null }} />
+      <Tabs.Screen name="users" options={{ href: null }} />
+      <Tabs.Screen name="audit-logs" options={{ href: null }} />
+      <Tabs.Screen name="settings" options={{ href: null }} />
+    </Tabs>
+  );
+}
