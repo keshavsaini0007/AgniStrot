@@ -27,6 +27,15 @@ export const ATTENDANCE_READ_ROLES: readonly UserRole[] = [
   "regulator",
 ];
 
+// ── Roles allowed to generate statutory reports ────────────────────────────
+// Mine management + oversight roles. field_officer is capture-only per PRD §4 —
+// report generation is blocked at the route regardless of site binding.
+export const REPORT_ROLES: readonly UserRole[] = [
+  "mine_official",
+  "corporate_manager",
+  "regulator",
+];
+
 // ── Deny-by-default sentinel ─────────────────────────────────────────────────
 // A 24-hex ObjectId that never matches any real document. Site-scoped roles with
 // no site binding get this instead of an empty filter — an empty filter would
