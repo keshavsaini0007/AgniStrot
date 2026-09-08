@@ -372,6 +372,46 @@ async function syncRoleGuard(t: { priya: string; meena: string; amit: string; ra
   check("mine_official reaches media upload (not 403)", (await post(priya, "/media/upload", {})).status !== 403);
 }
 
+// ── F6: attendance reads ────────────────────────────────────────────────────
+// ATTENDANCE_READ_ROLES = [mine_official, corporate_manager, regulator].
+// field_officer is blocked (403) and mine_official is strictly site-scoped
+// (anti-tamper against ?siteId override). Corporate/regulator read cross-site
+// with an optional site filter. Undecorated requests hit the defensive
+// page/limit fallbacks (the validateQuery default-merge is a no-op on Express 5).
+
+async function attendanceBattery(
+  t: { priya: string; meena: string; amit: string; rahul: string },
+  sites: { SJ: string; SD: string }
+): Promise<void> {
+  console.log("\n== [F6] attendance reads ==");
+  const { priya, meena, amit, rahul } = t;
+  const { SJ, SD } = sites;
+
+  check("attendance without token → 401", (await api("/attendance")).status === 401);
+  check("field_officer blocked from attendance → 403", (await get(rahul, "/attendance")).status === 403);
+
+  const mo = (await get(priya, "/attendance")).body as { data: { siteId: string }[]; pagination: { total: number } };
+  check("mine_official sees attendance", Array.isArray(mo.data) && mo.pagination.total > 0);
+  check("mine_official rows all SJ", mo.data.length > 0 && mo.data.every((r) => r.siteId === SJ));
+
+  const tampered = (await get(priya, `/attendance?siteId=${SD}`)).body as { data: { siteId: string }[] };
+  check("mine_official ?siteId tamper-proof (SJ only)", tampered.data.length > 0 && tampered.data.every((r) => r.siteId === SJ));
+
+  const corp = (await get(amit, "/attendance")).body as { data: { siteId: string }[] };
+  const reg = (await get(meena, "/attendance")).body as { data: { siteId: string }[] };
+  check("corporate reads cross-site", new Set(corp.data.map((r) => r.siteId)).size >= 2);
+  check("regulator reads cross-site", new Set(reg.data.map((r) => r.siteId)).size >= 2);
+
+  const regSD = (await get(meena, `/attendance?siteId=${SD}`)).body as { data: { siteId: string }[] };
+  check("regulator ?siteId=SD filters to SD only", regSD.data.length > 0 && regSD.data.every((r) => r.siteId === SD));
+
+  const bad = await get(amit, "/attendance?checkType=invalid");
+  check("bad checkType → 400", bad.status === 400);
+
+  const pg = (await get(amit, "/attendance?page=1&limit=2")).body as { data: unknown[]; pagination: { page: number; limit: number } };
+  check("pagination limit respected", pg.pagination.page === 1 && pg.pagination.limit === 2 && pg.data.length >= 1 && pg.data.length <= 2);
+}
+
 async function socketBattery(rahulToken: string, SJ: string): Promise<void> {
   console.log("\n== [SOCKET] live fan-out over the wire ==");
   const priya = await login("priya@agnistrot.com");
@@ -560,6 +600,7 @@ async function main(): Promise<void> {
 
     await battery(tokens, { SJ, SD });
     await syncRoleGuard(tokens);
+    await attendanceBattery(tokens, { SJ, SD });
     await socketBattery(tokens.rahul, SJ);
     await workflowProbes({ priya: tokens.priya, meena: tokens.meena }, SJ);
   } finally {

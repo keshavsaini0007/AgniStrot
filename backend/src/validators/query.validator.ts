@@ -41,6 +41,20 @@ export const listIncidentsSchema = z.object({
 
 export type ListIncidentsQuery = z.infer<typeof listIncidentsSchema>;
 
+// ── Attendance list query ───────────────────────────────────────────────────
+
+export const listAttendanceSchema = z.object({
+  siteId:    z.string().regex(objectIdRegex, "Invalid siteId").optional(),
+  checkType: z.enum(["in", "out"]).optional(),
+  workerRef: z.string().min(1).max(100).optional(),
+  from:      z.coerce.date().optional(),
+  to:        z.coerce.date().optional(),
+  page:      z.coerce.number().int().min(1).default(1),
+  limit:     z.coerce.number().int().min(1).max(100).default(20),
+});
+
+export type ListAttendanceQuery = z.infer<typeof listAttendanceSchema>;
+
 // ── Alerts list query ───────────────────────────────────────────────────────
 
 export const listAlertsSchema = z.object({

@@ -17,6 +17,16 @@ export const SYNC_ROLES: readonly UserRole[] = [
   "mine_official",
 ];
 
+// ── Roles allowed to read attendance ────────────────────────────────────────
+// field_officer is capture-only per PRD §4 — reads are restricted to site
+// managers and oversight roles. buildScope("attendance") still fail-closes a
+// field_officer as defense-in-depth if authorization is ever bypassed.
+export const ATTENDANCE_READ_ROLES: readonly UserRole[] = [
+  "mine_official",
+  "corporate_manager",
+  "regulator",
+];
+
 // ── Deny-by-default sentinel ─────────────────────────────────────────────────
 // A 24-hex ObjectId that never matches any real document. Site-scoped roles with
 // no site binding get this instead of an empty filter — an empty filter would
@@ -31,7 +41,7 @@ const IMPOSSIBLE_ID = new Types.ObjectId("000000000000000000000000");
 // field_officer  → only their own submissions
 // corporate/regulator → no filter (all data)
 
-export type ScopeResource = "inspection" | "incident" | "alert";
+export type ScopeResource = "inspection" | "incident" | "alert" | "attendance";
 
 type ScopeFilter = {
   siteId?: Types.ObjectId;
@@ -57,6 +67,9 @@ export function buildScope(
     case "field_officer":
       if (resource === "inspection") return { inspectorId: new Types.ObjectId(user.id) };
       if (resource === "incident") return { reportedBy: new Types.ObjectId(user.id) };
+      // attendance/workerRef is a free-text string (not a user ref) — fail closed
+      // on siteId so a bypassing field_officer can never read site data.
+      if (resource === "attendance") return { siteId: IMPOSSIBLE_ID };
       // alerts have no inspector concept — fail closed if ever granted
       return { inspectorId: IMPOSSIBLE_ID };
 
