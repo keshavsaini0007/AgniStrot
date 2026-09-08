@@ -2,7 +2,7 @@ import "dotenv/config";
 import { spawn, execSync, type ChildProcess } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import net from "node:net";
-import { request as httpRequest } from "node:http";
+import { request as httpRequest, type IncomingHttpHeaders } from "node:http";
 import mongoose, { Types } from "mongoose";
 import { io as ioClient } from "socket.io-client";
 import type { Socket } from "socket.io-client";
@@ -124,7 +124,7 @@ function runSeed(): void {
 async function api(
   path: string,
   opts: { token?: string; method?: string; body?: unknown } = {}
-): Promise<{ status: number; body: AnyJson }> {
+): Promise<{ status: number; headers: IncomingHttpHeaders; body: AnyJson }> {
   // Uses raw node:http (not global fetch) — undici's pooled fetch intermittently
   // misroutes/connects a POST body, yielding sporadic 404s on a healthy server.
   const data = opts.body !== undefined ? JSON.stringify(opts.body) : undefined;
@@ -143,7 +143,7 @@ async function api(
         res.on("end", () => {
           let body: AnyJson = null;
           try { body = raw ? JSON.parse(raw) : null; } catch { body = raw; }
-          resolve({ status: res.statusCode ?? 0, body });
+          resolve({ status: res.statusCode ?? 0, headers: res.headers, body });
         });
       }
     );
@@ -174,10 +174,10 @@ async function login(email: string): Promise<string> {
   return (last.body as { token: string }).token;
 }
 
-const get = (token: string, p = ""): Promise<{ status: number; body: AnyJson }> =>
+const get = (token: string, p = ""): Promise<{ status: number; headers: IncomingHttpHeaders; body: AnyJson }> =>
   api(p, { token });
 
-const post = (token: string, p: string, body: unknown): Promise<{ status: number; body: AnyJson }> =>
+const post = (token: string, p: string, body: unknown): Promise<{ status: number; headers: IncomingHttpHeaders; body: AnyJson }> =>
   api(p, { token, method: "POST", body: body ?? {} });
 
 // ── Audit chain helpers ─────────────────────────────────────────────────────
@@ -412,6 +412,96 @@ async function attendanceBattery(
   check("pagination limit respected", pg.pagination.page === 1 && pg.pagination.limit === 2 && pg.data.length >= 1 && pg.data.length <= 2);
 }
 
+// ── F7: statutory reports ────────────────────────────────────────────────────
+// REPORT_ROLES = [mine_official, corporate_manager, regulator]. mine_official is
+// pinned to their own site; corporate/regulator read cross-site. Every generated
+// report lands a tamper-evident AuditLog entry (entityType "report").
+
+async function reportsBattery(
+  t: { priya: string; meena: string; amit: string; rahul: string },
+  sites: { SJ: string; SD: string }
+): Promise<void> {
+  console.log("\n== [F7] statutory reports ==");
+  const { priya, meena, rahul } = t;
+  const { SJ, SD } = sites;
+
+  check("report without token → 401", (await api("/reports/statutory")).status === 401);
+  check("field_officer blocked from reports → 403", (await get(rahul, `/reports/statutory?siteId=${SJ}`)).status === 403);
+
+  const moOwn = await get(priya, `/reports/statutory?siteId=${SJ}`);
+  check("mine_official generates own-site report → 200", moOwn.status === 200);
+  check("report content-type is application/pdf", String(moOwn.headers["content-type"] ?? "").includes("application/pdf"));
+  check("report body is non-trivial", String(moOwn.body).length > 1000);
+
+  check("mine_official generates other-site report → 403", (await get(priya, `/reports/statutory?siteId=${SD}`)).status === 403);
+
+  const regSD = await get(meena, `/reports/statutory?siteId=${SD}`);
+  check("regulator generates cross-site report → 200", regSD.status === 200);
+  check("regulator report content-type is application/pdf", String(regSD.headers["content-type"] ?? "").includes("application/pdf"));
+
+  check("invalid siteId → 400", (await get(meena, "/reports/statutory?siteId=not-a-mongo-id")).status === 400);
+
+  const audit = await AuditLog.findOne({ entityType: "report", action: "generated" }).lean();
+  check("audit trail records report generation", !!audit && !!audit.actorId);
+}
+
+// ── F8: manual alert escalation ──────────────────────────────────────────────
+// POST /alerts/:id/escalate — jumps open/acknowledged → escalated (48h deadline).
+// field_officer blocked by authorize; mine_official site-scoped via canActOnAlert;
+// re-escalation and escalation-of-closed are 409 conflicts.
+
+async function manualEscalationBattery(
+  t: { priya: string; meena: string; amit: string; rahul: string },
+  sites: { SJ: string; SD: string }
+): Promise<void> {
+  console.log("\n== [F8] manual alert escalation ==");
+  const { priya, meena, amit, rahul } = t;
+  const { SJ, SD } = sites;
+
+  // Deterministic preconditions: batteries F1–workflow may acknowledge,
+  // escalate, or resolve alerts along the way. Restore freshness (ack/escalated
+  // → open) so the escalate fixtures are stable; closed stays closed — the
+  // conflict probe below depends on it. This is the terminal battery, and
+  // resetAndSeed() re-canonicalizes the DB afterward.
+  await Alert.updateMany(
+    { status: { $in: ["acknowledged", "escalated"] } },
+    { status: "open" }
+  );
+
+  // Cross-site 403 checks only need *an* existing Dhanbad alert: the field
+  // officer is blocked by authorize before any status logic, and mine_official
+  // is blocked by canActOnAlert (403) before the closed/escalated 409 checks.
+  const sdAny = (await get(meena, `/alerts?siteId=${SD}`)).body as { data: { id: string }[] };
+  const openSJ = (await get(priya, `/alerts?siteId=${SJ}&status=open`)).body as { data: { id: string }[] };
+  const sdAlertId = sdAny.data[0]?.id;
+  const sjAlertId = openSJ.data[0]?.id;
+
+  check("fixture: Dhanbad has an alert for the cross-site guard", !!sdAlertId);
+  if (!sdAlertId) { console.log("  … missing precondition, skipping cross-site checks"); return; }
+
+  check("field_officer blocked from escalate → 403", (await post(rahul, `/alerts/${sdAlertId}/escalate`, { note: "x" })).status === 403);
+  check("mine_official escalating other-site alert → 403", (await post(priya, `/alerts/${sdAlertId}/escalate`, { note: "nope" })).status === 403);
+
+  const escalated = sjAlertId
+    ? await post(priya, `/alerts/${sjAlertId}/escalate`, { note: "Escalating hazardous condition" })
+    : null;
+  check("mine_official escalates own open alert → 200", escalated?.status === 200 && (escalated.body as { status?: string }).status === "escalated");
+
+  check("re-escalate escalated alert → 409", !!sjAlertId && (await post(priya, `/alerts/${sjAlertId}/escalate`, {})).status === 409);
+
+  // Self-contained closed-conflict: resolve a spare open SJ alert first.
+  const spare = openSJ.data.find((a) => a.id !== sjAlertId) ?? openSJ.data[1];
+  const spareId = spare?.id !== sjAlertId ? spare?.id : undefined;
+  check("found a spare open alert for the closed-conflict case", !!spareId);
+  if (spareId) {
+    check("spare alert resolved → 200", (await post(amit, `/alerts/${spareId}/resolve`, { resolutionNote: "closed for conflict probe" })).status === 200);
+    check("escalate closed alert → 409", (await post(amit, `/alerts/${spareId}/escalate`, {})).status === 409);
+  }
+
+  const audit = await AuditLog.findOne({ entityType: "alert", action: "escalated", actorId: { $ne: null } }).lean();
+  check("audit trail records manual escalation with actor", !!audit);
+}
+
 async function socketBattery(rahulToken: string, SJ: string): Promise<void> {
   console.log("\n== [SOCKET] live fan-out over the wire ==");
   const priya = await login("priya@agnistrot.com");
@@ -603,6 +693,8 @@ async function main(): Promise<void> {
     await attendanceBattery(tokens, { SJ, SD });
     await socketBattery(tokens.rahul, SJ);
     await workflowProbes({ priya: tokens.priya, meena: tokens.meena }, SJ);
+    await reportsBattery(tokens, { SJ, SD });
+    await manualEscalationBattery(tokens, { SJ, SD });
   } finally {
     stopServer(server);
   }
