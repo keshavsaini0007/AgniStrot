@@ -1,0 +1,2961 @@
+{
+  "info": {
+    "_postman_id": "01c01b68-2780-498f-adc7-1f196fcc6a53",
+    "name": "AgniStrot API — Automated Test Suite",
+    "description": "Complete automated test suite for AgniStrot Smart Governance & Compliance Monitoring Platform for Coal Mines (SIH26024).\n\nCovers all 4 RBAC roles (Field Officer, Mine Official, Corporate Manager, Regulator), offline synchronization, alert workflow engine, tamper-evident SHA-256 audit trail, statutory report PDF generation, GIS spatial markers, and OCR document processing.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5000",
+      "type": "string"
+    },
+    {
+      "key": "email_fo",
+      "value": "rahul@agnistrot.com",
+      "type": "string"
+    },
+    {
+      "key": "email_mo",
+      "value": "priya@agnistrot.com",
+      "type": "string"
+    },
+    {
+      "key": "email_cm",
+      "value": "amit@agnistrot.com",
+      "type": "string"
+    },
+    {
+      "key": "email_reg",
+      "value": "meena@agnistrot.com",
+      "type": "string"
+    },
+    {
+      "key": "email_mo_rajpur",
+      "value": "kavita@agnistrot.com",
+      "type": "string"
+    },
+    {
+      "key": "email_mo_dhanbad",
+      "value": "ramesh@agnistrot.com",
+      "type": "string"
+    },
+    {
+      "key": "password_default",
+      "value": "password123",
+      "type": "string"
+    },
+    {
+      "key": "token_fo",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "token_mo",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "token_cm",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "token_reg",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "active_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "siteId_jharia",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "siteId_dhanbad",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "siteId_rajpur",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "active_alert_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "escalate_alert_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "active_doc_id",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "00. Health & Infrastructure",
+      "description": "Basic infrastructure, health probe, and security headers.",
+      "item": [
+        {
+          "name": "GET Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "health"
+              ]
+            },
+            "description": "Unauthenticated health endpoint verifying server availability and Helmet security headers."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response contains status ok and valid timestamp', function () {",
+                  "    const res = pm.response.json();",
+                  "    pm.expect(res.status).to.eql('ok');",
+                  "    pm.expect(res.timestamp).to.be.a('string');",
+                  "    pm.expect(new Date(res.timestamp).getTime()).to.be.greaterThan(0);",
+                  "});",
+                  "",
+                  "pm.test('Helmet security headers present', function () {",
+                  "    pm.response.to.have.header('x-content-type-options');",
+                  "    pm.expect(pm.response.headers.get('x-content-type-options')).to.eql('nosniff');",
+                  "    pm.response.to.have.header('x-frame-options');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "01. Authentication & RBAC",
+      "description": "Login for all 4 roles, token acquisition, bad credentials, and role registration guards.",
+      "item": [
+        {
+          "name": "Login - Field Officer (Rahul)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email_fo}}\",\n  \"password\": \"{{password_default}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const res = pm.response.json();",
+                  "pm.test('Returns valid token and field_officer profile', function () {",
+                  "    pm.expect(res.token).to.be.a('string');",
+                  "    pm.expect(res.user).to.be.an('object');",
+                  "    pm.expect(res.user.role).to.eql('field_officer');",
+                  "    pm.expect(res.user.name).to.eql('Rahul Kumar');",
+                  "});",
+                  "",
+                  "pm.environment.set('token_fo', res.token);",
+                  "pm.collectionVariables.set('token_fo', res.token);",
+                  "pm.environment.set('active_token', res.token);",
+                  "pm.collectionVariables.set('active_token', res.token);",
+                  "if (res.user.siteId) {",
+                  "    pm.environment.set('siteId_jharia', res.user.siteId);",
+                  "    pm.collectionVariables.set('siteId_jharia', res.user.siteId);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login - Mine Official (Priya - Jharia)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email_mo}}\",\n  \"password\": \"{{password_default}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const res = pm.response.json();",
+                  "pm.test('Returns valid token and mine_official profile', function () {",
+                  "    pm.expect(res.token).to.be.a('string');",
+                  "    pm.expect(res.user.role).to.eql('mine_official');",
+                  "    pm.expect(res.user.siteId).to.be.a('string');",
+                  "});",
+                  "",
+                  "pm.environment.set('token_mo', res.token);",
+                  "pm.collectionVariables.set('token_mo', res.token);",
+                  "pm.environment.set('siteId_jharia', res.user.siteId);",
+                  "pm.collectionVariables.set('siteId_jharia', res.user.siteId);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login - Mine Official (Ramesh - Dhanbad)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email_mo_dhanbad}}\",\n  \"password\": \"{{password_default}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const res = pm.response.json();",
+                  "pm.test('Returns Dhanbad siteId', function () {",
+                  "    pm.expect(res.user.siteId).to.be.a('string');",
+                  "});",
+                  "",
+                  "pm.environment.set('siteId_dhanbad', res.user.siteId);",
+                  "pm.collectionVariables.set('siteId_dhanbad', res.user.siteId);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login - Corporate Manager (Amit)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email_cm}}\",\n  \"password\": \"{{password_default}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const res = pm.response.json();",
+                  "pm.test('Corporate manager has cross-site scope (siteId is null)', function () {",
+                  "    pm.expect(res.user.role).to.eql('corporate_manager');",
+                  "    pm.expect(res.user.siteId).to.eql(null);",
+                  "});",
+                  "",
+                  "pm.environment.set('token_cm', res.token);",
+                  "pm.collectionVariables.set('token_cm', res.token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login - Regulator (Dr. Meena Reddy)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email_reg}}\",\n  \"password\": \"{{password_default}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const res = pm.response.json();",
+                  "pm.test('Regulator has nationwide oversight scope (siteId is null)', function () {",
+                  "    pm.expect(res.user.role).to.eql('regulator');",
+                  "    pm.expect(res.user.siteId).to.eql(null);",
+                  "});",
+                  "",
+                  "pm.environment.set('token_reg', res.token);",
+                  "pm.collectionVariables.set('token_reg', res.token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login - Invalid Credentials (Negative Test)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"wrong@agnistrot.com\",\n  \"password\": \"wrong_password_xyz\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 401 Unauthorized', function () {",
+                  "    pm.response.to.have.status(401);",
+                  "});",
+                  "",
+                  "pm.test('Returns descriptive error message', function () {",
+                  "    const res = pm.response.json();",
+                  "    pm.expect(res.error).to.be.a('string');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Register - Corporate Manager creates Site Bound User",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_cm}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Auditor Test User\",\n  \"email\": \"test.auditor.{{$randomInt}}@agnistrot.com\",\n  \"password\": \"password123\",\n  \"role\": \"field_officer\",\n  \"siteId\": \"{{siteId_jharia}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "register"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 201 Created', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test('User successfully registered with role and siteId', function () {",
+                  "    const res = pm.response.json();",
+                  "    pm.expect(res.id).to.be.a('string');",
+                  "    pm.expect(res.role).to.eql('field_officer');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Register - Mine Official without siteId Rejected (Validation)",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_cm}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Ghost Official\",\n  \"email\": \"ghost.official.{{$randomInt}}@agnistrot.com\",\n  \"password\": \"password123\",\n  \"role\": \"mine_official\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "register"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 400 Bad Request', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "pm.test('Validation rejected registration missing required siteId', function () {",
+                  "    const res = pm.response.json();",
+                  "    pm.expect(res.error).to.be.a('string');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Register - Field Officer Blocked (RBAC 403)",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_fo}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Unauthorized Creator\",\n  \"email\": \"unauth.creator@agnistrot.com\",\n  \"password\": \"password123\",\n  \"role\": \"field_officer\",\n  \"siteId\": \"{{siteId_jharia}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "register"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 403 Forbidden', function () {",
+                  "    pm.response.to.have.status(403);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "02. Field Capture & Offline Sync",
+      "description": "Batch synchronization of mobile inspection reports, incidents, and attendance.",
+      "item": [
+        {
+          "name": "Sync Inspections - Field Officer Batch Sync",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_fo}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"records\": [\n    {\n      \"clientUuid\": \"{{$guid}}\",\n      \"siteId\": \"{{siteId_jharia}}\",\n      \"type\": \"safety\",\n      \"checklist\": [\n        {\n          \"item\": \"Ventilation fan functioning\",\n          \"result\": \"pass\",\n          \"notes\": \"Operational at nominal speed\"\n        },\n        {\n          \"item\": \"Flame safety lamp inspection\",\n          \"result\": \"pass\"\n        },\n        {\n          \"item\": \"Underground haulage track clearance\",\n          \"result\": \"pass\"\n        }\n      ],\n      \"measurements\": [\n        {\n          \"parameter\": \"Methane (CH4)\",\n          \"value\": 0.28,\n          \"unit\": \"%\"\n        },\n        {\n          \"parameter\": \"Air Velocity\",\n          \"value\": 1.2,\n          \"unit\": \"m/s\"\n        }\n      ],\n      \"location\": {\n        \"lat\": 23.7461,\n        \"lng\": 86.4123\n      },\n      \"photoUrls\": [],\n      \"signature\": \"data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjwvc3ZnPg==\",\n      \"capturedAt\": \"2026-09-09T09:30:00.000Z\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/inspections/sync",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "inspections",
+                "sync"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const res = pm.response.json();",
+                  "pm.test('Inspection batch accepted', function () {",
+                  "    pm.expect(res.accepted).to.be.an('array');",
+                  "    pm.expect(res.accepted.length).to.be.greaterThan(0);",
+                  "    pm.expect(res.rejected).to.be.an('array').that.is.empty;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Sync Incidents - Critical Incident Sync (Triggers Alert Rule)",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_fo}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"records\": [\n    {\n      \"clientUuid\": \"{{$guid}}\",\n      \"siteId\": \"{{siteId_jharia}}\",\n      \"severity\": \"critical\",\n      \"category\": \"safety\",\n      \"description\": \"Automated Postman Test: Roof spalling in Seam 3, Gallery B. Evacuation executed.\",\n      \"location\": {\n        \"lat\": 23.7465,\n        \"lng\": 86.4128\n      },\n      \"photoUrls\": [\n        \"https://res.cloudinary.com/demo/image/upload/sample.jpg\"\n      ],\n      \"capturedAt\": \"2026-09-09T09:45:00.000Z\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/incidents/sync",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "incidents",
+                "sync"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const res = pm.response.json();",
+                  "pm.test('Incident accepted and queued for evaluation', function () {",
+                  "    pm.expect(res.accepted).to.be.an('array');",
+                  "    pm.expect(res.accepted.length).to.be.greaterThan(0);",
+                  "    pm.expect(res.rejected).to.be.an('array').that.is.empty;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Sync Attendance - Worker Check-In Batch",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_fo}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"records\": [\n    {\n      \"clientUuid\": \"{{$guid}}\",\n      \"siteId\": \"{{siteId_jharia}}\",\n      \"workerRef\": \"WRK-TEST-POSTMAN-01\",\n      \"checkType\": \"in\",\n      \"location\": {\n        \"lat\": 23.7461,\n        \"lng\": 86.4123\n      },\n      \"capturedAt\": \"2026-09-09T07:45:00.000Z\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/attendance/sync",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "attendance",
+                "sync"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const res = pm.response.json();",
+                  "pm.test('Attendance check-in accepted', function () {",
+                  "    pm.expect(res.accepted).to.be.an('array');",
+                  "    pm.expect(res.accepted.length).to.be.greaterThan(0);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Sync Guard - Corporate Manager Blocked from Field Sync (RBAC 403)",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_cm}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"records\": []\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/inspections/sync",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "inspections",
+                "sync"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Corporate Manager blocked with 403 Forbidden', function () {",
+                  "    pm.response.to.have.status(403);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Sync Validation - Empty Batch Rejected (Schema 400)",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_fo}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"records\": []\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/inspections/sync",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "inspections",
+                "sync"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 400 Bad Request', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "pm.test('Returns validation failure message', function () {",
+                  "    const res = pm.response.json();",
+                  "    pm.expect(res.error).to.be.a('string');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "03. Inspections & Incidents Oversight",
+      "description": "Querying inspections and incidents with RBAC scoping and pagination.",
+      "item": [
+        {
+          "name": "List Inspections - Mine Official (Scoped to Jharia)",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_mo}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/inspections",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "inspections"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const res = pm.response.json();",
+                  "pm.test('Data returned is an array', function () {",
+                  "    pm.expect(res.data).to.be.an('array');",
+                  "});",
+                  "",
+                  "const targetSite = pm.environment.get('siteId_jharia');",
+                  "pm.test('All returned inspections belong to assigned site', function () {",
+                  "    if (res.data.length > 0 && targetSite) {",
+                  "        res.data.forEach(function (insp) {",
+                  "            pm.expect(insp.siteId).to.eql(targetSite);",
+                  "        });",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List Inspections - Regulator (Cross-site with Pagination)",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_reg}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/inspections?page=1&limit=5",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "inspections"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "5"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const res = pm.response.json();",
+                  "pm.test('Pagination object returned correctly', function () {",
+                  "    pm.expect(res.pagination).to.be.an('object');",
+                  "    pm.expect(Number(res.pagination.page)).to.eql(1);",
+                  "    pm.expect(Number(res.pagination.limit)).to.eql(5);",
+                  "    pm.expect(res.pagination.total).to.be.a('number');",
+                  "});",
+                  "",
+                  "pm.test('Limit respected in returned data length', function () {",
+                  "    pm.expect(res.data.length).to.be.at.most(5);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List Incidents - Filter by Severity = Critical",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_reg}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/incidents?severity=critical",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "incidents"
+              ],
+              "query": [
+                {
+                  "key": "severity",
+                  "value": "critical"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const res = pm.response.json();",
+                  "pm.test('All returned incidents are critical', function () {",
+                  "    pm.expect(res.data).to.be.an('array');",
+                  "    res.data.forEach(function (inc) {",
+                  "        pm.expect(inc.severity).to.eql('critical');",
+                  "    });",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "04. Worker Attendance Monitoring",
+      "description": "Attendance ledger queries, anti-tamper site isolation, and role restrictions.",
+      "item": [
+        {
+          "name": "List Attendance - Mine Official (Scoped View)",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_mo}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/attendance",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "attendance"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const res = pm.response.json();",
+                  "const sj = pm.environment.get('siteId_jharia');",
+                  "pm.test('Attendance records strictly scoped to Jharia', function () {",
+                  "    pm.expect(res.data).to.be.an('array');",
+                  "    if (res.data.length > 0 && sj) {",
+                  "        res.data.forEach(function (rec) {",
+                  "            pm.expect(rec.siteId).to.eql(sj);",
+                  "        });",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List Attendance - Mine Official Anti-Tamper Test",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_mo}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/attendance?siteId={{siteId_dhanbad}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "attendance"
+              ],
+              "query": [
+                {
+                  "key": "siteId",
+                  "value": "{{siteId_dhanbad}}"
+                }
+              ]
+            },
+            "description": "Passing ?siteId=Dhanbad while logged in as Jharia official must NOT leak Dhanbad records."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const res = pm.response.json();",
+                  "const sj = pm.environment.get('siteId_jharia');",
+                  "pm.test('Anti-tamper: All rows still belong to Jharia (query override ignored)', function () {",
+                  "    pm.expect(res.data).to.be.an('array');",
+                  "    if (res.data.length > 0 && sj) {",
+                  "        res.data.forEach(function (rec) {",
+                  "            pm.expect(rec.siteId).to.eql(sj);",
+                  "        });",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List Attendance - Corporate Manager (Cross-site Oversight)",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_cm}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/attendance",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "attendance"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const res = pm.response.json();",
+                  "pm.test('Corporate sees attendance entries across sites', function () {",
+                  "    pm.expect(res.data).to.be.an('array');",
+                  "    pm.expect(res.data.length).to.be.greaterThan(0);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List Attendance - Field Officer Blocked (RBAC 403)",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_fo}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/attendance",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "attendance"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Field Officer blocked with 403 Forbidden', function () {",
+                  "    pm.response.to.have.status(403);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "05. Alerts & Workflow Engine",
+      "description": "Alert lifecycle: querying open alerts, acknowledge, resolve, escalate, and state conflict protections.",
+      "item": [
+        {
+          "name": "Get Open Alerts & Capture IDs",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_mo}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/alerts?status=open",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "alerts"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "open"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const res = pm.response.json();",
+                  "pm.test('Open alerts array returned', function () {",
+                  "    pm.expect(res.data).to.be.an('array');",
+                  "    pm.expect(res.data.length).to.be.greaterThan(0);",
+                  "});",
+                  "",
+                  "if (res.data.length > 0) {",
+                  "    pm.environment.set('active_alert_id', res.data[0].id);",
+                  "    pm.collectionVariables.set('active_alert_id', res.data[0].id);",
+                  "    if (res.data.length > 1) {",
+                  "        pm.environment.set('escalate_alert_id', res.data[1].id);",
+                  "        pm.collectionVariables.set('escalate_alert_id', res.data[1].id);",
+                  "    } else {",
+                  "        pm.environment.set('escalate_alert_id', res.data[0].id);",
+                  "        pm.collectionVariables.set('escalate_alert_id', res.data[0].id);",
+                  "    }",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Acknowledge Alert - Mine Official",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_mo}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"note\": \"Safety team dispatched to inspect ventilation regulator.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/alerts/{{active_alert_id}}/acknowledge",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "alerts",
+                "{{active_alert_id}}",
+                "acknowledge"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const res = pm.response.json();",
+                  "pm.test('Alert status updated to acknowledged', function () {",
+                  "    pm.expect(res.status).to.eql('acknowledged');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Acknowledge Alert - Duplicate Attempt (Conflict 409)",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_mo}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"note\": \"Re-acknowledgement attempt\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/alerts/{{active_alert_id}}/acknowledge",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "alerts",
+                "{{active_alert_id}}",
+                "acknowledge"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 409 Conflict', function () {",
+                  "    pm.response.to.have.status(409);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Escalate Alert - Manual Escalation",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_mo}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"note\": \"Immediate remediation required; escalating priority.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/alerts/{{escalate_alert_id}}/escalate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "alerts",
+                "{{escalate_alert_id}}",
+                "escalate"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Status can be 200 (if open) or 409 (if already escalated)",
+                  "pm.test('Status code is 200 OK or 409 Conflict', function () {",
+                  "    pm.expect([200, 409]).to.include(pm.response.code);",
+                  "});",
+                  "",
+                  "if (pm.response.code === 200) {",
+                  "    const res = pm.response.json();",
+                  "    pm.expect(res.status).to.eql('escalated');",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Resolve Alert - Corporate Manager / Regulator",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_cm}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"resolutionNote\": \"Ventilation ducting replaced and gas reading verified below 0.3%.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/alerts/{{active_alert_id}}/resolve",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "alerts",
+                "{{active_alert_id}}",
+                "resolve"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const res = pm.response.json();",
+                  "pm.test('Alert resolved and status marked closed', function () {",
+                  "    pm.expect(res.status).to.eql('closed');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Resolve Alert - Duplicate Attempt (Conflict 409)",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_cm}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"resolutionNote\": \"Resolving already closed alert.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/alerts/{{active_alert_id}}/resolve",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "alerts",
+                "{{active_alert_id}}",
+                "resolve"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 409 Conflict', function () {",
+                  "    pm.response.to.have.status(409);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Alert Workflow - Field Officer Blocked (RBAC 403)",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_fo}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"note\": \"Field officer unauthorized ack\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/alerts/{{active_alert_id}}/acknowledge",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "alerts",
+                "{{active_alert_id}}",
+                "acknowledge"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Field officer blocked from workflow action (403)', function () {",
+                  "    pm.response.to.have.status(403);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "06. Role-Based Dashboard Summaries",
+      "description": "Verifies the 4 customized executive and operational summaries returned by GET /dashboard/summary.",
+      "item": [
+        {
+          "name": "Dashboard Summary - Field Officer Persona",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_fo}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/dashboard/summary",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "dashboard",
+                "summary"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const res = pm.response.json();",
+                  "pm.test('Field Officer summary schema matches PRD', function () {",
+                  "    pm.expect(res.myInspections).to.be.an('array');",
+                  "    pm.expect(res.myIncidents).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Dashboard Summary - Mine Official Persona",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_mo}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/dashboard/summary",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "dashboard",
+                "summary"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const res = pm.response.json();",
+                  "pm.test('Mine Official summary schema matches PRD', function () {",
+                  "    pm.expect(res.site).to.be.an('object');",
+                  "    pm.expect(res.openAlerts).to.be.an('array');",
+                  "    pm.expect(res.todaysInspections).to.be.an('array');",
+                  "    pm.expect(res.attendanceToday).to.be.an('object');",
+                  "    pm.expect(res.attendanceToday.present).to.be.a('number');",
+                  "    pm.expect(res.pendingWorkflows).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Dashboard Summary - Corporate Manager Persona",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_cm}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/dashboard/summary",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "dashboard",
+                "summary"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const res = pm.response.json();",
+                  "pm.test('Corporate Manager summary schema matches PRD', function () {",
+                  "    pm.expect(res.sites).to.be.an('array');",
+                  "    pm.expect(res.criticalAlerts).to.be.an('array');",
+                  "    pm.expect(res.trend7Day).to.be.an('object');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Dashboard Summary - Regulator Persona",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_reg}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/dashboard/summary",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "dashboard",
+                "summary"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const res = pm.response.json();",
+                  "pm.test('Regulator summary schema matches PRD', function () {",
+                  "    pm.expect(res.sites).to.be.an('array');",
+                  "    pm.expect(res.overdueItems).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "07. Tamper-Evident Audit Trail",
+      "description": "Hash-chained audit log inspection, cryptographic hash verification, and role restriction.",
+      "item": [
+        {
+          "name": "Get Audit Trail - Regulator (Cryptographic Chain Verification)",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_reg}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/audit",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "audit"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const res = pm.response.json();",
+                  "pm.test('Audit log entries returned and not empty', function () {",
+                  "    pm.expect(res.data).to.be.an('array');",
+                  "    pm.expect(res.data.length).to.be.greaterThan(5);",
+                  "});",
+                  "",
+                  "pm.test('Entries carry valid SHA-256 prevHash and thisHash', function () {",
+                  "    res.data.forEach(function (entry) {",
+                  "        pm.expect(entry.prevHash).to.be.a('string').with.lengthOf(64);",
+                  "        pm.expect(entry.thisHash).to.be.a('string').with.lengthOf(64);",
+                  "        pm.expect(entry.action).to.be.a('string');",
+                  "    });",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Audit Trail - Filter by entityType = alert",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_cm}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/audit?entityType=alert",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "audit"
+              ],
+              "query": [
+                {
+                  "key": "entityType",
+                  "value": "alert"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const res = pm.response.json();",
+                  "pm.test('All returned entries have entityType alert', function () {",
+                  "    pm.expect(res.data).to.be.an('array');",
+                  "    res.data.forEach(function (entry) {",
+                  "        pm.expect(entry.entityType).to.eql('alert');",
+                  "    });",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Audit Trail - Mine Official Blocked (RBAC 403)",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_mo}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/audit",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "audit"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Mine official blocked from audit ledger (403)', function () {",
+                  "    pm.response.to.have.status(403);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "08. Statutory Compliance Reports",
+      "description": "Automated PDF generation for coal mine statutory safety and compliance reports.",
+      "item": [
+        {
+          "name": "Generate Statutory Report - Mine Official (Own Site PDF)",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_mo}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/reports/statutory?siteId={{siteId_jharia}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "reports",
+                "statutory"
+              ],
+              "query": [
+                {
+                  "key": "siteId",
+                  "value": "{{siteId_jharia}}"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Content-Type is application/pdf', function () {",
+                  "    const contentType = pm.response.headers.get('content-type');",
+                  "    pm.expect(contentType).to.include('application/pdf');",
+                  "});",
+                  "",
+                  "pm.test('Content-Disposition header specifies PDF attachment', function () {",
+                  "    pm.response.to.have.header('content-disposition');",
+                  "    pm.expect(pm.response.headers.get('content-disposition')).to.include('.pdf');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Generate Statutory Report - Cross-site Access Denied (RBAC 403)",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_mo}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/reports/statutory?siteId={{siteId_dhanbad}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "reports",
+                "statutory"
+              ],
+              "query": [
+                {
+                  "key": "siteId",
+                  "value": "{{siteId_dhanbad}}"
+                }
+              ]
+            },
+            "description": "Mine Official from Jharia cannot generate reports for Dhanbad."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Cross-site report access denied with 403 Forbidden', function () {",
+                  "    pm.response.to.have.status(403);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Generate Statutory Report - Regulator Nationwide Access (200 OK)",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_reg}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/reports/statutory?siteId={{siteId_dhanbad}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "reports",
+                "statutory"
+              ],
+              "query": [
+                {
+                  "key": "siteId",
+                  "value": "{{siteId_dhanbad}}"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Regulator successfully receives PDF', function () {",
+                  "    pm.expect(pm.response.headers.get('content-type')).to.include('application/pdf');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Generate Statutory Report - Field Officer Blocked (RBAC 403)",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_fo}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/reports/statutory?siteId={{siteId_jharia}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "reports",
+                "statutory"
+              ],
+              "query": [
+                {
+                  "key": "siteId",
+                  "value": "{{siteId_jharia}}"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Field Officer blocked with 403 Forbidden', function () {",
+                  "    pm.response.to.have.status(403);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "09. GIS Spatial Markers",
+      "description": "Unified GIS spatial markers endpoint for Leaflet.js map visualization.",
+      "item": [
+        {
+          "name": "Get Map Markers - Mine Official (Scoped to Site)",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_mo}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/gis/markers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "gis",
+                "markers"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const res = pm.response.json();",
+                  "const sj = pm.environment.get('siteId_jharia');",
+                  "pm.test('Markers returned are strictly within assigned site', function () {",
+                  "    pm.expect(res.data).to.be.an('array');",
+                  "    if (res.data.length > 0 && sj) {",
+                  "        res.data.forEach(function (m) {",
+                  "            pm.expect(m.siteId).to.eql(sj);",
+                  "        });",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Map Markers - Regulator (Multi-site & Coordinate Types)",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_reg}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/gis/markers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "gis",
+                "markers"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const res = pm.response.json();",
+                  "pm.test('Regulator receives spatial markers', function () {",
+                  "    pm.expect(res.data).to.be.an('array');",
+                  "    pm.expect(res.data.length).to.be.greaterThan(0);",
+                  "});",
+                  "",
+                  "pm.test('Coordinates are numeric lat/lng and schema is complete', function () {",
+                  "    if (res.data.length > 0) {",
+                  "        const marker = res.data[0];",
+                  "        pm.expect(marker).to.have.property('id');",
+                  "        pm.expect(marker).to.have.property('category');",
+                  "        pm.expect(marker).to.have.property('lat');",
+                  "        pm.expect(marker).to.have.property('lng');",
+                  "        pm.expect(typeof marker.lat).to.eql('number');",
+                  "        pm.expect(typeof marker.lng).to.eql('number');",
+                  "        pm.expect(marker).to.have.property('siteId');",
+                  "        pm.expect(marker).to.have.property('siteName');",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Map Markers - Filter by siteId Query Parameter",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_cm}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/gis/markers?siteId={{siteId_jharia}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "gis",
+                "markers"
+              ],
+              "query": [
+                {
+                  "key": "siteId",
+                  "value": "{{siteId_jharia}}"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const res = pm.response.json();",
+                  "const sj = pm.environment.get('siteId_jharia');",
+                  "pm.test('Filter returns only specified site markers', function () {",
+                  "    pm.expect(res.data).to.be.an('array');",
+                  "    res.data.forEach(function (m) {",
+                  "        pm.expect(m.siteId).to.eql(sj);",
+                  "    });",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Map Markers - Field Officer Blocked (RBAC 403)",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_fo}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/gis/markers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "gis",
+                "markers"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Field Officer blocked with 403 Forbidden', function () {",
+                  "    pm.response.to.have.status(403);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "10. OCR Document Digitization Workflow",
+      "description": "Human-in-the-loop compliance document review and role verification.",
+      "item": [
+        {
+          "name": "List Documents - Mine Official (Pending Documents)",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_mo}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/documents?reviewStatus=pending",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "documents"
+              ],
+              "query": [
+                {
+                  "key": "reviewStatus",
+                  "value": "pending"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const res = pm.response.json();",
+                  "pm.test('Returns documents array and pagination metadata', function () {",
+                  "    pm.expect(res.data).to.be.an('array');",
+                  "    pm.expect(res.total).to.be.a('number');",
+                  "});",
+                  "",
+                  "if (res.data.length > 0) {",
+                  "    pm.environment.set('active_doc_id', res.data[0]._id);",
+                  "    pm.collectionVariables.set('active_doc_id', res.data[0]._id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Confirm Document - Corporate Manager Human Review",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_cm}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"correctedFields\": {\n    \"formType\": \"environmental\",\n    \"inspectorName\": \"Corporate Audit Team\",\n    \"remarks\": \"Reviewed and validated against air monitor logs.\"\n  },\n  \"reviewStatus\": \"confirmed\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/documents/{{active_doc_id}}/confirm",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "documents",
+                "{{active_doc_id}}",
+                "confirm"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const docId = pm.environment.get('active_doc_id');",
+                  "if (!docId) {",
+                  "    // Skip or expect 404 if no document fixture was seeded",
+                  "    pm.test('No pending document available in database (skipped)', function () {",
+                  "        pm.expect([200, 404]).to.include(pm.response.code);",
+                  "    });",
+                  "} else {",
+                  "    pm.test('Document confirmed successfully (200 OK)', function () {",
+                  "        pm.response.to.have.status(200);",
+                  "        const res = pm.response.json();",
+                  "        pm.expect(res.data.reviewStatus).to.eql('confirmed');",
+                  "    });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List Documents - Field Officer Blocked (RBAC 403)",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_fo}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/documents",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "documents"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Field Officer blocked from documents review (403)', function () {",
+                  "    pm.response.to.have.status(403);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Confirm Document - Regulator Blocked (Read-only RBAC 403)",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_reg}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"correctedFields\": {\n    \"formType\": \"safety\"\n  },\n  \"reviewStatus\": \"confirmed\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/documents/507f1f77bcf86cd799439011/confirm",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "documents",
+                "507f1f77bcf86cd799439011",
+                "confirm"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Regulator blocked from confirming documents (403 Forbidden)', function () {",
+                  "    pm.response.to.have.status(403);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "11. Security & Edge Cases",
+      "description": "Unauthenticated requests, forged tokens, and malformed inputs.",
+      "item": [
+        {
+          "name": "Protected Route - Unauthenticated Request Rejected (401)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/alerts",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "alerts"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 401 Unauthorized', function () {",
+                  "    pm.response.to.have.status(401);",
+                  "});",
+                  "",
+                  "pm.test('Returns authentication error', function () {",
+                  "    const res = pm.response.json();",
+                  "    pm.expect(res.error).to.be.a('string');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Protected Route - Invalid Bearer Token Rejected (401)",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "forged.fake.jwt.token",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/alerts",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "alerts"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 401 Unauthorized', function () {",
+                  "    pm.response.to.have.status(401);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Validation - Malformed ObjectId in Query (400)",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_cm}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/gis/markers?siteId=invalid-mongodb-id-format",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "gis",
+                "markers"
+              ],
+              "query": [
+                {
+                  "key": "siteId",
+                  "value": "invalid-mongodb-id-format"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 400 Bad Request', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "pm.test('Error reports invalid schema/ID parameter', function () {",
+                  "    const res = pm.response.json();",
+                  "    pm.expect(res.error).to.be.a('string');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

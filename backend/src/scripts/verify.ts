@@ -643,6 +643,266 @@ async function workflowProbes(tokens: { priya: string; meena: string }, SJ: stri
   }
 }
 
+// ── [F9] GIS Map Markers Battery ────────────────────────────────────────────
+
+async function gisBattery(
+  t: { priya: string; meena: string; amit: string; rahul: string },
+  sites: { SJ: string; SD: string }
+): Promise<void> {
+  console.log("\n== [F9] GIS Map Markers ==");
+
+  // Test 1: Unauthenticated request
+  const noAuth = await api("/gis/markers");
+  check("unauthenticated GIS → 401", noAuth.status === 401);
+
+  // Test 2: Field officer blocked
+  const fieldOfficer = await get(t.rahul, "/gis/markers");
+  check("field_officer GIS → 403", fieldOfficer.status === 403);
+
+  // Test 3: Mine official sees only their site markers
+  const mineOfficial = await get(t.priya, "/gis/markers");
+  check("mine_official GIS → 200", mineOfficial.status === 200);
+  const priyaMarkers = (mineOfficial.body as { data: Array<{ siteId: string; category: string; lat: number; lng: number }> }).data;
+  const allPriyaSite = priyaMarkers.every((m) => m.siteId === sites.SJ);
+  check("mine_official only sees own site markers", allPriyaSite, `found ${priyaMarkers.length} markers, all SJ: ${allPriyaSite}`);
+
+  // Test 4: Regulator sees markers from multiple sites
+  const regulator = await get(t.meena, "/gis/markers");
+  check("regulator GIS → 200", regulator.status === 200);
+  const regulatorMarkers = (regulator.body as { data: Array<{ siteId: string; category?: string; severity?: string; status?: string; timestamp?: string }> }).data;
+  const uniqueSites = new Set(regulatorMarkers.map((m) => m.siteId));
+  check("regulator sees multiple sites", uniqueSites.size >= 2, `found ${uniqueSites.size} unique sites`);
+
+  // Test 5: Validate marker structure
+  if (regulatorMarkers.length > 0) {
+    const marker = regulatorMarkers[0];
+    if (marker) {
+      const hasRequired = "id" in marker && "category" in marker && "lat" in marker && "lng" in marker && "siteId" in marker && "siteName" in marker;
+      check("marker has required fields", hasRequired, JSON.stringify(Object.keys(marker)));
+    }
+  }
+
+  // Test 6: Verify lat/lng are numbers, not strings
+  if (regulatorMarkers.length > 0) {
+    const marker = regulatorMarkers[0];
+    if (marker && "lat" in marker && "lng" in marker) {
+      const typesCorrect = typeof marker.lat === "number" && typeof marker.lng === "number";
+      check("lat/lng are numbers", typesCorrect, `lat=${typeof marker.lat}, lng=${typeof marker.lng}`);
+    }
+  }
+
+  // Test 7: Optional siteId filter works
+  const filtered = await get(t.amit, `/gis/markers?siteId=${sites.SJ}`);
+  check("corporate_manager filtered by siteId → 200", filtered.status === 200);
+  const filteredMarkers = (filtered.body as { data: Array<{ siteId: string }> }).data;
+  const allFiltered = filteredMarkers.every((m) => m.siteId === sites.SJ);
+  check("siteId filter returns only specified site", allFiltered, `${filteredMarkers.length} markers, all SJ: ${allFiltered}`);
+
+  // Test 8: Malformed siteId returns 400
+  const badId = await get(t.amit, "/gis/markers?siteId=not-a-valid-id");
+  check("malformed siteId → 400", badId.status === 400);
+
+  // Test 9: Validate inspection marker shape
+  const inspectionMarker = regulatorMarkers.find((m) => m.category === "inspection");
+  if (inspectionMarker) {
+    const hasInspectionFields = "severity" in inspectionMarker && "status" in inspectionMarker && "timestamp" in inspectionMarker;
+    check("inspection marker has severity/status/timestamp", hasInspectionFields);
+  }
+
+  // Test 10: Validate incident marker shape
+  const incidentMarker = regulatorMarkers.find((m) => m.category === "incident");
+  if (incidentMarker) {
+    const hasIncidentFields = "severity" in incidentMarker && "status" in incidentMarker && "timestamp" in incidentMarker;
+    check("incident marker has severity/status/timestamp", hasIncidentFields);
+  }
+}
+
+// ── [F10] Document OCR Workflow Battery ─────────────────────────────────────
+
+async function documentBattery(
+  t: { priya: string; meena: string; amit: string; rahul: string },
+  sites: { SJ: string; SD: string }
+): Promise<void> {
+  console.log("\n== [F10] Document OCR Workflow ==");
+
+  // Import Document model (needed for fixture creation)
+  const { default: Document } = await import("../models/Document.js");
+
+  // Fixture: Create test document directly in MongoDB
+  const testDoc = await Document.create({
+    siteId: new Types.ObjectId(sites.SJ),
+    sourceImageUrl: "https://example.com/form.jpg",
+    extractedFields: { formType: "safety", date: "2026-09-09" },
+    confidence: 0.92,
+    reviewStatus: "pending",
+  });
+
+  // Test 1: Mine official lists pending documents
+  const list = await get(t.priya, "/documents?reviewStatus=pending");
+  check("mine_official lists pending documents → 200", list.status === 200);
+  const docs = (list.body as { data: Array<{ _id: string; reviewStatus: string }> }).data;
+  const foundTestDoc = docs.some((d) => d._id === testDoc._id.toString());
+  check("test document in list", foundTestDoc, `found ${docs.length} docs`);
+
+  // Test 2: Corporate manager can confirm cross-site documents (no site restriction)
+  const corporateConfirm = await post(t.amit, `/documents/${testDoc._id.toString()}/confirm`, {
+    correctedFields: { formType: "environmental" },
+  });
+  check("corporate_manager confirms cross-site document → 200", corporateConfirm.status === 200);
+
+  // Restore document to pending for mine official test
+  await Document.updateOne({ _id: testDoc._id }, { reviewStatus: "pending" });
+
+  // Test 3: Mine official confirms own-site document with corrected fields
+  const confirm = await post(t.priya, `/documents/${testDoc._id.toString()}/confirm`, {
+    correctedFields: { formType: "environmental", inspectorName: "Priya Singh" },
+    reviewStatus: "confirmed",
+  });
+  check("mine_official confirms document → 200", confirm.status === 200);
+  const confirmed = (confirm.body as { data: { reviewStatus: string } }).data;
+  check("reviewStatus updated to confirmed", confirmed.reviewStatus === "confirmed");
+
+  // Test 4: Verify audit log entry exists
+  const audit = await AuditLog.findOne({
+    entityType: "document",
+    entityId: testDoc._id,
+    action: "confirmed",
+  }).lean();
+  check("audit trail records document confirmation", !!audit);
+
+  // Test 5: Field officer cannot access document list
+  const fieldOfficer = await get(t.rahul, "/documents");
+  check("field_officer list documents → 403", fieldOfficer.status === 403);
+
+  // Test 6: Regulator can list documents across all sites
+  const regulatorList = await get(t.meena, "/documents");
+  check("regulator lists documents → 200", regulatorList.status === 200);
+  const regulatorDocs = (regulatorList.body as { data: unknown[] }).data;
+  check("regulator sees documents", regulatorDocs.length > 0);
+
+  // Test 7: Regulator cannot confirm documents (read-only)
+  const regulatorConfirm = await post(t.meena, `/documents/${testDoc._id.toString()}/confirm`, {
+    correctedFields: { formType: "production" },
+  });
+  check("regulator confirm → 403 (read-only)", regulatorConfirm.status === 403);
+
+  // Cleanup: Remove test document
+  await Document.deleteOne({ _id: testDoc._id });
+}
+
+// ── [F11] AI Intelligence Battery ───────────────────────────────────────────
+
+async function aiBattery(
+  t: { priya: string; meena: string; amit: string; rahul: string },
+  sites: { SJ: string; SD: string }
+): Promise<void> {
+  console.log("\n== [F11] AI Intelligence ==");
+
+  // Test 1: Mine official gets risk score for own site
+  const ownSiteRisk = await get(t.priya, `/ai/risk-score/${sites.SJ}`);
+  check("mine_official risk-score for own site → 200", ownSiteRisk.status === 200);
+  const riskData = (ownSiteRisk.body as { data: { score: number; riskLevel: string; breakdown: unknown; metrics: unknown } }).data;
+  check("risk score is 0-100", riskData.score >= 0 && riskData.score <= 100, `score=${riskData.score}`);
+  check("risk level is LOW/MEDIUM/HIGH/CRITICAL", ["LOW", "MEDIUM", "HIGH", "CRITICAL"].includes(riskData.riskLevel));
+  check("risk breakdown present", !!riskData.breakdown);
+  check("risk metrics present", !!riskData.metrics);
+
+  // Test 2: Mine official blocked from cross-site risk score
+  const crossSiteRisk = await get(t.priya, `/ai/risk-score/${sites.SD}`);
+  check("mine_official cross-site risk-score → 403", crossSiteRisk.status === 403);
+
+  // Test 3: Corporate manager gets risk score for any site
+  const corporateRisk = await get(t.amit, `/ai/risk-score/${sites.SD}`);
+  check("corporate_manager risk-score for any site → 200", corporateRisk.status === 200);
+
+  // Test 4: Regulator gets risk score for any site
+  const regulatorRisk = await get(t.meena, `/ai/risk-score/${sites.SJ}`);
+  check("regulator risk-score for any site → 200", regulatorRisk.status === 200);
+
+  // Test 5: Field officer blocked from AI endpoints
+  const fieldRisk = await get(t.rahul, `/ai/risk-score/${sites.SJ}`);
+  check("field_officer risk-score → 403", fieldRisk.status === 403);
+
+  // Test 6: Malformed siteId returns 400
+  const badRisk = await get(t.amit, "/ai/risk-score/not-a-valid-id");
+  check("malformed siteId for risk-score → 400", badRisk.status === 400);
+
+  // Test 7: Mine official gets trends for own site
+  const ownSiteTrends = await get(t.priya, `/ai/trends/${sites.SJ}`);
+  check("mine_official trends for own site → 200", ownSiteTrends.status === 200);
+  const trendsData = (ownSiteTrends.body as { data: { period: string; inspections: unknown; incidents: unknown; alerts: unknown } }).data;
+  check("trends period is 30days", trendsData.period === "30days");
+  check("trends has inspections data", !!trendsData.inspections);
+  check("trends has incidents data", !!trendsData.incidents);
+  check("trends has alerts data", !!trendsData.alerts);
+
+  // Test 8: Mine official blocked from cross-site trends
+  const crossSiteTrends = await get(t.priya, `/ai/trends/${sites.SD}`);
+  check("mine_official cross-site trends → 403", crossSiteTrends.status === 403);
+
+  // Test 9: Corporate manager gets summary for all sites
+  const summary = await get(t.amit, "/ai/summary");
+  check("corporate_manager summary → 200", summary.status === 200);
+  const summaryData = (summary.body as { data: Array<{ siteId: string; score: number; riskLevel: string }> }).data;
+  check("summary returns array of risk scores", Array.isArray(summaryData));
+  check("summary includes multiple sites", summaryData.length >= 2, `${summaryData.length} sites`);
+
+  // Verify summary is sorted by risk (descending)
+  if (summaryData.length > 1) {
+    const isSorted = summaryData.every((s, i) => {
+      if (i === 0) return true;
+      const prev = summaryData[i - 1];
+      return prev ? prev.score >= s.score : true;
+    });
+    check("summary sorted by risk descending", isSorted);
+  }
+
+  // Test 10: Mine official sees only own site in summary
+  const mineOfficialSummary = await get(t.priya, "/ai/summary");
+  check("mine_official summary → 200", mineOfficialSummary.status === 200);
+  const mineOfficialData = (mineOfficialSummary.body as { data: Array<{ siteId: string }> }).data;
+  const allOwnSite = mineOfficialData.every((s) => s.siteId === sites.SJ);
+  check("mine_official summary shows only own site", allOwnSite, `${mineOfficialData.length} sites`);
+
+  // Test 11: Regulator gets summary for all sites
+  const regulatorSummary = await get(t.meena, "/ai/summary");
+  check("regulator summary → 200", regulatorSummary.status === 200);
+  const regulatorData = (regulatorSummary.body as { data: unknown[] }).data;
+  check("regulator sees multiple sites", regulatorData.length >= 2, `${regulatorData.length} sites`);
+
+  // Test 12: Field officer blocked from summary
+  const fieldSummary = await get(t.rahul, "/ai/summary");
+  check("field_officer summary → 403", fieldSummary.status === 403);
+
+  // ── BUG FIX VERIFICATION TESTS ─────────────────────────────────────────────
+
+  // Test 26: Verify incidents contribute to score (Bug #1 fix)
+  const detailedRisk = await get(t.priya, `/ai/risk-score/${sites.SJ}`);
+  const breakdown = (detailedRisk.body as { data: { breakdown: { incidentScore: number } } }).data.breakdown;
+  check("incident score is a number", typeof breakdown.incidentScore === "number", `incidentScore=${breakdown.incidentScore}`);
+
+  // Test 27: Data sufficiency object present (Bug #4 fix)
+  const dataSuff = (detailedRisk.body as { data: { dataSufficiency: any } }).data.dataSufficiency;
+  check("dataSufficiency object present", !!dataSuff);
+  check("hasSufficientData is boolean", typeof dataSuff.hasSufficientData === "boolean");
+  check("inspectionCount present", typeof dataSuff.inspectionCount === "number");
+  check("alertCount present", typeof dataSuff.alertCount === "number");
+
+  // Test 28: Non-existent site returns 404 (Bug #3 fix)
+  const fakeSiteId = "507f1f77bcf86cd799439011";
+  const notFound = await get(t.amit, `/ai/risk-score/${fakeSiteId}`); // Use corporate manager
+  check("non-existent site risk-score → 404", notFound.status === 404);
+
+  // Test 29: Trends non-existent site returns 404 (Bug #3 fix)
+  const trendsNotFound = await get(t.amit, `/ai/trends/${fakeSiteId}`); // Use corporate manager
+  check("non-existent site trends → 404", trendsNotFound.status === 404);
+
+  // Test 30: Verify trends incidents data present (Bug #1 fix)
+  const detailedTrends = await get(t.priya, `/ai/trends/${sites.SJ}`);
+  const trendsIncidents = (detailedTrends.body as { data: { incidents: { total: number } } }).data.incidents;
+  check("trends incidents.total is a number", typeof trendsIncidents.total === "number");
+}
+
 // ── Runner ───────────────────────────────────────────────────────────────────
 
 async function main(): Promise<void> {
@@ -695,6 +955,9 @@ async function main(): Promise<void> {
     await workflowProbes({ priya: tokens.priya, meena: tokens.meena }, SJ);
     await reportsBattery(tokens, { SJ, SD });
     await manualEscalationBattery(tokens, { SJ, SD });
+    await gisBattery(tokens, { SJ, SD });
+    await documentBattery(tokens, { SJ, SD });
+    await aiBattery(tokens, { SJ, SD });
   } finally {
     stopServer(server);
   }

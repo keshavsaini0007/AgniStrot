@@ -173,7 +173,11 @@ export const resolveAlert = async (
       deadline,
       changedBy: new Types.ObjectId(req.user!.id),
     });
-    await Alert.updateOne({ _id: alertId }, { status: "closed" });
+    // BUG FIX #2: Set resolvedAt when closing alert
+    await Alert.updateOne(
+      { _id: alertId },
+      { status: "closed", resolvedAt: new Date() }
+    );
 
     const { resolutionNote } = req.body as { resolutionNote?: string };
     await logAction({

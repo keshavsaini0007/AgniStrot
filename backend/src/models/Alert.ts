@@ -68,6 +68,10 @@ const alertSchema = new Schema<IAlert>(
       required: [true, "assignedTo is required."],
       // always the mine_official for that site — set by alertService at creation time
     },
+    resolvedAt: {
+      type: Date,
+      // Set when status changes to "closed"
+    },
   },
   {
     timestamps: { createdAt: true, updatedAt: false },
