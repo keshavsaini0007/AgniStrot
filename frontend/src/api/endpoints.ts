@@ -1,61 +1,53 @@
+// Real backend endpoint map (mirrors `backend/src/routes/**`).
+// Every listed endpoint exists in the backend. Demo-only domains (mines,
+// corrective actions, compliance, notifications, users) have NO endpoints and
+// are intentionally NOT listed here — their repositories are mock-locked.
 export const API_ENDPOINTS = {
   AUTH: {
     LOGIN: '/auth/login',
-    LOGOUT: '/auth/logout',
-    ME: '/auth/me',
-    REFRESH: '/auth/refresh',
-  },
-  MINES: {
-    BASE: '/mines',
-    BY_ID: (id: string) => `/mines/${id}`,
+    REGISTER: '/auth/register',
   },
   INSPECTIONS: {
     BASE: '/inspections',
-    BY_ID: (id: string) => `/inspections/${id}`,
+    SYNC: '/inspections/sync',
   },
-  OBSERVATIONS: {
-    BASE: '/observations',
-    BY_ID: (id: string) => `/observations/${id}`,
+  INCIDENTS: {
+    BASE: '/incidents',
+    SYNC: '/incidents/sync',
   },
-  CORRECTIVE_ACTIONS: {
-    BASE: '/corrective-actions',
-    BY_ID: (id: string) => `/corrective-actions/${id}`,
+  ATTENDANCE: {
+    BASE: '/attendance',
+    SYNC: '/attendance/sync',
   },
-  COMPLIANCE: {
-    BASE: '/compliance',
-    BY_ID: (id: string) => `/compliance/${id}`,
+  ALERTS: {
+    BASE: '/alerts',
+    ACKNOWLEDGE: (id: string) => `/alerts/${id}/acknowledge`,
+    RESOLVE: (id: string) => `/alerts/${id}/resolve`,
+    ESCALATE: (id: string) => `/alerts/${id}/escalate`,
+  },
+  DASHBOARD: {
+    SUMMARY: '/dashboard/summary',
+  },
+  AUDIT: {
+    BASE: '/audit',
+  },
+  REPORTS: {
+    STATUTORY: '/reports/statutory',
+  },
+  GIS: {
+    MARKERS: '/gis/markers',
+  },
+  AI: {
+    RISK_SCORE: (siteId: string) => `/ai/risk-score/${siteId}`,
+    TRENDS: (siteId: string) => `/ai/trends/${siteId}`,
+    SUMMARY: '/ai/summary',
   },
   DOCUMENTS: {
     BASE: '/documents',
-    BY_ID: (id: string) => `/documents/${id}`,
+    INGEST: '/documents/ingest',
+    CONFIRM: (id: string) => `/documents/${id}/confirm`,
   },
-  NOTIFICATIONS: {
-    BASE: '/notifications',
-    MARK_READ: (id: string) => `/notifications/${id}/read`,
-    READ_ALL: '/notifications/read-all',
-  },
-  ANALYTICS: {
-    DASHBOARD: '/analytics/dashboard',
-    COMPLIANCE: '/analytics/compliance',
-    RISK: '/analytics/risk',
-    INSPECTIONS: '/analytics/inspections',
-  },
-  GIS: {
-    MINES: '/gis/mines',
-    OBSERVATIONS: '/gis/observations',
-    INSPECTIONS: '/gis/inspections',
-  },
-  REPORTS: {
-    GENERATE: '/reports/generate',
-    BASE: '/reports',
-    BY_ID: (id: string) => `/reports/${id}`,
-  },
-  USERS: {
-    BASE: '/users',
-    BY_ID: (id: string) => `/users/${id}`,
-  },
-  AUDIT_LOGS: {
-    BASE: '/audit-logs',
-    BY_ID: (id: string) => `/audit-logs/${id}`,
+  MEDIA: {
+    UPLOAD: '/media/upload',
   },
 } as const;
