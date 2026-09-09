@@ -49,7 +49,7 @@ export const AlertsPage = () => {
     limit: 10,
     search: search || undefined,
     status: statusFilter || undefined,
-    type: severityFilter || undefined,
+    severity: severityFilter || undefined,
   });
 
   const acknowledge = useAcknowledgeAlert();
