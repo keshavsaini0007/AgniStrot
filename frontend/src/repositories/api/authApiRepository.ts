@@ -1,39 +1,30 @@
 import apiClient from '@/api/client';
 import { API_ENDPOINTS } from '@/api/endpoints';
 import { handleApiError } from '@/api/errors';
-import type { User, LoginCredentials } from '@/types';
+import { unwrap } from '@/api/client';
+import type { User, AuthResult, LoginCredentials } from '@/types';
 
 export const authApiRepository = {
-  login: async (credentials: LoginCredentials): Promise<{ user: User }> => {
+  login: async (credentials: LoginCredentials): Promise<AuthResult> => {
     try {
+      // Backend → { token, user } (top-level, not wrapped in `data`)
       const response = await apiClient.post(API_ENDPOINTS.AUTH.LOGIN, credentials);
-      return response.data.data;
+      return unwrap<AuthResult>(response.data);
     } catch (error) {
       throw handleApiError(error);
     }
   },
 
-  logout: async (): Promise<void> => {
+  register: async (data: {
+    name: string;
+    email: string;
+    password: string;
+    role: User['role'];
+    siteId?: string | null;
+  }): Promise<User> => {
     try {
-      await apiClient.post(API_ENDPOINTS.AUTH.LOGOUT);
-    } catch (error) {
-      throw handleApiError(error);
-    }
-  },
-
-  me: async (): Promise<{ user: User }> => {
-    try {
-      const response = await apiClient.get(API_ENDPOINTS.AUTH.ME);
-      return response.data.data;
-    } catch (error) {
-      throw handleApiError(error);
-    }
-  },
-
-  refresh: async (): Promise<{ user: User }> => {
-    try {
-      const response = await apiClient.post(API_ENDPOINTS.AUTH.REFRESH);
-      return response.data.data;
+      const response = await apiClient.post(API_ENDPOINTS.AUTH.REGISTER, data);
+      return unwrap<User>(response.data);
     } catch (error) {
       throw handleApiError(error);
     }
