@@ -1,127 +1,84 @@
+import { useState } from 'react';
+import { ShieldCheck } from 'lucide-react';
+import { useAuditLogs } from '@/hooks/useAuditLogs';
 import { Card, CardContent } from '@/components/ui/Card';
-import { Badge } from '@/components/ui/Badge';
-import { DataTable } from '@/components/ui/DataTable';
+import { Input } from '@/components/ui/Input';
+import { Pagination } from '@/components/ui/Pagination';
+import { TableSkeleton } from '@/components/ui/Skeleton';
+import { ErrorState } from '@/components/ui/ErrorState';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { PageHeader } from '@/components/layout/PageHeader';
-import { formatDate } from '@/utils/date';
+import { formatDateTime } from '@/utils/date';
 import type { AuditLog } from '@/types';
 import auditLogsHeaderImg from '../../../assets/images/Notifications.png';
 
-const mockAuditLogs: AuditLog[] = [
-  {
-    id: 'audit-001',
-    userId: 'usr-003',
-    action: 'CREATE',
-    entityType: 'observation',
-    entityId: 'obs-001',
-    details: { title: 'Damaged Safety Barricade', severity: 'high' },
-    ipAddress: '192.168.1.100',
-    createdAt: '2026-08-28T15:00:00.000Z',
-  },
-  {
-    id: 'audit-002',
-    userId: 'usr-001',
-    action: 'UPDATE',
-    entityType: 'corrective_action',
-    entityId: 'ca-002',
-    details: { status: 'in_progress', previousStatus: 'assigned' },
-    ipAddress: '192.168.1.101',
-    createdAt: '2026-09-01T14:00:00.000Z',
-  },
-  {
-    id: 'audit-003',
-    userId: 'usr-004',
-    action: 'CREATE',
-    entityType: 'user',
-    entityId: 'usr-005',
-    details: { name: 'Neha Gupta', role: 'department_officer' },
-    ipAddress: '192.168.1.102',
-    createdAt: '2026-02-15T11:00:00.000Z',
-  },
-  {
-    id: 'audit-004',
-    userId: 'usr-003',
-    action: 'UPDATE',
-    entityType: 'observation',
-    entityId: 'obs-003',
-    details: { status: 'resolved', previousStatus: 'in_progress' },
-    ipAddress: '192.168.1.100',
-    createdAt: '2026-08-26T14:00:00.000Z',
-  },
-  {
-    id: 'audit-005',
-    userId: 'usr-001',
-    action: 'LOGIN',
-    entityType: 'auth',
-    entityId: 'usr-001',
-    details: { email: 'rahul@coalindia.com' },
-    ipAddress: '192.168.1.101',
-    createdAt: '2026-09-02T08:00:00.000Z',
-  },
-];
-
 export const AuditLogsPage = () => {
-  const columns = [
-    {
-      key: 'id',
-      header: 'ID',
-      render: (log: AuditLog) => (
-        <span className="font-mono text-[#A4ADB2]">{log.id}</span>
-      ),
-    },
-    {
-      key: 'action',
-      header: 'Action',
-      render: (log: AuditLog) => (
-        <Badge status={log.action.toLowerCase()} />
-      ),
-    },
-    {
-      key: 'entityType',
-      header: 'Entity Type',
-      render: (log: AuditLog) => (
-        <span className="capitalize text-[#A4ADB2]">{log.entityType.replace('_', ' ')}</span>
-      ),
-    },
-    {
-      key: 'userId',
-      header: 'User',
-      render: (log: AuditLog) => (
-        <span className="text-[#A4ADB2]">{log.userId}</span>
-      ),
-    },
-    {
-      key: 'createdAt',
-      header: 'Timestamp',
-      sortable: true,
-      render: (log: AuditLog) => (
-        <span className="text-[#A4ADB2]">{formatDate(log.createdAt)}</span>
-      ),
-    },
-    {
-      key: 'ipAddress',
-      header: 'IP Address',
-      render: (log: AuditLog) => (
-        <span className="text-[#8D969B] font-mono">{log.ipAddress}</span>
-      ),
-    },
-  ];
+  const [page, setPage] = useState(1);
+  const [query, setQuery] = useState('');
+  const { data, isLoading, error, refetch } = useAuditLogs({
+    page,
+    limit: 10,
+    search: query || undefined,
+  });
+
+  if (error) return <ErrorState onRetry={refetch} />;
+
+  const logs = data?.data || [];
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Audit Logs"
-        subtitle="System activity audit trail"
+        subtitle="Append-only, hash-chained compliance trail"
         backgroundImage={auditLogsHeaderImg}
       />
 
       <Card>
+        <div className="flex flex-col gap-3 border-b border-[#21415A] p-4 sm:flex-row sm:items-center">
+          <div className="flex-1">
+            <Input
+              placeholder="Search by action or entity id..."
+              value={query}
+              onChange={(event) => { setQuery(event.target.value); setPage(1); }}
+            />
+          </div>
+        </div>
         <CardContent className="p-0">
-          <DataTable
-            columns={columns}
-            data={mockAuditLogs}
-          />
+          {isLoading ? (
+            <div className="p-6"><TableSkeleton rows={6} columns={6} /></div>
+          ) : logs.length === 0 ? (
+            <EmptyState title="No audit entries" description="Adjust your search or check access permissions." />
+          ) : (
+            <div className="overflow-x-auto">
+              <div className="min-w-[900px]">
+                <div className="grid grid-cols-[1.2fr_1fr_1.3fr_1fr_1.4fr_0.8fr] gap-4 border-b border-[#1E3545] px-5 py-3 text-[9px] uppercase tracking-[0.16em] text-[#78919F]">
+                  <span>ID</span><span>Action</span><span>Entity</span><span>Actor</span><span>Timestamp</span><span>Chain</span>
+                </div>
+                {logs.map((log) => (
+                  <AuditRow key={log.id} log={log} />
+                ))}
+              </div>
+            </div>
+          )}
+          {data?.meta && <Pagination page={data.meta.page} totalPages={data.meta.totalPages} onPageChange={setPage} />}
         </CardContent>
       </Card>
     </div>
   );
 };
+
+const AuditRow = ({ log }: { log: AuditLog }) => (
+  <div className="grid grid-cols-[1.2fr_1fr_1.3fr_1fr_1.4fr_0.8fr] items-center gap-4 border-b border-[#1E3545] px-5 py-3 transition-colors hover:bg-[#102435]">
+    <span className="font-mono text-xs text-[#A4ADB2]">{log.id}</span>
+    <span className="text-xs capitalize text-[#E8F0F3]">{log.action.replace('_', ' ')}</span>
+    <div className="min-w-0">
+      <p className="truncate font-mono text-xs text-[#A4ADB2]">{log.entityId}</p>
+      <p className="text-[10px] capitalize text-[#78919F]">{log.entityType.replace('_', ' ')}</p>
+    </div>
+    <span className="font-mono text-xs text-[#A4ADB2]">{log.actorId ?? 'system'}</span>
+    <span className="text-xs text-[#A4ADB2]">{formatDateTime(log.createdAt)}</span>
+    <span className="flex items-center gap-1 text-[10px] uppercase tracking-[0.12em] text-[#35C759]">
+      <ShieldCheck className="h-3.5 w-3.5" /> Intact
+    </span>
+  </div>
+);
