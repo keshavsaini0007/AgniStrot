@@ -28,7 +28,15 @@ export const documentApiRepository = {
 
   confirm: async (id: string, fields: { fieldName: string; value: string }[]): Promise<ItemResponse<OcrDocument>> => {
     try {
-      const response = await apiClient.post(API_ENDPOINTS.DOCUMENTS.CONFIRM(id), fields);
+      // Backend contract: `{ correctedFields, reviewStatus }` — not a bare array.
+      const correctedFields: Record<string, unknown> = {};
+      fields.forEach((f) => {
+        correctedFields[f.fieldName] = f.value;
+      });
+      const response = await apiClient.post(API_ENDPOINTS.DOCUMENTS.CONFIRM(id), {
+        correctedFields,
+        reviewStatus: 'confirmed',
+      });
       return { success: true, data: unwrap<OcrDocument>(response.data) };
     } catch (error) {
       throw handleApiError(error);

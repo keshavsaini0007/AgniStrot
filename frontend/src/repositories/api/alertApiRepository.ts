@@ -6,7 +6,17 @@ import type { Alert, FilterParams, PaginatedResponse, ItemResponse } from '@/typ
 export const alertApiRepository = {
   getAlerts: async (params?: FilterParams): Promise<PaginatedResponse<Alert>> => {
     try {
-      const response = await apiClient.get(API_ENDPOINTS.ALERTS.BASE, { params });
+      // The backend list endpoint accepts severity/status/siteId/ruleCode/limit.
+      // `search` is mapped to `ruleCode` (the only free-text field the backend filters on).
+      const response = await apiClient.get(API_ENDPOINTS.ALERTS.BASE, {
+        params: {
+          siteId: params?.siteId || undefined,
+          severity: params?.severity || undefined,
+          status: params?.status || undefined,
+          ruleCode: params?.search || undefined,
+          limit: params?.limit || 50,
+        },
+      });
       return normalizeList<Alert>(response.data);
     } catch (error) {
       throw handleApiError(error);
@@ -16,7 +26,7 @@ export const alertApiRepository = {
   acknowledge: async (id: string, note?: string): Promise<ItemResponse<Alert>> => {
     try {
       const response = await apiClient.post(API_ENDPOINTS.ALERTS.ACKNOWLEDGE(id), { note });
-      return { success: true, data: unwrap<Alert>(response.data) };
+      return { success: true, data: unwrap<Alert>(response.data, response.data) };
     } catch (error) {
       throw handleApiError(error);
     }
@@ -24,8 +34,8 @@ export const alertApiRepository = {
 
   resolve: async (id: string, note?: string): Promise<ItemResponse<Alert>> => {
     try {
-      const response = await apiClient.post(API_ENDPOINTS.ALERTS.RESOLVE(id), { note });
-      return { success: true, data: unwrap<Alert>(response.data) };
+      const response = await apiClient.post(API_ENDPOINTS.ALERTS.RESOLVE(id), { resolutionNote: note });
+      return { success: true, data: unwrap<Alert>(response.data, response.data) };
     } catch (error) {
       throw handleApiError(error);
     }
@@ -34,7 +44,7 @@ export const alertApiRepository = {
   escalate: async (id: string, note?: string): Promise<ItemResponse<Alert>> => {
     try {
       const response = await apiClient.post(API_ENDPOINTS.ALERTS.ESCALATE(id), { note });
-      return { success: true, data: unwrap<Alert>(response.data) };
+      return { success: true, data: unwrap<Alert>(response.data, response.data) };
     } catch (error) {
       throw handleApiError(error);
     }

@@ -6,7 +6,16 @@ import type { Attendance, FilterParams, PaginatedResponse, ItemResponse, Attenda
 export const attendanceApiRepository = {
   getAttendance: async (params?: FilterParams): Promise<PaginatedResponse<Attendance>> => {
     try {
-      const response = await apiClient.get(API_ENDPOINTS.ATTENDANCE.BASE, { params });
+      // Backend accepts checkType (in/out) and workerRef; `search` → workerRef.
+      const response = await apiClient.get(API_ENDPOINTS.ATTENDANCE.BASE, {
+        params: {
+          siteId: params?.siteId || undefined,
+          checkType: (params?.checkType ?? params?.status) || undefined,
+          workerRef: params?.search || undefined,
+          page: params?.page,
+          limit: params?.limit,
+        },
+      });
       return normalizeList<Attendance>(response.data);
     } catch (error) {
       throw handleApiError(error);
