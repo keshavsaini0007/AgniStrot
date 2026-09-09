@@ -35,7 +35,7 @@ export const IncidentsPage = () => {
     page,
     limit: 10,
     search: search || undefined,
-    type: severityFilter || undefined,
+    severity: severityFilter || undefined,
   });
 
   if (error) return <ErrorState onRetry={refetch} />;
