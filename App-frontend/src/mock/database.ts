@@ -1,4 +1,4 @@
-import type { User, Mine, Inspection, Observation, CorrectiveAction, ComplianceRequirement, Notification } from '@/types';
+import type { User, Mine, Inspection, Observation, CorrectiveAction, ComplianceRequirement, Notification, Document, AuditLog } from '@/types';
 
 export const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -293,4 +293,22 @@ export const mockNotifications: Notification[] = [
     severity: 'low', entityType: 'corrective_action', entityId: 'ca-005',
     read: true, createdAt: '2026-08-19T14:05:00Z',
   },
+];
+
+export const mockDocuments: Document[] = [
+  { id: 'doc-001', name: 'Safety Certificate 2026', category: 'Certificate', mineId: 'mine-001', uploadedBy: 'usr-001', fileUrl: '', fileType: 'application/pdf', fileSize: 245000, status: 'active', createdAt: '2026-03-15T10:00:00Z' },
+  { id: 'doc-002', name: 'Environmental Clearance', category: 'Clearance', mineId: 'mine-001', uploadedBy: 'usr-002', fileUrl: '', fileType: 'application/pdf', fileSize: 180000, status: 'active', createdAt: '2026-04-20T14:00:00Z' },
+  { id: 'doc-003', name: 'Inspection Report - Aug', category: 'Report', mineId: 'mine-002', uploadedBy: 'usr-003', fileUrl: '', fileType: 'application/pdf', fileSize: 320000, status: 'active', createdAt: '2026-08-20T09:00:00Z' },
+  { id: 'doc-004', name: 'Ventilation System Manual', category: 'Manual', mineId: 'mine-003', uploadedBy: 'usr-004', fileUrl: '', fileType: 'application/pdf', fileSize: 520000, status: 'active', createdAt: '2026-05-10T11:00:00Z' },
+  { id: 'doc-005', name: 'Worker Training Records', category: 'Report', mineId: 'mine-001', uploadedBy: 'usr-005', fileUrl: '', fileType: 'application/pdf', fileSize: 150000, status: 'active', createdAt: '2026-07-01T08:00:00Z' },
+];
+
+export const mockAuditLogs: AuditLog[] = [
+  { id: 'log-001', action: 'LOGIN', entityType: 'user', entityId: 'usr-001', userId: 'usr-001', details: { email: 'rahul@coalindia.com' }, ipAddress: '192.168.1.1', createdAt: '2026-08-22T08:15:00Z' },
+  { id: 'log-002', action: 'CREATE', entityType: 'inspection', entityId: 'insp-001', userId: 'usr-003', details: { mineId: 'mine-001' }, ipAddress: '192.168.1.2', createdAt: '2026-08-22T08:30:00Z' },
+  { id: 'log-003', action: 'UPDATE', entityType: 'observation', entityId: 'obs-001', userId: 'usr-003', details: { id: 'obs-001' }, ipAddress: '192.168.1.2', createdAt: '2026-08-22T09:00:00Z' },
+  { id: 'log-004', action: 'CREATE', entityType: 'corrective_action', entityId: 'ca-003', userId: 'usr-001', details: { id: 'ca-003' }, ipAddress: '192.168.1.1', createdAt: '2026-08-22T09:30:00Z' },
+  { id: 'log-005', action: 'LOGIN', entityType: 'user', entityId: 'usr-004', userId: 'usr-004', details: { email: 'admin@coalindia.com' }, ipAddress: '192.168.1.5', createdAt: '2026-08-22T10:00:00Z' },
+  { id: 'log-006', action: 'UPDATE', entityType: 'compliance', entityId: 'comp-002', userId: 'usr-005', details: { id: 'comp-002' }, ipAddress: '192.168.1.3', createdAt: '2026-08-22T10:30:00Z' },
+  { id: 'log-007', action: 'DELETE', entityType: 'document', entityId: 'doc-006', userId: 'usr-004', details: { id: 'doc-006' }, ipAddress: '192.168.1.5', createdAt: '2026-08-22T11:00:00Z' },
 ];

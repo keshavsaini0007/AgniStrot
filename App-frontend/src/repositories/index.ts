@@ -6,9 +6,10 @@ import { correctiveActionMockRepository } from './mock/correctiveActionMockRepos
 import { complianceMockRepository } from './mock/complianceMockRepository';
 import { notificationMockRepository } from './mock/notificationMockRepository';
 import { analyticsMockRepository } from './mock/analyticsMockRepository';
+import { userMockRepository } from './mock/userMockRepository';
+import { documentMockRepository } from './mock/documentMockRepository';
+import { auditLogMockRepository } from './mock/auditLogMockRepository';
 
-// For now, always use mock repositories
-// When backend is ready, switch to API repositories
 const useMockApi = true;
 
 export const authRepository = useMockApi ? authMockRepository : authMockRepository;
@@ -19,3 +20,6 @@ export const correctiveActionRepository = useMockApi ? correctiveActionMockRepos
 export const complianceRepository = useMockApi ? complianceMockRepository : complianceMockRepository;
 export const notificationRepository = useMockApi ? notificationMockRepository : notificationMockRepository;
 export const analyticsRepository = useMockApi ? analyticsMockRepository : analyticsMockRepository;
+export const userRepository = useMockApi ? userMockRepository : userMockRepository;
+export const documentRepository = useMockApi ? documentMockRepository : documentMockRepository;
+export const auditLogRepository = useMockApi ? auditLogMockRepository : auditLogMockRepository;
