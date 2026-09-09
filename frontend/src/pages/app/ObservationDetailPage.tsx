@@ -1,10 +1,11 @@
-import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, MapPin, User, Calendar, FileText, AlertTriangle } from 'lucide-react';
+import { useParams } from 'react-router-dom';
+import { MapPin, User, Calendar, FileText, AlertTriangle } from 'lucide-react';
 import { useObservation } from '@/hooks/useObservations';
 import { Card, CardHeader, CardContent } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { CardSkeleton } from '@/components/ui/Skeleton';
 import { ErrorState } from '@/components/ui/ErrorState';
+import { DetailHeader } from '@/components/ui/DetailHeader';
 import { formatDateTime } from '@/utils/date';
 
 export const ObservationDetailPage = () => {
@@ -28,23 +29,17 @@ export const ObservationDetailPage = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-4">
-        <Link
-          to="/app/observations"
-          className="p-2 text-[#8D969B] hover:text-[#F4F5F5] hover:bg-[#171A1D] rounded-lg transition-colors"
-        >
-          <ArrowLeft className="w-5 h-5" />
-        </Link>
-        <div className="flex-1">
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold text-[#F4F5F5]">{observation.title}</h1>
+      <DetailHeader
+        backTo="/app/observations"
+        title={observation.title}
+        subtitle={`${observation.id} • ${observation.category}`}
+        badges={
+          <>
             <Badge status={observation.severity} />
             <Badge status={observation.status} />
-          </div>
-          <p className="text-[#8D969B]">{observation.id} • {observation.category}</p>
-        </div>
-      </div>
+          </>
+        }
+      />
 
       {/* Details Grid */}
       <div className="grid md:grid-cols-2 gap-6">

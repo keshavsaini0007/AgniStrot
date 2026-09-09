@@ -8,11 +8,14 @@ import { Select } from '@/components/ui/Select';
 import { Badge } from '@/components/ui/Badge';
 import { DataTable } from '@/components/ui/DataTable';
 import { Pagination } from '@/components/ui/Pagination';
+import { FilterBar } from '@/components/ui/FilterBar';
 import { TableSkeleton } from '@/components/ui/Skeleton';
 import { ErrorState } from '@/components/ui/ErrorState';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { PageHeader } from '@/components/layout/PageHeader';
 import { formatDate } from '@/utils/date';
 import type { Observation } from '@/types';
+import observationsHeaderImg from '../../../assets/images/observations.png';
 
 export const ObservationsPage = () => {
   const navigate = useNavigate();
@@ -75,22 +78,20 @@ export const ObservationsPage = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-[#F4F5F5]">Observations</h1>
-          <p className="text-[#8D969B]">Track and manage safety observations</p>
-        </div>
-        <Button
-          variant="primary"
-          leftIcon={<Plus className="w-4 h-4" />}
-        >
-          New Observation
-        </Button>
-      </div>
+      <PageHeader
+        title="Observations"
+        subtitle="Track and manage safety observations"
+        backgroundImage={observationsHeaderImg}
+        action={
+          <Button variant="primary" leftIcon={<Plus className="w-4 h-4" />}>
+            New Observation
+          </Button>
+        }
+      />
 
       <Card>
         <CardHeader>
-          <div className="flex flex-col sm:flex-row gap-4">
+          <FilterBar>
             <Select
               options={[
                 { value: '', label: 'All Severities' },
@@ -113,7 +114,7 @@ export const ObservationsPage = () => {
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
             />
-          </div>
+          </FilterBar>
         </CardHeader>
         <CardContent className="p-0">
           {isLoading ? (

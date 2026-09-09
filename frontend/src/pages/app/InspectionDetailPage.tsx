@@ -1,10 +1,11 @@
-import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Calendar, MapPin, User, FileText } from 'lucide-react';
+import { useParams } from 'react-router-dom';
+import { Calendar, MapPin, User, FileText } from 'lucide-react';
 import { useInspection } from '@/hooks/useInspections';
 import { Card, CardHeader, CardContent } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { CardSkeleton } from '@/components/ui/Skeleton';
 import { ErrorState } from '@/components/ui/ErrorState';
+import { DetailHeader } from '@/components/ui/DetailHeader';
 import { formatDateTime } from '@/utils/date';
 
 export const InspectionDetailPage = () => {
@@ -28,22 +29,12 @@ export const InspectionDetailPage = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-4">
-        <Link
-          to="/app/inspections"
-          className="p-2 text-[#8D969B] hover:text-[#F4F5F5] hover:bg-[#171A1D] rounded-lg transition-colors"
-        >
-          <ArrowLeft className="w-5 h-5" />
-        </Link>
-        <div className="flex-1">
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold text-[#F4F5F5]">Inspection {inspection.id}</h1>
-            <Badge status={inspection.status} />
-          </div>
-          <p className="text-[#8D969B] capitalize">{inspection.type} Inspection</p>
-        </div>
-      </div>
+      <DetailHeader
+        backTo="/app/inspections"
+        title={`Inspection ${inspection.id}`}
+        subtitle={`${inspection.type} Inspection`}
+        badges={<Badge status={inspection.status} />}
+      />
 
       {/* Details Grid */}
       <div className="grid md:grid-cols-2 gap-6">

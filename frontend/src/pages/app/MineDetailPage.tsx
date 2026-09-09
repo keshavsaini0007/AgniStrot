@@ -1,13 +1,18 @@
-import { useParams, Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { ArrowLeft, MapPin, Shield, AlertTriangle, Clock, Building2 } from 'lucide-react';
+import { useParams } from 'react-router-dom';
+import { MapPin, Shield, AlertTriangle, Clock, Building2 } from 'lucide-react';
 import { useMine } from '@/hooks/useMines';
 import { Card, CardHeader, CardContent } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { CardSkeleton } from '@/components/ui/Skeleton';
 import { ErrorState } from '@/components/ui/ErrorState';
+import { StatCard } from '@/components/mines/StatCard';
+import { DetailHeader } from '@/components/ui/DetailHeader';
 import { formatDate } from '@/utils/date';
+import complianceRateImg from '../../../assets/images/Compliance Rate.png';
+import highRiskMinesImg from '../../../assets/images/High Risk Mines-clean.png';
+import inspectionsHeaderImg from '../../../assets/images/Inspections Header.png';
+import mine002Img from '@/assets/images/Mine-002-clean.png';
 
 export const MineDetailPage = () => {
   const { mineId } = useParams<{ mineId: string }>();
@@ -30,92 +35,47 @@ export const MineDetailPage = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-4">
-        <Link
-          to="/app/mines"
-          className="p-2 text-[#8D969B] hover:text-[#F4F5F5] hover:bg-[#171A1D] rounded-lg transition-colors"
-        >
-          <ArrowLeft className="w-5 h-5" />
-        </Link>
-        <div className="flex-1">
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold text-[#F4F5F5]">{mine.name}</h1>
-            <Badge status={mine.status} />
-          </div>
-          <p className="text-[#8D969B]">{mine.code} • {mine.subsidiary}</p>
-        </div>
-        <Button variant="secondary">Edit Mine</Button>
-      </div>
+      <DetailHeader
+        backTo="/app/mines"
+        title={mine.name}
+        subtitle={`${mine.code} • ${mine.subsidiary}`}
+        badges={<Badge status={mine.status} />}
+        action={<Button variant="secondary">Edit Mine</Button>}
+      />
 
       {/* Stats Grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-[#111416] border border-[#252A2D] rounded-xl p-4"
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-[#35C759]/10 flex items-center justify-center">
-              <Shield className="w-5 h-5 text-[#35C759]" />
-            </div>
-            <div>
-              <p className="text-sm text-[#8D969B]">Compliance</p>
-              <p className="text-xl font-bold text-[#F4F5F5]">{mine.complianceRate}%</p>
-            </div>
-          </div>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="bg-[#111416] border border-[#252A2D] rounded-xl p-4"
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-[#FF4D4F]/10 flex items-center justify-center">
-              <AlertTriangle className="w-5 h-5 text-[#FF4D4F]" />
-            </div>
-            <div>
-              <p className="text-sm text-[#8D969B]">Risk Score</p>
-              <p className="text-xl font-bold text-[#F4F5F5]">{mine.riskScore}</p>
-            </div>
-          </div>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="bg-[#111416] border border-[#252A2D] rounded-xl p-4"
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-[#4DA3FF]/10 flex items-center justify-center">
-              <Building2 className="w-5 h-5 text-[#4DA3FF]" />
-            </div>
-            <div>
-              <p className="text-sm text-[#8D969B]">Open Issues</p>
-              <p className="text-xl font-bold text-[#F4F5F5]">{mine.openObservations}</p>
-            </div>
-          </div>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-          className="bg-[#111416] border border-[#252A2D] rounded-xl p-4"
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-[#F5B942]/10 flex items-center justify-center">
-              <Clock className="w-5 h-5 text-[#F5B942]" />
-            </div>
-            <div>
-              <p className="text-sm text-[#8D969B]">Overdue Actions</p>
-              <p className="text-xl font-bold text-[#F4F5F5]">{mine.overdueActions}</p>
-            </div>
-          </div>
-        </motion.div>
+        <StatCard
+          icon={Shield}
+          label="Compliance"
+          value={`${mine.complianceRate}%`}
+          color="bg-[#35C759]/10 text-[#35C759]"
+          backgroundImage={complianceRateImg}
+        />
+        <StatCard
+          icon={AlertTriangle}
+          label="Risk Score"
+          value={mine.riskScore}
+          color="bg-[#FF4D4F]/10 text-[#FF4D4F]"
+          backgroundImage={highRiskMinesImg}
+          delay={0.1}
+        />
+        <StatCard
+          icon={Building2}
+          label="Open Issues"
+          value={mine.openObservations}
+          color="bg-[#4DA3FF]/10 text-[#4DA3FF]"
+          backgroundImage={inspectionsHeaderImg}
+          delay={0.2}
+        />
+        <StatCard
+          icon={Clock}
+          label="Overdue Actions"
+          value={mine.overdueActions}
+          color="bg-[#F5B942]/10 text-[#F5B942]"
+          backgroundImage={mine002Img}
+          delay={0.3}
+        />
       </div>
 
       {/* Location */}
