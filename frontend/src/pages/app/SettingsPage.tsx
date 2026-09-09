@@ -3,12 +3,17 @@ import { Save, User, Bell, Shield } from 'lucide-react';
 import { Card, CardHeader, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { ToggleSwitch } from '@/components/ui/ToggleSwitch';
+import { PageHeader } from '@/components/layout/PageHeader';
 import { useAuth } from '@/hooks/useAuth';
+import settingsHeaderImg from '../../../assets/images/settings.png';
 
 export const SettingsPage = () => {
   const { user } = useAuth();
   const [name, setName] = useState(user?.name || '');
   const [email, setEmail] = useState(user?.email || '');
+  const [emailNotifications, setEmailNotifications] = useState(true);
+  const [pushNotifications, setPushNotifications] = useState(true);
 
   const handleSave = () => {
     // TODO: Implement settings save
@@ -17,10 +22,11 @@ export const SettingsPage = () => {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-[#F4F5F5]">Settings</h1>
-        <p className="text-[#8D969B]">Manage your account settings</p>
-      </div>
+      <PageHeader
+        title="Settings"
+        subtitle="Manage your account settings"
+        backgroundImage={settingsHeaderImg}
+      />
 
       <div className="grid lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
@@ -61,24 +67,18 @@ export const SettingsPage = () => {
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="flex items-center justify-between py-2">
-                <div>
-                  <p className="text-sm text-[#F4F5F5]">Email Notifications</p>
-                  <p className="text-xs text-[#8D969B]">Receive email notifications</p>
-                </div>
-                <div className="w-10 h-6 bg-[#35C759] rounded-full relative cursor-pointer">
-                  <div className="absolute right-1 top-1 w-4 h-4 bg-white rounded-full" />
-                </div>
-              </div>
-              <div className="flex items-center justify-between py-2">
-                <div>
-                  <p className="text-sm text-[#F4F5F5]">Push Notifications</p>
-                  <p className="text-xs text-[#8D969B]">Receive push notifications</p>
-                </div>
-                <div className="w-10 h-6 bg-[#35C759] rounded-full relative cursor-pointer">
-                  <div className="absolute right-1 top-1 w-4 h-4 bg-white rounded-full" />
-                </div>
-              </div>
+              <ToggleSwitch
+                checked={emailNotifications}
+                onChange={setEmailNotifications}
+                label="Email Notifications"
+                description="Receive email notifications"
+              />
+              <ToggleSwitch
+                checked={pushNotifications}
+                onChange={setPushNotifications}
+                label="Push Notifications"
+                description="Receive push notifications"
+              />
             </CardContent>
           </Card>
         </div>

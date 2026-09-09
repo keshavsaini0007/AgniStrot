@@ -57,7 +57,7 @@ export const LoginPage = () => {
           <p className="text-[#A4ADB2]">Sign in to access the governance platform</p>
         </div>
 
-        <div className="bg-[#111416] border border-[#252A2D] rounded-xl p-6">
+        <div className="bg-[#1114163d] border border-[#252A2D] rounded-xl p-6">
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             {error && (
               <div className="bg-[#FF4D4F]/10 border border-[#FF4D4F]/30 rounded-lg p-3">

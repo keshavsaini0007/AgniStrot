@@ -22,7 +22,7 @@ export const authMockRepository = {
   me: async (): Promise<{ user: User }> => {
     await delay(400);
     if (!currentUser) {
-      throw new Error('Not authenticated');
+      currentUser = mockUsers[0];
     }
     return { user: currentUser };
   },
@@ -30,7 +30,7 @@ export const authMockRepository = {
   refresh: async (): Promise<{ user: User }> => {
     await delay(300);
     if (!currentUser) {
-      throw new Error('Not authenticated');
+      currentUser = mockUsers[0];
     }
     return { user: currentUser };
   },

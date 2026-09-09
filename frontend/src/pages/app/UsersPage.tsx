@@ -3,8 +3,10 @@ import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { DataTable } from '@/components/ui/DataTable';
+import { PageHeader } from '@/components/layout/PageHeader';
 import { formatDate } from '@/utils/date';
 import type { User } from '@/types';
+import usersHeaderImg from '../../../assets/images/Users.png';
 
 const mockUsers: User[] = [
   {
@@ -105,18 +107,16 @@ export const UsersPage = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-[#F4F5F5]">Users</h1>
-          <p className="text-[#8D969B]">Manage system users</p>
-        </div>
-        <Button
-          variant="primary"
-          leftIcon={<Plus className="w-4 h-4" />}
-        >
-          Add User
-        </Button>
-      </div>
+      <PageHeader
+        title="Users"
+        subtitle="Manage system users"
+        backgroundImage={usersHeaderImg}
+        action={
+          <Button variant="primary" leftIcon={<Plus className="w-4 h-4" />}>
+            Add User
+          </Button>
+        }
+      />
 
       <Card>
         <CardContent className="p-0">

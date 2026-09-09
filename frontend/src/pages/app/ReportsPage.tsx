@@ -4,6 +4,8 @@ import { Card, CardHeader, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Select';
 import { Input } from '@/components/ui/Input';
+import { PageHeader } from '@/components/layout/PageHeader';
+import reportsHeaderImg from '../../../assets/images/Reports.png';
 
 const reportTypes = [
   { value: 'compliance', label: 'Compliance Report' },
@@ -24,10 +26,11 @@ export const ReportsPage = () => {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-[#F4F5F5]">Reports</h1>
-        <p className="text-[#8D969B]">Generate and download reports</p>
-      </div>
+      <PageHeader
+        title="Reports"
+        subtitle="Generate and download reports"
+        backgroundImage={reportsHeaderImg}
+      />
 
       <div className="grid lg:grid-cols-2 gap-6">
         <Card>

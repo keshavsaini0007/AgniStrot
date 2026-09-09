@@ -11,7 +11,7 @@ export const Card = ({ children, className = '', hover = false, onClick }: CardP
   return (
     <motion.div
       whileHover={hover ? { y: -2 } : undefined}
-      className={`bg-[#111416] border border-[#252A2D] rounded-xl ${onClick ? 'cursor-pointer' : ''} ${className}`}
+      className={`bg-[#1114163d] border border-[#252A2D] rounded-xl ${onClick ? 'cursor-pointer' : ''} ${className}`}
       onClick={onClick}
     >
       {children}
