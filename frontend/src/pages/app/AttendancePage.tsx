@@ -21,7 +21,7 @@ export const AttendancePage = () => {
     page,
     limit: 10,
     search: search || undefined,
-    status: checkFilter || undefined,
+    checkType: checkFilter || undefined,
   });
 
   if (error) return <ErrorState onRetry={refetch} />;
