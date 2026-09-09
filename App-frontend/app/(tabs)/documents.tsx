@@ -2,19 +2,15 @@ import React from 'react';
 import { View, Text, FlatList, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/hooks/use-theme';
-import { Card, EmptyState, LoadingState, Badge } from '@/components/ui';
+import { useDocuments } from '@/hooks/useDocuments';
+import { Card, Badge, LoadingState, EmptyState } from '@/components/ui';
 import { BorderRadius, FontSize, Spacing } from '@/constants/theme';
 import { formatDate } from '@/utils/date';
 import type { Document } from '@/types';
 
-const mockDocuments: Document[] = [
-  { id: 'doc-001', name: 'Safety Certificate 2026', category: 'Certificate', mineId: 'mine-001', uploadedBy: 'usr-001', fileUrl: '', fileType: 'application/pdf', fileSize: 245000, status: 'active', createdAt: '2026-03-15T10:00:00Z' },
-  { id: 'doc-002', name: 'Environmental Clearance', category: 'Clearance', mineId: 'mine-001', uploadedBy: 'usr-002', fileUrl: '', fileType: 'application/pdf', fileSize: 180000, status: 'active', createdAt: '2026-04-20T14:00:00Z' },
-  { id: 'doc-003', name: 'Inspection Report - Aug', category: 'Report', mineId: 'mine-002', uploadedBy: 'usr-003', fileUrl: '', fileType: 'application/pdf', fileSize: 320000, status: 'active', createdAt: '2026-08-20T09:00:00Z' },
-];
-
 export default function DocumentsScreen() {
   const theme = useTheme();
+  const { data, isLoading } = useDocuments();
 
   const renderDocument = ({ item }: { item: Document }) => (
     <Card style={styles.card}>
@@ -28,14 +24,16 @@ export default function DocumentsScreen() {
     </Card>
   );
 
+  if (isLoading) return <LoadingState message="Loading documents..." />;
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
       <View style={styles.header}>
         <Text style={[styles.title, { color: theme.text }]}>Documents</Text>
-        <Text style={[styles.subtitle, { color: theme.textSecondary }]}>{mockDocuments.length} files</Text>
+        <Text style={[styles.subtitle, { color: theme.textSecondary }]}>{data?.meta.total || 0} files</Text>
       </View>
       <FlatList
-        data={mockDocuments}
+        data={data?.data || []}
         renderItem={renderDocument}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.list}
