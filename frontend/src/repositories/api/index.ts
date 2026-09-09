@@ -1,2 +1,11 @@
 export { authApiRepository } from './authApiRepository';
-export { mineApiRepository } from './mineApiRepository';
+export { inspectionApiRepository } from './inspectionApiRepository';
+export { incidentApiRepository } from './incidentApiRepository';
+export { attendanceApiRepository } from './attendanceApiRepository';
+export { alertApiRepository } from './alertApiRepository';
+export { auditApiRepository } from './auditApiRepository';
+export { reportApiRepository } from './reportApiRepository';
+export { gisApiRepository } from './gisApiRepository';
+export { documentApiRepository } from './documentApiRepository';
+export { dashboardApiRepository } from './dashboardApiRepository';
+export { aiApiRepository } from './aiApiRepository';
