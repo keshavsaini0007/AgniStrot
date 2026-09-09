@@ -1,23 +1,62 @@
 import { useAuthStore } from '@/store/authStore';
 
+/**
+ * Frontend permission map — scoped to the 4 canonical roles. The backend is the
+ * real gatekeeper (server-side scoping per role); this map only controls which
+ * nav items/screens are shown.
+ */
+const ROLE_PERMISSIONS: Record<string, string[]> = {
+  field_officer: ['inspections.read', 'incidents.read', 'attendance.read', 'alerts.read'],
+  mine_official: [
+    'inspections.read',
+    'incidents.read',
+    'attendance.read',
+    'alerts.read',
+    'alerts.update',
+    'reports.read',
+    'dashboard.read',
+  ],
+  corporate_manager: [
+    'inspections.read',
+    'incidents.read',
+    'attendance.read',
+    'alerts.read',
+    'alerts.update',
+    'reports.read',
+    'audit.read',
+    'analytics.read',
+    'gis.read',
+    'documents.read',
+    'dashboard.read',
+  ],
+  regulator: [
+    'inspections.read',
+    'incidents.read',
+    'attendance.read',
+    'alerts.read',
+    'reports.read',
+    'audit.read',
+    'analytics.read',
+    'gis.read',
+    'dashboard.read',
+  ],
+};
+
 export const useAuth = () => {
-  const { user, isAuthenticated, isLoading, error, login, logout, fetchCurrentUser, clearError } = useAuthStore();
+  const {
+    user,
+    isAuthenticated,
+    isLoading,
+    error,
+    login,
+    logout,
+    fetchCurrentUser,
+    clearError,
+  } = useAuthStore();
 
   const hasPermission = (permission: string) => {
     if (!user) return false;
-    // Simple permission check based on role
-    const rolePermissions: Record<string, string[]> = {
-      system_admin: ['*'],
-      mine_officer: ['mines.read', 'inspections.read', 'observations.read', 'corrective_actions.read', 'compliance.read'],
-      field_inspector: ['inspections.create', 'observations.create', 'observations.read'],
-      department_officer: ['corrective_actions.read', 'corrective_actions.update'],
-      corporate_management: ['mines.read', 'inspections.read', 'observations.read', 'analytics.read'],
-      regulatory_authority: ['mines.read', 'inspections.read', 'compliance.read'],
-      auditor: ['audit_logs.read', 'mines.read', 'inspections.read'],
-      contractor: ['corrective_actions.read', 'documents.read'],
-    };
-    
-    const permissions = rolePermissions[user.role] || [];
+    const permissions = ROLE_PERMISSIONS[user.role] || [];
     return permissions.includes('*') || permissions.includes(permission);
   };
 
