@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowUpRight, ChevronRight, CircleAlert, MapPin, Plus, Search, ShieldCheck, SlidersHorizontal, Wrench } from 'lucide-react';
 import { useMines } from '@/hooks/useMines';
+import { DemoBadge } from '@/components/demo/DemoGate';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -72,7 +73,10 @@ export const MinesPage = () => {
         <div className="absolute inset-0 -z-10 bg-[linear-gradient(90deg,#07121C_4%,rgba(7,18,28,0.22)_45%,rgba(7,18,28,0.25)_100%)]" />
         <div className="flex flex-col justify-between gap-7 md:flex-row md:items-end">
           <div><p className="mb-2 text-[10px] uppercase tracking-[0.24em] text-[#D88A32]">Operations registry / field network</p><h1 className="text-3xl font-semibold tracking-[-0.04em] text-[#F4F7F8] sm:text-4xl">Mines</h1><p className="mt-2 max-w-md text-sm text-[#B3C5D0]">Manage and monitor all coal mines from one operational view.</p></div>
+          <div className="flex items-center gap-3">
+          <DemoBadge />
           <Button variant="primary" leftIcon={<Plus className="h-4 w-4" />}>Add Mine</Button>
+        </div>
         </div>
         <div className="mt-7 flex flex-wrap gap-5 text-[10px] uppercase tracking-[0.16em] text-[#B3C5D0]"><span className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-[#35C759] shadow-[0_0_10px_#35C759]" />Network live</span><span>{activeMines} active sites</span><span>Last synced just now</span></div>
       </section>

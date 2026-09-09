@@ -99,8 +99,8 @@ export const SettingsPage = () => {
                 </p>
               </div>
               <div className="py-2">
-                <p className="text-sm text-[#8D969B]">Department</p>
-                <p className="text-[#F4F5F5]">{user?.department || 'Not assigned'}</p>
+                <p className="text-sm text-[#8D969B]">Site</p>
+                <p className="text-[#F4F5F5]">{user?.siteId ?? 'Cross-site (manager / regulator)'}</p>
               </div>
               <Button variant="danger" className="w-full">
                 Change Password

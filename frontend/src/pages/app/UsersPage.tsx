@@ -1,131 +1,168 @@
-import { Plus } from 'lucide-react';
+import { useState } from 'react';
+import { Plus, X } from 'lucide-react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { DataTable } from '@/components/ui/DataTable';
+import { Input } from '@/components/ui/Input';
+import { Select } from '@/components/ui/Select';
+import { Modal } from '@/components/ui/Modal';
 import { PageHeader } from '@/components/layout/PageHeader';
+import { DemoBadge } from '@/components/demo/DemoGate';
 import { formatDate } from '@/utils/date';
-import type { User } from '@/types';
+import { authService } from '@/services/authService';
+import { ROLE_CONFIG } from '@/utils/roles';
+import type { User, UserRole } from '@/types';
 import usersHeaderImg from '../../../assets/images/Users.png';
 
-const mockUsers: User[] = [
-  {
-    id: 'usr-001',
-    name: 'Rahul Kumar',
-    email: 'rahul@coalindia.com',
-    role: 'mine_officer',
-    department: 'Mining Operations',
-    status: 'active',
-    createdAt: '2026-01-15T10:00:00.000Z',
-    updatedAt: '2026-01-15T10:00:00.000Z',
-  },
-  {
-    id: 'usr-002',
-    name: 'Priya Sharma',
-    email: 'priya@coalindia.com',
-    role: 'corporate_management',
-    department: 'Corporate Safety',
-    status: 'active',
-    createdAt: '2026-01-10T09:00:00.000Z',
-    updatedAt: '2026-01-10T09:00:00.000Z',
-  },
-  {
-    id: 'usr-003',
-    name: 'Amit Singh',
-    email: 'amit@coalindia.com',
-    role: 'field_inspector',
-    department: 'Safety Inspection',
-    status: 'active',
-    createdAt: '2026-02-01T08:30:00.000Z',
-    updatedAt: '2026-02-01T08:30:00.000Z',
-  },
-  {
-    id: 'usr-004',
-    name: 'System Admin',
-    email: 'admin@coalindia.com',
-    role: 'system_admin',
-    department: 'IT Administration',
-    status: 'active',
-    createdAt: '2026-01-01T00:00:00.000Z',
-    updatedAt: '2026-01-01T00:00:00.000Z',
-  },
-  {
-    id: 'usr-005',
-    name: 'Neha Gupta',
-    email: 'neha@coalindia.com',
-    role: 'department_officer',
-    department: 'Environmental Compliance',
-    status: 'active',
-    createdAt: '2026-02-15T11:00:00.000Z',
-    updatedAt: '2026-02-15T11:00:00.000Z',
-  },
+const userSchema = z.object({
+  name: z.string().min(2),
+  email: z.string().email(),
+  password: z.string().min(6),
+  role: z.enum(['field_officer', 'mine_official', 'corporate_manager', 'regulator'] as const),
+  siteId: z.string().nullable(),
+});
+
+type UserFormData = z.infer<typeof userSchema>;
+
+const roleOptions = (Object.keys(ROLE_CONFIG) as UserRole[]).map((role) => ({
+  value: role,
+  label: ROLE_CONFIG[role].label,
+}));
+
+const siteOptions = [
+  { value: 'mine-001', label: 'Rajpur Coal Mine' },
+  { value: 'mine-002', label: 'Dhanbad Coal Mine' },
+  { value: 'mine-003', label: 'Korba Coal Mine' },
+  { value: 'mine-004', label: 'Talcher Coal Mine' },
+  { value: 'mine-005', label: 'Samleswari Coal Mine' },
 ];
 
 export const UsersPage = () => {
-  const columns = [
-    {
-      key: 'name',
-      header: 'Name',
-      render: (user: User) => (
-        <span className="font-medium text-[#F4F5F5]">{user.name}</span>
-      ),
-    },
-    {
-      key: 'email',
-      header: 'Email',
-      render: (user: User) => (
-        <span className="text-[#A4ADB2]">{user.email}</span>
-      ),
-    },
-    {
-      key: 'role',
-      header: 'Role',
-      render: (user: User) => {
-        return <Badge status={user.role} />;
-      },
-    },
-    {
-      key: 'department',
-      header: 'Department',
-      render: (user: User) => (
-        <span className="text-[#A4ADB2]">{user.department || '-'}</span>
-      ),
-    },
-    {
-      key: 'status',
-      header: 'Status',
-      render: (user: User) => <Badge status={user.status} />,
-    },
-    {
-      key: 'createdAt',
-      header: 'Joined',
-      render: (user: User) => (
-        <span className="text-[#A4ADB2]">{formatDate(user.createdAt)}</span>
-      ),
-    },
-  ];
+  const [users, setUsers] = useState<User[] | null>(null);
+  const [isOpen, setIsOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm<UserFormData>({
+    resolver: zodResolver(userSchema),
+    defaultValues: { role: 'field_officer', siteId: 'mine-001', password: '' },
+  });
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Users"
-        subtitle="Manage system users"
+        subtitle="Provision platform access (role-based)"
         backgroundImage={usersHeaderImg}
         action={
-          <Button variant="primary" leftIcon={<Plus className="w-4 h-4" />}>
-            Add User
-          </Button>
+          <div className="flex items-center gap-3">
+            <DemoBadge />
+            <Button variant="primary" leftIcon={<Plus className="w-4 h-4" />} onClick={() => setIsOpen(true)}>
+              Add User
+            </Button>
+          </div>
         }
       />
 
       <Card>
         <CardContent className="p-0">
           <DataTable
-            columns={columns}
-            data={mockUsers}
+            columns={[
+              {
+                key: 'name',
+                header: 'Name',
+                render: (user: User) => <span className="font-medium text-[#F4F5F5]">{user.name}</span>,
+              },
+              {
+                key: 'email',
+                header: 'Email',
+                render: (user: User) => <span className="text-[#A4ADB2]">{user.email}</span>,
+              },
+              {
+                key: 'role',
+                header: 'Role',
+                render: (user: User) => {
+                  return (
+                    <Badge status={user.role === 'field_officer' ? 'active' : user.role === 'mine_official' ? 'open' : user.role === 'regulator' ? 'info' : 'scheduled'} />
+                  );
+                },
+              },
+              {
+                key: 'siteId',
+                header: 'Site',
+                render: (user: User) => <span className="text-[#A4ADB2]">{user.siteId ?? 'All (cross-site)'}</span>,
+              },
+              {
+                key: 'status',
+                header: 'Status',
+                render: (user: User) => <Badge status={user.status} />,
+              },
+              {
+                key: 'createdAt',
+                header: 'Joined',
+                render: (user: User) => <span className="text-[#A4ADB2]">{formatDate(user.createdAt)}</span>,
+              },
+            ]}
+            data={users ?? []}
           />
         </CardContent>
       </Card>
+
+      <Modal isOpen={isOpen} onClose={() => setIsOpen(false)} title="Add User">
+        <form
+          onSubmit={handleSubmit(async (data) => {
+            setIsSubmitting(true);
+            setSubmitError(null);
+            try {
+              const created = await authService.register({
+                name: data.name,
+                email: data.email,
+                password: data.password,
+                role: data.role as UserRole,
+                siteId: data.siteId,
+              });
+              setUsers((prev) => [created, ...(prev ?? [])]);
+              setIsOpen(false);
+              reset();
+            } catch (err: any) {
+              setSubmitError(err?.message ?? 'Failed to create user');
+            } finally {
+              setIsSubmitting(false);
+            }
+          })}
+          className="space-y-4"
+        >
+          {submitError && (
+            <div className="rounded-lg border border-[#FF4D4F]/30 bg-[#FF4D4F]/10 p-3">
+              <p className="text-sm text-[#FF4D4F]">{submitError}</p>
+            </div>
+          )}
+          <Input label="Full name" placeholder="Enter full name" error={errors.name?.message} {...register('name')} />
+          <Input label="Email" type="email" placeholder="you@company.com" error={errors.email?.message} {...register('email')} />
+          <Input label="Password" type="password" placeholder="Minimum 6 characters" error={errors.password?.message} {...register('password')} />
+          <Select label="Role" options={roleOptions} {...register('role')} />
+          <div className="relative">
+            <Select label="Site (for field & mine roles)" options={siteOptions} placeholder="Cross-site (manager / regulator)" {...register('siteId')} />
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button type="button" variant="ghost" onClick={() => setIsOpen(false)} leftIcon={<X className="h-4 w-4" />}>
+              Cancel
+            </Button>
+            <Button type="submit" variant="primary" isLoading={isSubmitting}>
+              Add User
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 };

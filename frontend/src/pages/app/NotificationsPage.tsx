@@ -6,6 +6,7 @@ import { ErrorState } from '@/components/ui/ErrorState';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { NotificationItem } from '@/components/notifications/NotificationItem';
 import { PageHeader } from '@/components/layout/PageHeader';
+import { DemoBadge } from '@/components/demo/DemoGate';
 import notificationsHeaderImg from '../../../assets/images/Notifications.png';
 
 export const NotificationsPage = () => {
@@ -32,13 +33,16 @@ export const NotificationsPage = () => {
         subtitle="View and manage notifications"
         backgroundImage={notificationsHeaderImg}
         action={
-          <Button
-            variant="secondary"
-            onClick={handleMarkAllAsRead}
-            isLoading={markAllAsRead.isPending}
-          >
-            Mark All as Read
-          </Button>
+          <div className="flex items-center gap-3">
+            <DemoBadge />
+            <Button
+              variant="secondary"
+              onClick={handleMarkAllAsRead}
+              isLoading={markAllAsRead.isPending}
+            >
+              Mark All as Read
+            </Button>
+          </div>
         }
       />
 
