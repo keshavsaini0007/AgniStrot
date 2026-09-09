@@ -2,7 +2,9 @@ import { Plus, FileText, Download, Trash2 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { PageHeader } from '@/components/layout/PageHeader';
 import { formatDate } from '@/utils/date';
+import documentsHeaderImg from '../../../assets/images/Documents.png';
 
 const mockDocuments = [
   {
@@ -37,18 +39,16 @@ const mockDocuments = [
 export const DocumentsPage = () => {
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-[#F4F5F5]">Documents</h1>
-          <p className="text-[#8D969B]">Manage compliance documents</p>
-        </div>
-        <Button
-          variant="primary"
-          leftIcon={<Plus className="w-4 h-4" />}
-        >
-          Upload Document
-        </Button>
-      </div>
+      <PageHeader
+        title="Documents"
+        subtitle="Manage compliance documents"
+        backgroundImage={documentsHeaderImg}
+        action={
+          <Button variant="primary" leftIcon={<Plus className="w-4 h-4" />}>
+            Upload Document
+          </Button>
+        }
+      />
 
       <Card>
         <CardContent className="p-0">

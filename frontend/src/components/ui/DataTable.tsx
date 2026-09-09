@@ -29,9 +29,9 @@ export function DataTable<T extends Record<string, any>>({
   onSort,
 }: DataTableProps<T>) {
   return (
-    <div className="w-full overflow-x-auto">
-      <table className="w-full">
-        <thead>
+    <div className="w-full overflow-x-auto rounded-xl border border-[#21415A] bg-[#0a172245]">
+      <table className="w-full min-w-[760px]">
+        <thead className="bg-[#0C1A27]">
           <tr className="border-b border-[#252A2D]">
             {columns.map((column) => (
               <th
@@ -79,7 +79,7 @@ export function DataTable<T extends Record<string, any>>({
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: index * 0.05 }}
-                className={`hover:bg-[#171A1D] transition-colors ${
+                className={`hover:bg-[#102435] transition-colors ${
                   onRowClick ? 'cursor-pointer' : ''
                 }`}
                 onClick={() => onRowClick?.(item)}
