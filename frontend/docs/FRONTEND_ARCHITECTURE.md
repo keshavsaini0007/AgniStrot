@@ -165,7 +165,7 @@ Located in `src/components/ui/`:
 
 ```
 Background: #0B0D0E
-Surface:    #111416
+Surface:    #1114163d
 Elevated:   #171A1D
 Border:     #252A2D
 Primary:    #F4F5F5
