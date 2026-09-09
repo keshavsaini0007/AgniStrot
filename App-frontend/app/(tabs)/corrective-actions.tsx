@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, FlatList, StyleSheet, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { useTheme } from '@/hooks/use-theme';
 import { useCorrectiveActions } from '@/hooks/useCorrectiveActions';
 import { Badge, LoadingState, EmptyState } from '@/components/ui';
@@ -11,6 +12,7 @@ import type { CorrectiveAction } from '@/types';
 
 export default function CorrectiveActionsScreen() {
   const theme = useTheme();
+  const router = useRouter();
   const [statusFilter, setStatusFilter] = useState<string | undefined>();
   const { data, isLoading } = useCorrectiveActions({ status: statusFilter });
 
@@ -27,6 +29,7 @@ export default function CorrectiveActionsScreen() {
     const statusCfg = getStatusConfig(item.status);
     return (
       <Pressable
+        onPress={() => router.push({ pathname: '/(tabs)/corrective-action-detail' as any, params: { id: item.id } })}
         style={({ pressed }) => [
           styles.card,
           { backgroundColor: theme.surface, borderColor: theme.border },

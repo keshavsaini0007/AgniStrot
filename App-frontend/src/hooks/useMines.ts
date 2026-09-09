@@ -30,6 +30,18 @@ export const queryKeys = {
   analytics: {
     dashboard: ['analytics', 'dashboard'] as const,
   },
+  users: {
+    all: ['users'] as const,
+    detail: (id: string) => ['users', id] as const,
+  },
+  documents: {
+    all: ['documents'] as const,
+    detail: (id: string) => ['documents', id] as const,
+  },
+  auditLogs: {
+    all: ['auditLogs'] as const,
+    detail: (id: string) => ['auditLogs', id] as const,
+  },
 };
 
 export const useMines = (params?: FilterParams) => {

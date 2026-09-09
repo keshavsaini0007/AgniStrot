@@ -6,17 +6,10 @@ export const useAuth = () => {
   const hasPermission = (permission: string) => {
     if (!user) return false;
     const rolePermissions: Record<string, string[]> = {
-      system_admin: ['*'],
-      mine_officer: ['mines.read', 'inspections.read', 'observations.read', 'corrective_actions.read', 'compliance.read'],
-      field_inspector: ['inspections.create', 'observations.create', 'observations.read'],
-      department_officer: ['corrective_actions.read', 'corrective_actions.update'],
-      corporate_management: ['mines.read', 'inspections.read', 'observations.read', 'analytics.read'],
-      regulatory_authority: ['mines.read', 'inspections.read', 'compliance.read'],
-      auditor: ['audit_logs.read', 'mines.read', 'inspections.read'],
-      contractor: ['corrective_actions.read', 'documents.read'],
+      mine_officer: ['mines.read', 'inspections.read', 'observations.read', 'corrective_actions.read', 'compliance.read', 'documents.read', 'analytics.read'],
     };
     const permissions = rolePermissions[user.role] || [];
-    return permissions.includes('*') || permissions.includes(permission);
+    return permissions.includes(permission);
   };
 
   const can = (resource: string, action: string) => {
