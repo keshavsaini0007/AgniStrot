@@ -1,20 +1,25 @@
 import { useState } from 'react';
-import { useMines } from '@/hooks/useMines';
+import { useMapMarkers } from '@/hooks/useMapMarkers';
 import { CardSkeleton } from '@/components/ui/Skeleton';
 import { ErrorState } from '@/components/ui/ErrorState';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { MineMap } from '@/components/gis/MineMap';
-import { MineListPanel } from '@/components/gis/MineListPanel';
+import { MarkerListPanel } from '@/components/gis/MineListPanel';
 import 'leaflet/dist/leaflet.css';
 import gisHeaderImg from '../../../assets/images/GIS.png';
 
 export const GISPage = () => {
-  const { data: minesData, isLoading, error, refetch } = useMines({ limit: 50 });
-  const [selectedMine, setSelectedMine] = useState<string | null>(null);
+  const { data: markers, isLoading, error, refetch } = useMapMarkers();
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
   if (isLoading) {
     return (
       <div className="space-y-6">
+        <PageHeader
+          title="GIS Intelligence"
+          subtitle="Incident and inspection-failure markers"
+          backgroundImage={gisHeaderImg}
+        />
         <CardSkeleton />
       </div>
     );
@@ -24,26 +29,24 @@ export const GISPage = () => {
     return <ErrorState onRetry={refetch} />;
   }
 
-  const mines = minesData?.data || [];
-
   return (
     <div className="space-y-6">
       <PageHeader
         title="GIS Intelligence"
-        subtitle="Mine locations and risk visualization"
+        subtitle="Live field markers from incidents and inspection failures"
         backgroundImage={gisHeaderImg}
       />
 
       <div className="grid lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
-          <MineMap mines={mines} onMineClick={setSelectedMine} />
+          <MineMap markers={markers ?? []} onMarkerClick={setSelectedId} />
         </div>
 
         <div>
-          <MineListPanel
-            mines={mines}
-            selectedMine={selectedMine}
-            onSelectMine={setSelectedMine}
+          <MarkerListPanel
+            markers={markers ?? []}
+            selectedId={selectedId}
+            onSelect={setSelectedId}
           />
         </div>
       </div>
