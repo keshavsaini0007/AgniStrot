@@ -17,7 +17,7 @@ export const inspectionMockRepository = {
       filteredInspections = filteredInspections.filter((i) => i.type === params.type);
     }
     if (params?.search) {
-      const q = params.q.toLowerCase();
+      const q = params.search.toLowerCase();
       filteredInspections = filteredInspections.filter((i) => i.id.toLowerCase().includes(q));
     }
 

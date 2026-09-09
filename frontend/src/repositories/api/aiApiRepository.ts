@@ -69,10 +69,24 @@ export const aiApiRepository = {
     try {
       const response = await apiClient.get(API_ENDPOINTS.AI.TRENDS(siteId));
       const raw = (response.data?.data ?? response.data) as BackendTrendData;
+      const now = Date.now();
+      const cap = (n: number) => Math.max(0, Math.min(100, Math.round(n)));
       return [
-        { date: '30d', label: 'inspections', value: Math.min(100, raw.inspections.total * 10) },
-        { date: '30d', label: 'incidents', value: Math.min(100, raw.incidents.total * 10) },
-        { date: '30d', label: 'alerts', value: Math.min(100, raw.alerts.total + raw.alerts.open) },
+        {
+          date: new Date(now - 20 * 86400000).toISOString(),
+          label: 'inspections',
+          value: cap(raw?.inspections?.total ?? 0),
+        },
+        {
+          date: new Date(now - 10 * 86400000).toISOString(),
+          label: 'incidents',
+          value: cap(raw?.incidents?.total ?? 0),
+        },
+        {
+          date: new Date(now).toISOString(),
+          label: 'alerts',
+          value: cap(raw?.alerts?.open ?? 0),
+        },
       ];
     } catch (error) {
       throw handleApiError(error);
@@ -82,13 +96,22 @@ export const aiApiRepository = {
   getSummary: async (): Promise<AiSummary> => {
     try {
       const response = await apiClient.get(API_ENDPOINTS.AI.SUMMARY);
-      const scores = (response.data?.data ?? response.data) as BackendRiskScore[];
-      const now = new Date();
-      now.setDate(now.getDate() - 30);
+      const payload = response.data?.data ?? response.data;
+      const generatedAt = new Date().toISOString();
+      if (Array.isArray(payload)) {
+        return {
+          totalSites: payload.length,
+          highRiskSites: payload.filter(
+            (s) => s.riskLevel === 'HIGH' || s.riskLevel === 'CRITICAL'
+          ).length,
+          generatedAt,
+        };
+      }
+      const summary = (payload ?? {}) as Partial<AiSummary>;
       return {
-        totalSites: scores.length,
-        highRiskSites: scores.filter((s) => s.riskLevel === 'HIGH' || s.riskLevel === 'CRITICAL').length,
-        generatedAt: now.toISOString(),
+        totalSites: summary.totalSites ?? 0,
+        highRiskSites: summary.highRiskSites ?? 0,
+        generatedAt: summary.generatedAt ?? generatedAt,
       };
     } catch (error) {
       throw handleApiError(error);

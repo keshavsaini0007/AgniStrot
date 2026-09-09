@@ -11,8 +11,9 @@ export const attendanceMockRepository = {
     if (params?.siteId) {
       filtered = filtered.filter((a) => a.siteId === params.siteId);
     }
-    if (params?.status) {
-      filtered = filtered.filter((a) => a.checkType === params.status);
+    if (params?.checkType || params?.status) {
+      const checkType = params.checkType ?? params.status;
+      filtered = filtered.filter((a) => a.checkType === checkType);
     }
 
     filtered.sort((a, b) => b.capturedAt.localeCompare(a.capturedAt));

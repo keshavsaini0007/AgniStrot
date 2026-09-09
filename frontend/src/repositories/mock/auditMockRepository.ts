@@ -12,7 +12,7 @@ export const auditMockRepository = {
       filtered = filtered.filter((l) => l.entityType === params.type);
     }
     if (params?.search) {
-      const q = params.q.toLowerCase();
+      const q = params.search.toLowerCase();
       filtered = filtered.filter(
         (l) => l.action.toLowerCase().includes(q) || l.entityId.toLowerCase().includes(q)
       );

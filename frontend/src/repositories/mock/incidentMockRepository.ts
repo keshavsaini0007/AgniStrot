@@ -11,11 +11,12 @@ export const incidentMockRepository = {
     if (params?.siteId) {
       filtered = filtered.filter((i) => i.siteId === params.siteId);
     }
-    if (params?.type) {
-      filtered = filtered.filter((i) => i.severity === params.type);
+    if (params?.severity || params?.type) {
+      const severity = params.severity ?? params.type;
+      filtered = filtered.filter((i) => i.severity === severity);
     }
     if (params?.search) {
-      const q = params.q.toLowerCase();
+      const q = params.search.toLowerCase();
       filtered = filtered.filter((i) => i.description.toLowerCase().includes(q));
     }
 
