@@ -23,7 +23,6 @@ export const useCreateCorrectiveAction = () => {
     mutationFn: correctiveActionService.createCorrectiveAction,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.correctiveActions.all });
-      queryClient.invalidateQueries({ queryKey: queryKeys.observations.all });
     },
   });
 };
