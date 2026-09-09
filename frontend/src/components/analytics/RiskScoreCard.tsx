@@ -2,19 +2,7 @@ import { motion } from 'framer-motion';
 import mine001Img from '@/assets/images/Mine-001-clean.png';
 import mine002Img from '@/assets/images/Mine-002-clean.png';
 import mine003Img from '@/assets/images/Mine-003-clean.png';
-
-interface RiskFactor {
-  label: string;
-  score: number;
-}
-
-interface RiskScoreCardProps {
-  mineId: string;
-  riskScore: number;
-  riskLevel: 'low' | 'medium' | 'high' | 'critical';
-  factors: RiskFactor[];
-  explanation: string;
-}
+import type { RiskAssessment } from '@/types';
 
 const riskColors = {
   critical: { text: 'text-[#FF4058]', bg: 'bg-[#FF4058]' },
@@ -23,15 +11,22 @@ const riskColors = {
   low: { text: 'text-[#35C759]', bg: 'bg-[#35C759]' },
 };
 
-const mineImages: Record<string, string> = {
+const siteImages: Record<string, string> = {
   'mine-001': mine001Img,
   'mine-002': mine002Img,
   'mine-003': mine003Img,
+  'mine-004': mine001Img,
+  'mine-005': mine002Img,
 };
 
-export const RiskScoreCard = ({ mineId, riskScore, riskLevel, factors, explanation }: RiskScoreCardProps) => {
-  const colors = riskColors[riskLevel];
-  const backgroundImage = mineImages[mineId] || mine001Img;
+interface RiskScoreCardProps {
+  siteId: string;
+  assessment: RiskAssessment;
+}
+
+export const RiskScoreCard = ({ siteId, assessment }: RiskScoreCardProps) => {
+  const colors = riskColors[assessment.riskLevel] ?? riskColors.medium;
+  const backgroundImage = siteImages[siteId] ?? mine001Img;
 
   return (
     <motion.div
@@ -47,27 +42,37 @@ export const RiskScoreCard = ({ mineId, riskScore, riskLevel, factors, explanati
       />
       <div className="flex items-center justify-between mb-3">
         <span className="text-sm font-medium text-[#F4F5F5]">
-          Mine {mineId.replace('mine-', '#')}
+          {assessment.siteId ? `Site ${assessment.siteId.replace('mine-', '#')}` : 'Site'}
         </span>
-        <span className={`text-2xl font-bold ${colors.text}`}>
-          {riskScore}
-        </span>
+        <span className={`text-2xl font-bold ${colors.text}`}>{assessment.riskScore}</span>
       </div>
+      <p className={`text-[10px] uppercase tracking-[0.16em] mb-2 ${colors.text}`}>{assessment.riskLevel} risk</p>
       <div className="w-full bg-[#435057] rounded-full h-2 mb-3">
         <div
           className={`h-2 rounded-full ${colors.bg}`}
-          style={{ width: `${riskScore}%` }}
+          style={{ width: `${assessment.riskScore}%` }}
         />
       </div>
       <div className="space-y-2">
-        {factors.map((factor, index) => (
+        {assessment.factors.map((factor, index) => (
           <div key={index} className="flex items-center justify-between text-xs">
             <span className="text-[#8D969B]">{factor.label}</span>
-            <span className="text-[#A4ADB2]">{factor.score}%</span>
+            <span className={`${factor.severity === 'high' ? 'text-[#FF4D4F] italic' : 'text-[#A4ADB2]'}`}>
+              {factor.score}%
+            </span>
           </div>
         ))}
       </div>
-      <p className="text-xs text-[#8D969B] mt-3">{explanation}</p>
+      {assessment.explanation && (
+        <p className="text-xs text-[#8D969B] mt-3">{assessment.explanation}</p>
+      )}
+      {assessment.recommendations.length > 0 && (
+        <ul className="mt-3 space-y-1 list-disc pl-4 text-xs text-[#A4ADB2]">
+          {assessment.recommendations.slice(0, 2).map((rec, index) => (
+            <li key={index}>{rec}</li>
+          ))}
+        </ul>
+      )}
     </motion.div>
   );
 };

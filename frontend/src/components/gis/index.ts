@@ -1,2 +1,2 @@
 export { MineMap } from './MineMap';
-export { MineListPanel } from './MineListPanel';
+export { MarkerListPanel } from './MineListPanel';
