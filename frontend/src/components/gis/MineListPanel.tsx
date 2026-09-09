@@ -1,44 +1,37 @@
 import { Card, CardHeader, CardContent } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
-import type { Mine } from '@/types';
+import type { MapMarker } from '@/types';
 
-interface MineListPanelProps {
-  mines: Mine[];
-  selectedMine: string | null;
-  onSelectMine: (id: string) => void;
+interface MarkerListPanelProps {
+  markers: MapMarker[];
+  selectedId: string | null;
+  onSelect: (id: string) => void;
 }
 
-export const MineListPanel = ({ mines, selectedMine, onSelectMine }: MineListPanelProps) => (
+export const MarkerListPanel = ({ markers, selectedId, onSelect }: MarkerListPanelProps) => (
   <Card>
     <CardHeader>
-      <h3 className="text-lg font-semibold text-[#F4F5F5]">Mine List</h3>
+      <h3 className="text-lg font-semibold text-[#F4F5F5]">Field Signals</h3>
     </CardHeader>
     <CardContent className="p-0 max-h-[600px] overflow-y-auto">
+      {markers.length === 0 && <p className="p-4 text-sm text-[#8D969B]">No markers available.</p>}
       <div className="divide-y divide-[#252A2D]">
-        {mines.map((mine) => (
+        {markers.map((marker) => (
           <div
-            key={mine.id}
+            key={marker.id}
             className={`px-4 py-3 hover:bg-[#171A1D] transition-colors cursor-pointer ${
-              selectedMine === mine.id ? 'bg-[#171A1D]' : ''
+              selectedId === marker.id ? 'bg-[#171A1D]' : ''
             }`}
-            onClick={() => onSelectMine(mine.id)}
+            onClick={() => onSelect(marker.id)}
           >
             <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-[#F4F5F5]">{mine.name}</p>
-                <p className="text-xs text-[#8D969B]">{mine.code}</p>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium text-[#F4F5F5]">{marker.title}</p>
+                <p className="text-xs text-[#8D969B]">{marker.siteName ?? marker.siteId}</p>
               </div>
-              <div className="text-right">
-                <p className={`text-sm font-medium ${
-                  mine.riskScore >= 70
-                    ? 'text-[#FF4D4F]'
-                    : mine.riskScore >= 40
-                    ? 'text-[#F5B942]'
-                    : 'text-[#35C759]'
-                }`}>
-                  {mine.riskScore}
-                </p>
-                <Badge status={mine.status} />
+              <div className="flex shrink-0 flex-col items-end gap-1">
+                {marker.severity && <Badge status={marker.severity} />}
+                <span className="text-[10px] capitalize text-[#8D969B]">{marker.category}</span>
               </div>
             </div>
           </div>

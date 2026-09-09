@@ -1,13 +1,30 @@
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import { divIcon } from 'leaflet';
 import { Card } from '@/components/ui/Card';
-import type { Mine } from '@/types';
+import type { MapMarker } from '@/types';
 
 interface MineMapProps {
-  mines: Mine[];
-  onMineClick: (id: string) => void;
+  markers: MapMarker[];
+  onMarkerClick: (id: string) => void;
 }
 
-export const MineMap = ({ mines, onMineClick }: MineMapProps) => (
+const markerIcon = (severity?: string) =>
+  divIcon({
+    className: '',
+    html: `<div style="width:18px;height:18px;border-radius:9999px;border:2px solid #fff;background:${
+      severity === 'critical'
+        ? '#FF4058'
+        : severity === 'high'
+        ? '#FF4D4F'
+        : severity === 'medium'
+        ? '#F5B942'
+        : '#35C759'
+    };box-shadow:0 0 8px rgba(0,0,0,0.6);"></div>`,
+    iconSize: [18, 18],
+    iconAnchor: [9, 9],
+  });
+
+export const MineMap = ({ markers, onMarkerClick }: MineMapProps) => (
   <Card className="overflow-hidden">
     <div className="h-[600px]">
       <MapContainer
@@ -19,19 +36,20 @@ export const MineMap = ({ mines, onMineClick }: MineMapProps) => (
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
-        {mines.map((mine) => (
+        {markers.map((marker) => (
           <Marker
-            key={mine.id}
-            position={[mine.location.latitude, mine.location.longitude]}
+            key={marker.id}
+            position={[marker.lat, marker.lng]}
+            icon={markerIcon(marker.severity)}
             eventHandlers={{
-              click: () => onMineClick(mine.id),
+              click: () => onMarkerClick(marker.id),
             }}
           >
             <Popup>
               <div className="text-center">
-                <p className="font-medium">{mine.name}</p>
-                <p className="text-sm text-gray-500">{mine.code}</p>
-                <p className="text-sm">Risk Score: {mine.riskScore}</p>
+                <p className="font-medium">{marker.title}</p>
+                <p className="text-sm text-gray-500">{marker.siteName ?? marker.siteId}</p>
+                <p className="text-xs capitalize">{marker.category}</p>
               </div>
             </Popup>
           </Marker>
