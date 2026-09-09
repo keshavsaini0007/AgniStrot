@@ -1,24 +1,27 @@
-import { mockInspections, delay } from '@/mock/database';
-import type { Inspection, FilterParams, PaginatedResponse } from '@/types';
+import { mockInspections, mockSites, delay } from '@/mock/database';
+import type { Inspection, FilterParams, PaginatedResponse, InspectionSyncPayload, ItemResponse } from '@/types';
 
 let inspections = [...mockInspections];
+
+const materialize = (list: Inspection[]): Inspection[] => list;
 
 export const inspectionMockRepository = {
   getInspections: async (params?: FilterParams): Promise<PaginatedResponse<Inspection>> => {
     await delay(400);
-    let filteredInspections = [...inspections];
-    
-    if (params?.mineId) {
-      filteredInspections = filteredInspections.filter(inspection => inspection.mineId === params.mineId);
-    }
+    let filteredInspections = materialize([...inspections]);
 
-    if (params?.status) {
-      filteredInspections = filteredInspections.filter(inspection => inspection.status === params.status);
+    if (params?.siteId) {
+      filteredInspections = filteredInspections.filter((i) => i.siteId === params.siteId);
     }
-
     if (params?.type) {
-      filteredInspections = filteredInspections.filter(inspection => inspection.type === params.type);
+      filteredInspections = filteredInspections.filter((i) => i.type === params.type);
     }
+    if (params?.search) {
+      const q = params.q.toLowerCase();
+      filteredInspections = filteredInspections.filter((i) => i.id.toLowerCase().includes(q));
+    }
+
+    filteredInspections.sort((a, b) => b.capturedAt.localeCompare(a.capturedAt));
 
     const page = params?.page || 1;
     const limit = params?.limit || 10;
@@ -37,43 +40,36 @@ export const inspectionMockRepository = {
     };
   },
 
-  getInspectionById: async (id: string): Promise<Inspection> => {
+  getInspectionById: async (id: string): Promise<ItemResponse<Inspection>> => {
     await delay(300);
-    const inspection = inspections.find(i => i.id === id);
+    const inspection = inspections.find((i) => i.id === id);
     if (!inspection) {
       throw new Error('Inspection not found');
     }
-    return inspection;
+    return { success: true, data: inspection };
   },
 
-  createInspection: async (data: Omit<Inspection, 'id' | 'createdAt' | 'updatedAt'>): Promise<Inspection> => {
-    await delay(500);
-    const newInspection: Inspection = {
-      ...data,
-      id: `insp-${String(inspections.length + 1).padStart(3, '0')}`,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-    inspections.push(newInspection);
-    return newInspection;
+  /** Simulates a device → server upload; assigns server ids to synced records. */
+  syncInspections: async (payload: InspectionSyncPayload[]): Promise<ItemResponse<Inspection[]>> => {
+    await delay(600);
+    const synced: Inspection[] = payload.map((record, index) => {
+      const existing = inspections.find((i) => i.clientUuid === record.clientUuid);
+      const inspection: Inspection = {
+        ...record,
+        id: existing?.id ?? `insp-${String(inspections.length + index + 1).padStart(3, '0')}`,
+        failedCount: record.checklist.filter((c) => c.result === 'fail').length,
+      };
+      inspections = [inspection, ...inspections.filter((i) => i.clientUuid !== record.clientUuid)];
+      return inspection;
+    });
+    return { success: true, data: synced };
   },
+};
 
-  updateInspection: async (id: string, data: Partial<Inspection>): Promise<Inspection> => {
-    await delay(400);
-    const index = inspections.findIndex(i => i.id === id);
-    if (index === -1) {
-      throw new Error('Inspection not found');
-    }
-    inspections[index] = { ...inspections[index], ...data, updatedAt: new Date().toISOString() };
-    return inspections[index];
-  },
-
-  deleteInspection: async (id: string): Promise<void> => {
-    await delay(400);
-    const index = inspections.findIndex(i => i.id === id);
-    if (index === -1) {
-      throw new Error('Inspection not found');
-    }
-    inspections.splice(index, 1);
-  },
+export const mockSiteNamesForInspections = (): Record<string, string> => {
+  const map: Record<string, string> = {};
+  mockSites.forEach((s) => {
+    map[s.id] = s.name;
+  });
+  return map;
 };

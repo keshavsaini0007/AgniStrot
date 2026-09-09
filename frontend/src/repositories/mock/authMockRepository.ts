@@ -1,37 +1,35 @@
 import { mockUsers, delay } from '@/mock/database';
-import type { User, LoginCredentials } from '@/types';
-
-let currentUser: User | null = null;
+import type { AuthResult, User, LoginCredentials } from '@/types';
 
 export const authMockRepository = {
-  login: async (credentials: LoginCredentials): Promise<{ user: User }> => {
+  login: async (credentials: LoginCredentials): Promise<AuthResult> => {
     await delay(500);
-    const user = mockUsers.find(u => u.email === credentials.email);
+    const user = mockUsers.find((u) => u.email === credentials.email);
     if (!user) {
       throw new Error('Invalid email or password');
     }
-    currentUser = user;
-    return { user };
+    return { token: `mock-jwt.${user.id}`, user };
   },
 
-  logout: async (): Promise<void> => {
-    await delay(300);
-    currentUser = null;
-  },
-
-  me: async (): Promise<{ user: User }> => {
-    await delay(400);
-    if (!currentUser) {
-      currentUser = mockUsers[0];
-    }
-    return { user: currentUser };
-  },
-
-  refresh: async (): Promise<{ user: User }> => {
-    await delay(300);
-    if (!currentUser) {
-      currentUser = mockUsers[0];
-    }
-    return { user: currentUser };
+  register: async (data: {
+    name: string;
+    email: string;
+    password: string;
+    role: User['role'];
+    siteId?: string | null;
+  }): Promise<User> => {
+    await delay(500);
+    const user: User = {
+      id: `usr-${String(mockUsers.length + 1).padStart(3, '0')}`,
+      name: data.name,
+      email: data.email,
+      role: data.role,
+      siteId: data.siteId ?? null,
+      status: 'active',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    mockUsers.push(user);
+    return user;
   },
 };
