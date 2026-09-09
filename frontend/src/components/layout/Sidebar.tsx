@@ -9,7 +9,6 @@ import {
   FileText,
   FolderOpen,
   Brain,
-  BarChart3,
   Globe,
   FileBarChart,
   Bell,
@@ -30,7 +29,6 @@ const navigation = [
   { name: 'Compliance', href: '/app/compliance', icon: FileText },
   { name: 'Documents', href: '/app/documents', icon: FolderOpen },
   { name: 'AI Risk Intelligence', href: '/app/analytics', icon: Brain },
-  { name: 'Analytics', href: '/app/analytics', icon: BarChart3 },
   { name: 'GIS Intelligence', href: '/app/gis', icon: Globe },
   { name: 'Reports', href: '/app/reports', icon: FileBarChart },
   { name: 'Notifications', href: '/app/notifications', icon: Bell },
@@ -59,7 +57,7 @@ export const Sidebar = () => {
         animate={{
           x: sidebarOpen ? 0 : -280,
         }}
-        className={`fixed top-0 left-0 z-50 h-full w-[280px] bg-[#111416] border-r border-[#252A2D] lg:translate-x-0 ${
+        className={`fixed top-0 left-0 z-50 h-full w-[280px] bg-[#1114163d] border-r border-[#252A2D] lg:translate-x-0 ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >

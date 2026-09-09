@@ -8,11 +8,14 @@ import { Select } from '@/components/ui/Select';
 import { Badge } from '@/components/ui/Badge';
 import { DataTable } from '@/components/ui/DataTable';
 import { Pagination } from '@/components/ui/Pagination';
+import { FilterBar } from '@/components/ui/FilterBar';
 import { TableSkeleton } from '@/components/ui/Skeleton';
 import { ErrorState } from '@/components/ui/ErrorState';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { PageHeader } from '@/components/layout/PageHeader';
 import { formatDate } from '@/utils/date';
 import type { CorrectiveAction } from '@/types';
+import correctiveActionsHeaderImg from '../../../assets/images/Corrective Actions.png';
 
 export const CorrectiveActionsPage = () => {
   const navigate = useNavigate();
@@ -68,22 +71,20 @@ export const CorrectiveActionsPage = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-[#F4F5F5]">Corrective Actions</h1>
-          <p className="text-[#8D969B]">Track and manage corrective actions</p>
-        </div>
-        <Button
-          variant="primary"
-          leftIcon={<Plus className="w-4 h-4" />}
-        >
-          New Action
-        </Button>
-      </div>
+      <PageHeader
+        title="Corrective Actions"
+        subtitle="Track and manage corrective actions"
+        backgroundImage={correctiveActionsHeaderImg}
+        action={
+          <Button variant="primary" leftIcon={<Plus className="w-4 h-4" />}>
+            New Action
+          </Button>
+        }
+      />
 
       <Card>
         <CardHeader>
-          <div className="flex flex-col sm:flex-row gap-4">
+          <FilterBar>
             <Select
               options={[
                 { value: '', label: 'All Statuses' },
@@ -108,7 +109,7 @@ export const CorrectiveActionsPage = () => {
               value={priorityFilter}
               onChange={(e) => setPriorityFilter(e.target.value)}
             />
-          </div>
+          </FilterBar>
         </CardHeader>
         <CardContent className="p-0">
           {isLoading ? (

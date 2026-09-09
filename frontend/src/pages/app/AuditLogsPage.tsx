@@ -1,8 +1,10 @@
 import { Card, CardContent } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { DataTable } from '@/components/ui/DataTable';
+import { PageHeader } from '@/components/layout/PageHeader';
 import { formatDate } from '@/utils/date';
 import type { AuditLog } from '@/types';
+import auditLogsHeaderImg from '../../../assets/images/Notifications.png';
 
 const mockAuditLogs: AuditLog[] = [
   {
@@ -106,10 +108,11 @@ export const AuditLogsPage = () => {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-[#F4F5F5]">Audit Logs</h1>
-        <p className="text-[#8D969B]">System activity audit trail</p>
-      </div>
+      <PageHeader
+        title="Audit Logs"
+        subtitle="System activity audit trail"
+        backgroundImage={auditLogsHeaderImg}
+      />
 
       <Card>
         <CardContent className="p-0">

@@ -27,7 +27,7 @@ export const Topbar = () => {
             <Menu className="w-5 h-5" />
           </button>
 
-          <div className="hidden md:flex items-center gap-2 bg-[#171A1D] border border-[#252A2D] rounded-lg px-4 py-2 w-64">
+          <div className="hidden md:flex items-center gap-2 bg-[#171A1D]/10 border border-[#252A2D] rounded-lg px-4 py-2 w-64">
             <Search className="w-4 h-4 text-[#8D969B]" />
             <input
               type="text"

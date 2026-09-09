@@ -9,3 +9,6 @@ export { EmptyState } from './EmptyState';
 export { ErrorState } from './ErrorState';
 export { DataTable } from './DataTable';
 export { Pagination } from './Pagination';
+export { FilterBar } from './FilterBar';
+export { DetailHeader } from './DetailHeader';
+export { ToggleSwitch } from './ToggleSwitch';

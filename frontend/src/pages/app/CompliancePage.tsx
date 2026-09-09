@@ -8,11 +8,14 @@ import { Select } from '@/components/ui/Select';
 import { Badge } from '@/components/ui/Badge';
 import { DataTable } from '@/components/ui/DataTable';
 import { Pagination } from '@/components/ui/Pagination';
+import { FilterBar } from '@/components/ui/FilterBar';
 import { TableSkeleton } from '@/components/ui/Skeleton';
 import { ErrorState } from '@/components/ui/ErrorState';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { PageHeader } from '@/components/layout/PageHeader';
 import { formatDate } from '@/utils/date';
 import type { ComplianceRequirement } from '@/types';
+import complianceHeaderImg from '../../../assets/images/Compliance.png';
 
 export const CompliancePage = () => {
   const navigate = useNavigate();
@@ -68,22 +71,20 @@ export const CompliancePage = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-[#F4F5F5]">Compliance</h1>
-          <p className="text-[#8D969B]">Track compliance requirements</p>
-        </div>
-        <Button
-          variant="primary"
-          leftIcon={<Plus className="w-4 h-4" />}
-        >
-          Add Requirement
-        </Button>
-      </div>
+      <PageHeader
+        title="Compliance"
+        subtitle="Track compliance requirements"
+        backgroundImage={complianceHeaderImg}
+        action={
+          <Button variant="primary" leftIcon={<Plus className="w-4 h-4" />}>
+            Add Requirement
+          </Button>
+        }
+      />
 
       <Card>
         <CardHeader>
-          <div className="flex flex-col sm:flex-row gap-4">
+          <FilterBar>
             <Select
               options={[
                 { value: '', label: 'All Statuses' },
@@ -95,7 +96,7 @@ export const CompliancePage = () => {
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
             />
-          </div>
+          </FilterBar>
         </CardHeader>
         <CardContent className="p-0">
           {isLoading ? (

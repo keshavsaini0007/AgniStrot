@@ -1,9 +1,13 @@
-import { motion } from 'framer-motion';
-import { Brain, TrendingUp, Shield } from 'lucide-react';
 import { useDashboardData, useRiskAnalytics, useComplianceAnalytics } from '@/hooks/useAnalytics';
 import { Card, CardHeader, CardContent } from '@/components/ui/Card';
 import { CardSkeleton } from '@/components/ui/Skeleton';
 import { ErrorState } from '@/components/ui/ErrorState';
+import { RiskScoreCard } from '@/components/analytics/RiskScoreCard';
+import { ComplianceOverview } from '@/components/compliance/ComplianceOverview';
+import { ComplianceTrendChart } from '@/components/analytics/ComplianceTrendChart';
+import { PageHeader } from '@/components/layout/PageHeader';
+import { Brain, TrendingUp, Shield } from 'lucide-react';
+import analyticsHeaderImg from '../../../assets/images/AI Risk Intelligence.png';
 
 export const AnalyticsPage = () => {
   const { isLoading: dashboardLoading, error: dashboardError, refetch: refetchDashboard } = useDashboardData();
@@ -27,10 +31,11 @@ export const AnalyticsPage = () => {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-[#F4F5F5]">Analytics & AI Risk Intelligence</h1>
-        <p className="text-[#8D969B]">Insights and risk assessments across all operations</p>
-      </div>
+      <PageHeader
+        title="Analytics & AI Risk Intelligence"
+        subtitle="Insights and risk assessments across all operations"
+        backgroundImage={analyticsHeaderImg}
+      />
 
       {/* Risk Intelligence */}
       <Card>
@@ -43,50 +48,14 @@ export const AnalyticsPage = () => {
         <CardContent>
           <div className="grid md:grid-cols-3 gap-4">
             {riskData?.slice(0, 3).map((risk) => (
-              <motion.div
+              <RiskScoreCard
                 key={risk.mineId}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="bg-[#171A1D] border border-[#252A2D] rounded-xl p-4"
-              >
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-sm font-medium text-[#F4F5F5]">
-                    Mine {risk.mineId.replace('mine-', '#')}
-                  </span>
-                  <span
-                    className={`text-2xl font-bold ${
-                      risk.riskLevel === 'high'
-                        ? 'text-[#FF4D4F]'
-                        : risk.riskLevel === 'medium'
-                        ? 'text-[#F5B942]'
-                        : 'text-[#35C759]'
-                    }`}
-                  >
-                    {risk.riskScore}
-                  </span>
-                </div>
-                <div className="w-full bg-[#252A2D] rounded-full h-2 mb-3">
-                  <div
-                    className={`h-2 rounded-full ${
-                      risk.riskLevel === 'high'
-                        ? 'bg-[#FF4D4F]'
-                        : risk.riskLevel === 'medium'
-                        ? 'bg-[#F5B942]'
-                        : 'bg-[#35C759]'
-                    }`}
-                    style={{ width: `${risk.riskScore}%` }}
-                  />
-                </div>
-                <div className="space-y-2">
-                  {risk.factors.map((factor, index) => (
-                    <div key={index} className="flex items-center justify-between text-xs">
-                      <span className="text-[#8D969B]">{factor.label}</span>
-                      <span className="text-[#A4ADB2]">{factor.score}%</span>
-                    </div>
-                  ))}
-                </div>
-                <p className="text-xs text-[#8D969B] mt-3">{risk.explanation}</p>
-              </motion.div>
+                mineId={risk.mineId}
+                riskScore={risk.riskScore}
+                riskLevel={risk.riskLevel}
+                factors={risk.factors}
+                explanation={risk.explanation}
+              />
             ))}
           </div>
         </CardContent>
@@ -102,26 +71,10 @@ export const AnalyticsPage = () => {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-center mb-6">
-              <p className="text-4xl font-bold text-[#35C759]">{complianceData?.overall}%</p>
-              <p className="text-sm text-[#8D969B]">Overall Compliance</p>
-            </div>
-            <div className="space-y-3">
-              {complianceData?.byCategory.map((cat: { category: string; rate: number }) => (
-                <div key={cat.category} className="flex items-center justify-between">
-                  <span className="text-sm text-[#A4ADB2]">{cat.category}</span>
-                  <div className="flex items-center gap-2">
-                    <div className="w-24 bg-[#252A2D] rounded-full h-2">
-                      <div
-                        className="h-2 rounded-full bg-[#35C759]"
-                        style={{ width: `${cat.rate}%` }}
-                      />
-                    </div>
-                    <span className="text-sm text-[#A4ADB2]">{cat.rate}%</span>
-                  </div>
-                </div>
-              ))}
-            </div>
+            <ComplianceOverview
+              overall={complianceData?.overall || 0}
+              byCategory={complianceData?.byCategory || []}
+            />
           </CardContent>
         </Card>
 
@@ -133,17 +86,11 @@ export const AnalyticsPage = () => {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="flex items-end justify-between h-48">
-              {complianceData?.trend.map((point: { date: string; value: number }) => (
-                <div key={point.date} className="flex flex-col items-center gap-2 flex-1">
-                  <div className="w-full max-w-[60px] bg-[#4DA3FF] rounded-t" style={{ height: `${point.value}%` }} />
-                  <span className="text-xs text-[#8D969B]">
-                    {new Date(point.date).toLocaleDateString('en-IN', { month: 'short' })}
-                  </span>
-                  <span className="text-xs text-[#A4ADB2]">{point.value}%</span>
-                </div>
-              ))}
-            </div>
+            <ComplianceTrendChart
+              data={complianceData?.trend || []}
+              color="bg-[#4DA3FF]"
+              height="h-48"
+            />
           </CardContent>
         </Card>
       </div>
