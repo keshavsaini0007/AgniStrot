@@ -76,22 +76,14 @@ export default function LoginScreen() {
             />
 
             <View style={styles.demoSection}>
-              <Text style={[styles.demoTitle, { color: theme.textMuted }]}>Demo Accounts</Text>
+              <Text style={[styles.demoTitle, { color: theme.textMuted }]}>Mine Officer Login</Text>
               <View style={styles.demoAccounts}>
-                {[
-                  { email: 'rahul@coalindia.com', role: 'Mine Officer' },
-                  { email: 'priya@coalindia.com', role: 'Corporate' },
-                  { email: 'amit@coalindia.com', role: 'Inspector' },
-                  { email: 'admin@coalindia.com', role: 'Admin' },
-                ].map((account) => (
-                  <Button
-                    key={account.email}
-                    title={account.role}
-                    variant="ghost"
-                    size="sm"
-                    onPress={() => { setEmail(account.email); setPassword('password'); }}
-                  />
-                ))}
+                <Button
+                  title="Rahul Kumar (Mine Officer)"
+                  variant="ghost"
+                  size="sm"
+                  onPress={() => { setEmail('rahul@coalindia.com'); setPassword('password'); }}
+                />
               </View>
             </View>
           </Card>

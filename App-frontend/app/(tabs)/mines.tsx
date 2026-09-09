@@ -1,15 +1,17 @@
 import React, { useState } from 'react';
 import { View, Text, FlatList, StyleSheet, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { useTheme } from '@/hooks/use-theme';
 import { useMines } from '@/hooks/useMines';
-import { Card, KPICard, Badge, LoadingState, EmptyState, TextInput } from '@/components/ui';
+import { Card, Badge, LoadingState, EmptyState, TextInput } from '@/components/ui';
 import { BorderRadius, FontSize, Spacing } from '@/constants/theme';
 import { getStatusConfig } from '@/utils/status';
 import type { Mine } from '@/types';
 
 export default function MinesScreen() {
   const theme = useTheme();
+  const router = useRouter();
   const [search, setSearch] = useState('');
   const { data, isLoading } = useMines({ search: search || undefined });
 
@@ -17,6 +19,7 @@ export default function MinesScreen() {
     const statusCfg = getStatusConfig(item.status);
     return (
       <Pressable
+        onPress={() => router.push({ pathname: '/(tabs)/mine-detail' as any, params: { id: item.id } })}
         style={({ pressed }) => [
           styles.mineCard,
           { backgroundColor: theme.surface, borderColor: theme.border },
