@@ -1,25 +1,363 @@
+// ============================================================================
+// AgniStrot — Frontend contract types
+// ----------------------------------------------------------------------------
+// These types mirror `backend/src/types/index.ts` so that ANY backend endpoint
+// maps cleanly into the frontend. Ids are serialized as strings and dates as
+// ISO-8601 strings. API-facing types (Sections 1–5) come straight from the
+// backend; demo-only view models (Section 6) power the mock/demo screens.
+// ============================================================================
+
+// ─── 1. Shared enums (canonical — mirror backend) ─────────────────────────
+
+export type UserRole =
+  | 'field_officer'
+  | 'mine_official'
+  | 'corporate_manager'
+  | 'regulator';
+
+export type InspectionType = 'safety' | 'environmental' | 'production' | 'labour';
+
+export type ChecklistResult = 'pass' | 'fail' | 'na';
+
+export type IncidentSeverity = 'low' | 'medium' | 'high' | 'critical';
+
+export type IncidentCategory = 'safety' | 'environmental' | 'equipment' | 'other';
+
+export type IncidentStatus = 'open' | 'investigating' | 'resolved';
+
+export type AlertSeverity = 'low' | 'medium' | 'high' | 'critical';
+
+export type AlertStatus = 'open' | 'acknowledged' | 'escalated' | 'closed';
+
+export type WorkflowState =
+  | 'assigned'
+  | 'reminded'
+  | 'acknowledged'
+  | 'escalated'
+  | 'resolved';
+
+export type SourceType = 'inspection' | 'incident' | 'attendance';
+
+export type DocumentReviewStatus = 'pending' | 'confirmed' | 'rejected';
+
+export type RuleCode =
+  | 'SAFETY_CHECKLIST_FAIL'
+  | 'CRITICAL_INCIDENT'
+  | 'MISSING_MANDATORY_FIELD'
+  | 'REPEAT_VIOLATION'
+  | 'OVERDUE_INSPECTION'
+  | 'ATTENDANCE_ANOMALY';
+
+export const ALERT_DEADLINE_MS: Record<AlertSeverity, number> = {
+  critical: 2 * 60 * 60 * 1000, // 2 hours
+  high: 24 * 60 * 60 * 1000, // 24 hours
+  medium: 3 * 24 * 60 * 60 * 1000, // 3 days
+  low: 7 * 24 * 60 * 60 * 1000, // 7 days
+};
+
+// ─── 2. Entity contracts (DTO views of backend documents) ──────────────────
+
+export interface GeoPoint {
+  lat: number;
+  lng: number;
+}
+
+/** backend `Site` — "Mine" for display purposes. */
+export interface Site {
+  _id: string;
+  id: string;
+  name: string;
+  subsidiary: string;
+  location: GeoPoint;
+  expectedWorkers: number;
+  createdAt?: string;
+}
+
+/** A mine/site reference used across dashboards (site id + human title). */
+export interface SiteRef {
+  siteId: string;
+  name: string;
+}
+
 export interface User {
   id: string;
   name: string;
   email: string;
   role: UserRole;
-  department?: string;
-  mineId?: string;
+  /** null for corporate_manager and regulator */
+  siteId: string | null;
   status: 'active' | 'inactive';
   createdAt: string;
   updatedAt: string;
 }
 
-export type UserRole = 
-  | 'system_admin'
-  | 'mine_officer'
-  | 'field_inspector'
-  | 'department_officer'
-  | 'contractor'
-  | 'corporate_management'
-  | 'regulatory_authority'
-  | 'auditor';
+export interface ChecklistItem {
+  item: string;
+  result: ChecklistResult;
+  notes?: string;
+}
 
+/** backend `Inspection` — an offline-first field capture (checklist based). */
+export interface Inspection {
+  id: string;
+  clientUuid?: string;
+  siteId: string;
+  inspectorId: string;
+  type: InspectionType;
+  checklist: ChecklistItem[];
+  location?: GeoPoint;
+  photoUrls: string[];
+  capturedAt: string; // device-local time, NOT sync time
+  syncedAt?: string;
+  /** derived for display — number of failed checklist items */
+  failedCount?: number;
+}
+
+/** backend `Incident` — severity-tagged field report with evidence. */
+export interface Incident {
+  id: string;
+  clientUuid?: string;
+  siteId: string;
+  reportedBy: string;
+  severity: IncidentSeverity;
+  category: IncidentCategory;
+  description: string;
+  location?: GeoPoint;
+  photoUrls: string[];
+  capturedAt: string;
+  syncedAt?: string;
+  status: IncidentStatus;
+}
+
+/** backend `Attendance` — geo-stamped check in / out (no biometrics in MVP). */
+export interface Attendance {
+  id: string;
+  clientUuid?: string;
+  siteId: string;
+  workerRef: string;
+  checkType: 'in' | 'out';
+  location?: GeoPoint;
+  capturedAt: string;
+  syncedAt?: string;
+}
+
+/** backend `Alert` — every detection result, routed to an owner with a deadline. */
+export interface Alert {
+  id: string;
+  siteId: string;
+  sourceType: SourceType;
+  sourceId?: string;
+  ruleKey: string;
+  ruleCode: RuleCode;
+  severity: AlertSeverity;
+  status: AlertStatus;
+  assignedTo: string;
+  createdAt: string;
+  resolvedAt?: string;
+  workflow?: WorkflowLog[];
+}
+
+/** backend `WorkflowState` — audit of the alert's escalation lifecycle. */
+export interface WorkflowLog {
+  id: string;
+  alertId: string;
+  state: WorkflowState;
+  deadline: string;
+  changedAt: string;
+  changedBy?: string;
+}
+
+/** backend `AuditLog` — append-only, hash-chained trail. */
+export interface AuditLog {
+  id: string;
+  entityType: string;
+  entityId: string;
+  action: string;
+  actorId?: string;
+  payload?: Record<string, unknown>;
+  prevHash: string;
+  thisHash: string;
+  createdAt: string;
+}
+
+/** backend `Document` — OCR-ingested paper form waiting for human review. */
+export interface OcrDocument {
+  id: string;
+  siteId: string;
+  sourceImageUrl: string;
+  extractedFields?: Record<string, unknown>;
+  confidence?: number;
+  reviewStatus: DocumentReviewStatus;
+  createdAt: string;
+}
+
+/** backend `gis/markers` payload. */
+export interface MapMarker {
+  id: string;
+  category: 'site' | 'inspection' | 'incident';
+  lat: number;
+  lng: number;
+  siteId: string;
+  siteName: string;
+  title: string;
+  severity?: IncidentSeverity;
+  status?: string;
+  timestamp?: string;
+}
+
+/** Query for `GET /reports/statutory`. */
+export interface StatutoryReportQuery {
+  siteId: string;
+  type: InspectionType;
+  from: string;
+  to: string;
+}
+
+/** Risk intelligence payload from `GET /ai/*` (explainable, rule-based). */
+export interface RiskAssessment {
+  siteId: string;
+  riskScore: number;
+  riskLevel: 'low' | 'medium' | 'high' | 'critical';
+  factors: Array<{ label: string; score: number; severity: 'low' | 'medium' | 'high' }>;
+  explanation: string;
+  recommendations: string[];
+  generatedAt: string;
+}
+
+/** Normalized 30-day trend point for the risk-intelligence chart. */
+export interface TrendPoint {
+  date: string;
+  value: number;
+  label?: string;
+}
+
+/** Global risk scanner summary across all sites (`GET /ai/summary`). */
+export interface AiSummary {
+  totalSites: number;
+  highRiskSites: number;
+  generatedAt: string;
+}
+
+/** Aggregated, role-aware dashboard feed (`GET /dashboard/summary`). */
+export interface DashboardSummary {
+  role?: string;
+  scopedSiteId?: string | null;
+  code?: string;
+  message?: string;
+  stats?: {
+    inspections7d?: number;
+    incidents7d?: number;
+    attendance7d?: number;
+    alerts7d?: number;
+    complianceRate?: number;
+    openIncidents?: number;
+    overdueInspections?: number;
+    upcomingDeadlines?: number;
+  };
+  recentIncidents?: Incident[];
+  recentAlerts?: Alert[];
+  sites?: Array<SiteRef & { openAlerts: number; riskScore?: number }>;
+  trend7Day?: Array<{ date: string; alerts: number }>;
+}
+
+// ─── 3. API envelopes & pagination ─────────────────────────────────────────
+
+export interface Pagination {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
+export interface ApiResponse<T> {
+  data: T;
+  pagination?: Pagination;
+}
+
+/** Normalized envelope returned by every repository (mock + live). */
+export interface PaginatedResponse<T> {
+  success: boolean;
+  data: T[];
+  meta: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
+/** Normalized single-resource envelope returned by repositories. */
+export interface ItemResponse<T> {
+  success: boolean;
+  data: T;
+}
+
+export interface LoginCredentials {
+  email: string;
+  password: string;
+}
+
+/** What `POST /auth/login` returns. */
+export interface AuthResult {
+  token: string;
+  user: User;
+}
+
+// ─── 4. Query parameters ────────────────────────────────────────────────────
+
+export interface FilterParams {
+  page?: number;
+  limit?: number;
+  search?: string;
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
+  siteId?: string;
+  type?: string;
+  status?: string;
+  severity?: string;
+  from?: string;
+  to?: string;
+  [key: string]: any;
+}
+
+// ─── 5. Sync payloads (mirror `syncBatchSchema`) ────────────────────────────
+
+export interface InspectionSyncPayload {
+  clientUuid: string;
+  siteId: string;
+  inspectorId: string;
+  type: InspectionType;
+  checklist: ChecklistItem[];
+  location?: GeoPoint;
+  photoUrls: string[];
+  capturedAt: string;
+}
+
+export interface IncidentSyncPayload {
+  clientUuid: string;
+  siteId: string;
+  reportedBy: string;
+  severity: IncidentSeverity;
+  category: IncidentCategory;
+  description: string;
+  location?: GeoPoint;
+  photoUrls: string[];
+  capturedAt: string;
+  status: IncidentStatus;
+}
+
+export interface AttendanceSyncPayload {
+  clientUuid: string;
+  siteId: string;
+  workerRef: string;
+  checkType: 'in' | 'out';
+  location?: GeoPoint;
+  capturedAt: string;
+}
+
+// ─── 6. Demo-only view models (mock screens) ────────────────────────────────
+
+/** Demo screen (MinesPage): derived + pitch-flavoured mine card. */
 export interface Mine {
   id: string;
   name: string;
@@ -40,31 +378,13 @@ export interface Mine {
   updatedAt: string;
 }
 
-export interface Inspection {
-  id: string;
-  mineId: string;
-  inspectorId: string;
-  type: 'safety' | 'environmental' | 'operational' | 'statutory';
-  scheduledAt: string;
-  startedAt?: string;
-  completedAt?: string;
-  status: 'scheduled' | 'in_progress' | 'completed' | 'cancelled';
-  location?: {
-    latitude: number;
-    longitude: number;
-  };
-  observationsCount: number;
-  notes?: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
+/** Demo/legacy field report ("observation") used by the mock dashboard feed. */
 export interface Observation {
   id: string;
   mineId: string;
   inspectionId?: string;
   reportedBy: string;
-  category: 'safety' | 'environmental' | 'operational' | 'compliance' | 'health';
+  category: string;
   severity: 'low' | 'medium' | 'high' | 'critical';
   title: string;
   description: string;
@@ -79,6 +399,7 @@ export interface Observation {
   updatedAt: string;
 }
 
+/** Demo screen (CorrectiveActionsPage): lifecycle with reject/reopen. */
 export interface CorrectiveAction {
   id: string;
   observationId: string;
@@ -89,7 +410,7 @@ export interface CorrectiveAction {
   description: string;
   priority: 'low' | 'medium' | 'high' | 'urgent';
   dueDate: string;
-  status: 'reported' | 'assigned' | 'in_progress' | 'resolved' | 'verified' | 'closed';
+  status: 'reported' | 'assigned' | 'in_progress' | 'resolved' | 'verified' | 'rejected' | 'closed';
   resolutionNote?: string;
   verifiedBy?: string;
   verifiedAt?: string;
@@ -97,6 +418,7 @@ export interface CorrectiveAction {
   updatedAt: string;
 }
 
+/** Demo screen (CompliancePage): requirement register. */
 export interface ComplianceRequirement {
   id: string;
   mineId: string;
@@ -112,19 +434,7 @@ export interface ComplianceRequirement {
   updatedAt: string;
 }
 
-export interface Document {
-  id: string;
-  name: string;
-  category: string;
-  mineId: string;
-  uploadedBy: string;
-  fileUrl: string;
-  fileType: string;
-  fileSize: number;
-  status: 'active' | 'archived';
-  createdAt: string;
-}
-
+/** Legacy demo notification inbox (replaced by the live Alert feed). */
 export interface Notification {
   id: string;
   userId: string;
@@ -132,38 +442,13 @@ export interface Notification {
   title: string;
   message: string;
   severity: 'low' | 'medium' | 'high';
-  entityType: 'mine' | 'inspection' | 'observation' | 'corrective_action' | 'compliance' | 'report';
+  entityType: string;
   entityId: string;
   read: boolean;
   createdAt: string;
 }
 
-export interface AuditLog {
-  id: string;
-  userId: string;
-  action: string;
-  entityType: string;
-  entityId: string;
-  details: Record<string, any>;
-  ipAddress: string;
-  createdAt: string;
-}
-
-export interface RiskAssessment {
-  mineId: string;
-  riskScore: number;
-  riskLevel: 'low' | 'medium' | 'high' | 'critical';
-  confidence: number;
-  factors: Array<{
-    label: string;
-    score: number;
-    severity: 'low' | 'medium' | 'high';
-  }>;
-  explanation: string;
-  recommendations: string[];
-  generatedAt: string;
-}
-
+/** Dashboard aggregate used by the (existing) app dashboard layout. */
 export interface DashboardData {
   kpis: {
     totalMines: number;
@@ -172,43 +457,8 @@ export interface DashboardData {
     pendingInspections: number;
     overdueActions: number;
   };
-  complianceTrend: Array<{
-    date: string;
-    value: number;
-  }>;
+  complianceTrend: Array<{ date: string; value: number }>;
   riskIntelligence: RiskAssessment[];
   recentObservations: Observation[];
   alerts: Notification[];
-}
-
-export interface PaginatedResponse<T> {
-  success: boolean;
-  data: T[];
-  meta: {
-    page: number;
-    limit: number;
-    total: number;
-    totalPages: number;
-  };
-}
-
-export interface ApiResponse<T> {
-  success: boolean;
-  message: string;
-  data: T;
-  meta?: Record<string, any>;
-}
-
-export interface LoginCredentials {
-  email: string;
-  password: string;
-}
-
-export interface FilterParams {
-  page?: number;
-  limit?: number;
-  search?: string;
-  sortBy?: string;
-  sortOrder?: 'asc' | 'desc';
-  [key: string]: any;
 }

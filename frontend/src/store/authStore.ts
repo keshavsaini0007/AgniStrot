@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { authService } from '@/services/authService';
+import { setToken, setCachedUser, clearSession } from '@/api/token';
 import type { User, LoginCredentials } from '@/types';
 
 interface AuthState {
@@ -22,7 +23,9 @@ export const useAuthStore = create<AuthState>((set) => ({
   login: async (credentials: LoginCredentials) => {
     set({ isLoading: true, error: null });
     try {
-      const user = await authService.login(credentials);
+      const { token, user } = await authService.login(credentials);
+      setToken(token);
+      setCachedUser(user);
       set({ user, isAuthenticated: true, isLoading: false });
     } catch (error: any) {
       set({ error: error.message || 'Login failed', isLoading: false });
@@ -31,21 +34,16 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   logout: async () => {
-    set({ isLoading: true });
-    try {
-      await authService.logout();
-      set({ user: null, isAuthenticated: false, isLoading: false });
-    } catch (error: any) {
-      set({ error: error.message || 'Logout failed', isLoading: false });
-    }
+    clearSession();
+    set({ user: null, isAuthenticated: false, isLoading: false });
   },
 
   fetchCurrentUser: async () => {
-    set({ isLoading: true });
-    try {
-      const user = await authService.me();
+    // No `/auth/me` on the backend — restore the persisted token + user.
+    const user = authService.restoreSession();
+    if (user) {
       set({ user, isAuthenticated: true, isLoading: false });
-    } catch (error) {
+    } else {
       set({ user: null, isAuthenticated: false, isLoading: false });
     }
   },

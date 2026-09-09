@@ -80,6 +80,30 @@ export const STATUS_CONFIG = {
     dot: 'bg-red-400',
   },
 
+  // Alert / incident workflow statuses
+  acknowledged: {
+    label: 'Acknowledged',
+    color: 'text-blue-400',
+    dot: 'bg-blue-400',
+  },
+  escalated: {
+    label: 'Escalated',
+    color: 'text-purple-400',
+    dot: 'bg-purple-400',
+  },
+  investigating: {
+    label: 'Investigating',
+    color: 'text-yellow-400',
+    dot: 'bg-yellow-400',
+  },
+
+  // Neutral informational
+  info: {
+    label: 'Info',
+    color: 'text-gray-400',
+    dot: 'bg-gray-400',
+  },
+
   // Mine statuses
   active: {
     label: 'Active',
