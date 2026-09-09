@@ -96,3 +96,12 @@ export const listAuditSchema = z.object({
 });
 
 export type ListAuditQuery = z.infer<typeof listAuditSchema>;
+
+// ── GIS markers query ───────────────────────────────────────────────────────
+
+export const gisMarkersSchema = z.object({
+  siteId: z.string().regex(objectIdRegex, "Invalid siteId").optional(),
+});
+
+export type GisMarkersQuery = z.infer<typeof gisMarkersSchema>;
+

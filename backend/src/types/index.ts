@@ -62,6 +62,9 @@ export interface AuthenticatedRequest extends Request {
   user: JwtPayload;
 }
 
+// Alias for controllers that use AuthRequest
+export type AuthRequest = AuthenticatedRequest;
+
 // ── Mongoose document interfaces ──────────────────────────────────────────────
 
 export interface ISite {
@@ -152,6 +155,7 @@ export interface IAlert {
   status: AlertStatus;
   assignedTo: Types.ObjectId; // mine_official for that site
   createdAt: Date;
+  resolvedAt?: Date;          // timestamp when alert was closed
 }
 
 export interface IWorkflowState {
@@ -183,6 +187,29 @@ export interface IDocument {
   confidence?: number;
   reviewStatus: DocumentReviewStatus;
   createdAt: Date;
+}
+
+// ── OCR Service Types ──────────────────────────────────────────────────────
+
+export interface OcrResult {
+  rawText: string;
+  confidence: number;
+  extractedFields: Record<string, unknown>;
+}
+
+// ── GIS Types ──────────────────────────────────────────────────────────────
+
+export interface MapMarker {
+  id: string;
+  category: "site" | "inspection" | "incident";
+  lat: number;
+  lng: number;
+  siteId: string;
+  siteName: string;
+  title: string;
+  severity?: "low" | "medium" | "high" | "critical";
+  status?: string;
+  timestamp?: Date;
 }
 
 // ── Utility: deadline durations per alert severity (in milliseconds) ──────────

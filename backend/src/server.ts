@@ -2,6 +2,7 @@ import "dotenv/config";
 import { createServer } from "http";
 import express from "express";
 import cors from "cors";
+import helmet from "helmet";
 import cron from "node-cron";
 import connectDB from "./config/db.js";
 import { connectCloudinary } from "./config/cloudinary.js";
@@ -14,6 +15,9 @@ import alertRoutes from "./routes/alerts.js";
 import dashboardRoutes from "./routes/dashboard.js";
 import auditRoutes from "./routes/audit.js";
 import reportRoutes from "./routes/reports.js";
+import documentRoutes from "./routes/documents.js";
+import gisRoutes from "./routes/gis.js";
+import aiRoutes from "./routes/ai.js";
 import { authenticate } from "./middleware/auth.js";
 import { runBatchRules } from "./services/batchRules.js";
 import { runEscalations } from "./services/workflowEngine.js";
@@ -23,27 +27,36 @@ const app = express();
 const httpServer = createServer(app);
 const PORT = process.env.PORT ?? 5000;
 
+// ── Security middleware ────────────────────────────────────
+app.use(helmet());
+
+// ── CORS configuration ─────────────────────────────────────
+const FRONTEND_URL = process.env.FRONTEND_URL ?? "*";
+app.use(cors({ origin: FRONTEND_URL, credentials: true }));
+
 // ── Basic middleware ───────────────────────────────────────
-app.use(cors());
 app.use(express.json({ limit: "1mb" }));
 
-// ── Health check route (no auth needed) ───────────────────
-app.get("/api/v1/health", (_req, res) => {
+// ── Health check routes (no auth needed) ───────────────────
+app.get(["/health", "/api/v1/health"], (_req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
 // ── Auth routes (no auth needed — login gives you the token) ──
-app.use("/api/v1/auth", authRoutes);
+app.use(["/api/v1/auth", "/auth"], authRoutes);
 
 // ── Protected routes (require valid JWT) ──────────────────
-app.use("/api/v1/inspections", authenticate, inspectionRoutes);
-app.use("/api/v1/incidents", authenticate, incidentRoutes);
-app.use("/api/v1/attendance", authenticate, attendanceRoutes);
-app.use("/api/v1/media", authenticate, mediaRoutes);
-app.use("/api/v1/alerts", authenticate, alertRoutes);
-app.use("/api/v1/dashboard", authenticate, dashboardRoutes);
-app.use("/api/v1/audit", authenticate, auditRoutes);
-app.use("/api/v1/reports", authenticate, reportRoutes);
+app.use(["/api/v1/inspections", "/inspections"], authenticate, inspectionRoutes);
+app.use(["/api/v1/incidents", "/incidents"], authenticate, incidentRoutes);
+app.use(["/api/v1/attendance", "/attendance"], authenticate, attendanceRoutes);
+app.use(["/api/v1/media", "/media"], authenticate, mediaRoutes);
+app.use(["/api/v1/alerts", "/alerts"], authenticate, alertRoutes);
+app.use(["/api/v1/dashboard", "/dashboard"], authenticate, dashboardRoutes);
+app.use(["/api/v1/audit", "/audit"], authenticate, auditRoutes);
+app.use(["/api/v1/reports", "/reports"], authenticate, reportRoutes);
+app.use(["/api/v1/documents", "/documents"], authenticate, documentRoutes);
+app.use(["/api/v1/gis", "/gis"], authenticate, gisRoutes);
+app.use(["/api/v1/ai", "/ai"], authenticate, aiRoutes);
 
 // ── Start server ───────────────────────────────────────────
 const start = async (): Promise<void> => {
