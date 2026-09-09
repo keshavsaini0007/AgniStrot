@@ -11,9 +11,35 @@ export const queryKeys = {
     all: ['inspections'] as const,
     detail: (id: string) => ['inspections', id] as const,
   },
-  observations: {
-    all: ['observations'] as const,
-    detail: (id: string) => ['observations', id] as const,
+  incidents: {
+    all: ['incidents'] as const,
+    detail: (id: string) => ['incidents', id] as const,
+  },
+  attendance: {
+    all: ['attendance'] as const,
+  },
+  alerts: {
+    all: ['alerts'] as const,
+  },
+  audit: {
+    all: ['audit'] as const,
+  },
+  reports: {
+    all: ['reports'] as const,
+  },
+  gis: {
+    all: ['gis'] as const,
+  },
+  documents: {
+    all: ['documents'] as const,
+  },
+  dashboard: {
+    all: ['dashboard'] as const,
+  },
+  ai: {
+    risk: ['ai', 'risk'] as const,
+    trends: ['ai', 'trends'] as const,
+    summary: ['ai', 'summary'] as const,
   },
   correctiveActions: {
     all: ['correctiveActions'] as const,
@@ -26,12 +52,6 @@ export const queryKeys = {
   notifications: {
     all: ['notifications'] as const,
     unreadCount: ['notifications', 'unreadCount'] as const,
-  },
-  analytics: {
-    dashboard: ['analytics', 'dashboard'] as const,
-    compliance: ['analytics', 'compliance'] as const,
-    risk: ['analytics', 'risk'] as const,
-    inspections: ['analytics', 'inspections'] as const,
   },
 };
 
