@@ -19,9 +19,9 @@ export const StatCard = ({ icon: Icon, label, value, color, backgroundImage, del
   >
     {backgroundImage && (
       <div
-        className="absolute inset-0 -z-10 bg-cover bg-center opacity-70"
+        className="absolute inset-0 -z-10 bg-cover bg-center opacity-90"
         style={{
-          backgroundImage: `linear-gradient(90deg, rgba(17, 20, 22, 0.78), rgba(17, 20, 22, 0.32)), url(${backgroundImage})`,
+          backgroundImage: `linear-gradient(90deg, rgba(17, 20, 22, 0.3), rgba(17, 20, 22, 0.08)), url(${backgroundImage})`,
         }}
       />
     )}

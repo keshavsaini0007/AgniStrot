@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { useUIStore } from '@/store/uiStore';
 import { useAuth } from '@/hooks/useAuth';
+import logoImg from '../../../assets/images/logo.png';
 
 const navigation = [
   { name: 'Dashboard', href: '/app/dashboard', icon: LayoutDashboard },
@@ -65,13 +66,7 @@ export const Sidebar = () => {
           {/* Logo */}
           <div className="flex items-center justify-between px-6 py-5 border-b border-[#252A2D]">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-[#D88A32] flex items-center justify-center">
-                <span className="text-white font-bold text-sm">SM</span>
-              </div>
-              <div>
-                <h1 className="text-sm font-semibold text-[#F4F5F5]">Smart Mine</h1>
-                <p className="text-xs text-[#8D969B]">Governance System</p>
-              </div>
+              <img src={logoImg} alt="AgniStrot" className="h-10 w-[118px] object-contain" />
             </div>
             <button
               onClick={() => setSidebarOpen(false)}

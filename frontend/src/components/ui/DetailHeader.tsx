@@ -13,8 +13,8 @@ interface DetailHeaderProps {
 
 export const DetailHeader = ({ backTo, title, subtitle, badges, action }: DetailHeaderProps) => (
   <div className="relative isolate overflow-hidden rounded-2xl border border-[#25445B] bg-[#07121C] px-4 py-5 sm:px-6">
-    <img src={mineOperationsImg} alt="" className="absolute inset-0 -z-10 h-full w-full object-cover opacity-35" />
-    <div className="absolute inset-0 -z-10 bg-[linear-gradient(90deg,#07121C_4%,rgba(7,18,28,0.88)_50%,rgba(7,18,28,0.3)_100%)]" />
+    <img src={mineOperationsImg} alt="" className="absolute inset-0 -z-10 h-full w-full object-cover opacity-90" />
+    <div className="absolute inset-0 -z-10 bg-[linear-gradient(90deg,#07121C_4%,rgba(7,18,28,0.25)_50%,rgba(7,18,28,0.08)_100%)]" />
     <div className="flex items-center gap-4">
     <Link
       to={backTo}

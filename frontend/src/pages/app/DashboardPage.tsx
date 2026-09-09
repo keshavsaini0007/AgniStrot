@@ -71,8 +71,8 @@ export const DashboardPage = () => {
   return (
     <div className="space-y-5 pb-8">
       <section className="relative isolate overflow-hidden rounded-2xl border border-[#25445B] bg-[#07121C] px-5 py-6 sm:px-8 sm:py-8">
-        <img src={mine001Img} alt="Open-pit mine operations at night" className="absolute inset-0 -z-10 h-full w-full object-cover opacity-45" />
-        <div className="absolute inset-0 -z-10 bg-[linear-gradient(90deg,#07121C_5%,rgba(7,18,28,0.20)_42%,rgba(7,18,28,0.3)_100%)]" />
+        <img src={mine001Img} alt="Open-pit mine operations at night" className="absolute inset-0 -z-10 h-full w-full object-cover opacity-90" />
+        <div className="absolute inset-0 -z-10 bg-[linear-gradient(90deg,#07121C_5%,rgba(7,18,28,0.05)_42%,rgba(7,18,28,0.06)_100%)]" />
         <div className="relative max-w-2xl">
           <p className="mb-2 text-[10px] uppercase tracking-[0.24em] text-[#5DB8FF]">Operations control / live overview</p>
           <h1 className="text-3xl font-semibold tracking-[-0.04em] text-[#F4F7F8] sm:text-4xl">Dashboard</h1>
@@ -93,7 +93,7 @@ export const DashboardPage = () => {
         </Card>
 
         <Card className="overflow-hidden border-[#21415A] bg-[#0a172245]">
-          <div className="relative border-b border-[#21415A] px-4 py-4 sm:px-5"><img src={aiRiskIntelligenceImg} alt="" className="absolute right-4 top-3 h-9 w-12 rounded object-cover opacity-70" /><div className="flex items-center gap-2"><Sparkles className="h-4 w-4 text-[#4DA3FF]" /><h2 className="text-base font-semibold text-[#F4F7F8]">AI Risk Intelligence</h2></div><p className="mt-1 text-[10px] text-[#8299A7]">Real-time risk analysis across all mines</p></div>
+          <div className="relative border-b border-[#21415A] px-4 py-4 sm:px-5"><img src={aiRiskIntelligenceImg} alt="" className="absolute right-4 top-3 h-9 w-12 rounded object-cover opacity-90" /><div className="flex items-center gap-2"><Sparkles className="h-4 w-4 text-[#4DA3FF]" /><h2 className="text-base font-semibold text-[#F4F7F8]">AI Risk Intelligence</h2></div><p className="mt-1 text-[10px] text-[#8299A7]">Real-time risk analysis across all mines</p></div>
           <CardContent className="space-y-3 p-4 sm:p-5">{data.riskIntelligence.slice(0, 3).map((risk) => { const tone = riskTone(risk.riskLevel); return <div key={risk.mineId} className="rounded-lg border border-[#234357] bg-[#101D27] bg-cover bg-center p-3" style={{ backgroundImage: `linear-gradient(90deg, rgba(16, 29, 39, 0.95), rgba(16, 29, 39, 0.38)), url(${mineImages[risk.mineId]})` }}><div className="flex items-center gap-3"><div className="min-w-0 flex-1"><div className="flex items-center justify-between gap-2"><span className="text-xs font-semibold text-[#E8F0F3]">Mine {risk.mineId.replace('mine-', '#')}</span><span className={`text-xl font-bold ${tone.text}`}>{risk.riskScore}</span></div><div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[#1E3545]"><div className={`h-full rounded-full ${tone.bar}`} style={{ width: `${risk.riskScore}%` }} /></div><div className="mt-2 flex items-center justify-between text-[9px] text-[#8299A7]"><span>{tone.label}</span><span>{risk.confidence}% confidence</span></div></div></div></div>; })}</CardContent>
         </Card>
       </div>

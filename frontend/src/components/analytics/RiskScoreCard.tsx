@@ -40,7 +40,7 @@ export const RiskScoreCard = ({ mineId, riskScore, riskLevel, factors, explanati
       className="relative isolate overflow-hidden bg-[#26343B] border border-[#3A464B] rounded-xl p-4"
     >
       <div
-        className="absolute inset-0 -z-10 bg-cover bg-center opacity-75"
+        className="absolute inset-0 -z-10 bg-cover bg-center opacity-90"
         style={{
           backgroundImage: `linear-gradient(90deg, rgba(23, 26, 29, 0.3), rgba(23, 26, 29, 0.08)), url(${backgroundImage})`,
         }}

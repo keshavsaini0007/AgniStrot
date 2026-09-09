@@ -68,7 +68,7 @@ export const InspectionsPage = () => {
     <div className="space-y-5 pb-8">
       <section className="relative isolate overflow-hidden rounded-2xl border border-[#25445B] bg-[#07121C] px-5 py-7 sm:px-8 sm:py-9">
         <img src={inspectionsHeroImg} alt="Mine inspection operations" className="absolute inset-0 -z-10 h-full w-full object-cover opacity-90" />
-        <div className="absolute inset-0 -z-10 bg-[linear-gradient(90deg,#07121C_4%,rgba(7,18,28,0.84)_43%,rgba(7,18,28,0.2)_100%)]" />
+        <div className="absolute inset-0 -z-10 bg-[linear-gradient(90deg,#07121C_4%,rgba(7,18,28,0.25)_43%,rgba(7,18,28,0.08)_100%)]" />
         <div className="flex flex-col justify-between gap-7 md:flex-row md:items-end"><div><p className="mb-2 text-[10px] uppercase tracking-[0.24em] text-[#D88A32]">Field assurance / live registry</p><h1 className="text-3xl font-semibold tracking-[-0.04em] text-[#F4F7F8] sm:text-4xl">Inspections</h1><p className="mt-2 max-w-md text-sm text-[#B3C5D0]">Manage and track mine inspections from schedule to verified field evidence.</p></div><Button variant="primary" leftIcon={<Plus className="h-4 w-4" />}>New Inspection</Button></div>
         <div className="mt-7 flex flex-wrap gap-5 text-[10px] uppercase tracking-[0.16em] text-[#B3C5D0]"><span className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-[#35C759] shadow-[0_0_10px_#35C759]" />Inspection system live</span><span>{completed} completed reviews</span><span>Last synced just now</span></div>
       </section>
