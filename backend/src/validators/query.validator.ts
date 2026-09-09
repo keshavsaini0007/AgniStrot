@@ -74,11 +74,22 @@ export const listAlertsSchema = z.object({
 
 export type ListAlertsQuery = z.infer<typeof listAlertsSchema>;
 
+// ── Statutory report query ─────────────────────────────────────────────────
+
+export const statutoryReportSchema = z.object({
+  siteId: z.string().regex(objectIdRegex, "Invalid siteId"),
+  type: z.enum(["comprehensive", "safety", "environmental", "attendance"]).default("comprehensive"),
+  from: z.coerce.date().optional(),
+  to: z.coerce.date().optional(),
+});
+
+export type StatutoryReportQuery = z.infer<typeof statutoryReportSchema>;
+
 // ── Audit trail list query ───────────────────────────────────────────────────
 
 export const listAuditSchema = z.object({
   entityType: z
-    .enum(["inspection", "incident", "attendance", "alert"])
+    .enum(["inspection", "incident", "attendance", "alert", "report"])
     .optional(),
   entityId: z.string().regex(objectIdRegex, "Invalid entityId").optional(),
   limit: z.coerce.number().int().min(1).max(500).default(200),

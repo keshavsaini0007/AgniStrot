@@ -4,8 +4,10 @@ import Alert from "../models/Alert.js";
 import WorkflowState from "../models/WorkflowState.js";
 import { buildScope } from "../utils/roleScope.js";
 import { logAction } from "../services/auditLogger.js";
+import { emitAlertEvent } from "../sockets/index.js";
 import { ALERT_DEADLINES } from "../types/index.js";
 import type { ListAlertsQuery } from "../validators/query.validator.js";
+import type { EscalateAlertInput } from "../validators/alert.validator.js";
 
 // ── GET /api/v1/alerts ─────────────────────────────────────────────────────
 // Filterable list of alerts. Mine official scoped to own site;
@@ -185,6 +187,75 @@ export const resolveAlert = async (
     res.json({ alertId, status: "closed" });
   } catch (err) {
     console.error("Resolve alert error:", err);
+    res.status(500).json({ error: "Internal server error." });
+  }
+};
+
+// ── POST /api/v1/alerts/:id/escalate ─────────────────────────────────────────
+// Manual escalation — jumps an open/acknowledged alert straight to escalated
+// (48-hour reset deadline) ahead of the cron engine. The cron only acts on
+// assigned/reminded states, so an escalated alert is never re-touched here.
+
+const MANUAL_ESCALATION_DEADLINE_MS = 48 * 60 * 60 * 1000;
+
+export const escalateAlert = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const alertId = String((req.params as { id?: string }).id ?? "");
+    if (!/^[a-f\d]{24}$/i.test(alertId)) {
+      res.status(400).json({ error: "Invalid alert id." });
+      return;
+    }
+
+    const alert = await Alert.findById(alertId).select("siteId severity status ruleCode");
+    if (!alert) {
+      res.status(404).json({ error: "Alert not found." });
+      return;
+    }
+    if (!canActOnAlert(req, alert.siteId as Types.ObjectId)) {
+      res.status(403).json({ error: "Not authorized for this alert." });
+      return;
+    }
+    if (alert.status === "closed") {
+      res.status(409).json({ error: "Alert is already closed; escalating is not allowed." });
+      return;
+    }
+    if (alert.status === "escalated") {
+      res.status(409).json({ error: "Alert is already escalated." });
+      return;
+    }
+
+    const deadline = new Date(Date.now() + MANUAL_ESCALATION_DEADLINE_MS);
+    await WorkflowState.create({
+      alertId,
+      state: "escalated",
+      deadline,
+      changedBy: new Types.ObjectId(req.user!.id),
+    });
+    await Alert.updateOne({ _id: alertId }, { status: "escalated" });
+
+    const { note } = req.body as EscalateAlertInput;
+    await logAction({
+      entityType: "alert",
+      entityId: new Types.ObjectId(alertId),
+      action: "escalated",
+      actorId: new Types.ObjectId(req.user!.id),
+      payload: { fromStatus: alert.status, note },
+    });
+
+    emitAlertEvent("alert:escalated", (alert.siteId as Types.ObjectId).toString(), {
+      alertId,
+      ruleCode: alert.ruleCode,
+      severity: alert.severity,
+      status: "escalated",
+      note,
+    });
+
+    res.json({ alertId, status: "escalated", deadline });
+  } catch (err) {
+    console.error("Escalate alert error:", err);
     res.status(500).json({ error: "Internal server error." });
   }
 };

@@ -15,5 +15,10 @@ export const resolveAlertSchema = z.object({
     .optional(),
 });
 
+export const escalateAlertSchema = z.object({
+  note: z.string().trim().max(500, "Note cannot exceed 500 characters.").optional(),
+});
+
 export type AcknowledgeAlertInput = z.infer<typeof acknowledgeAlertSchema>;
 export type ResolveAlertInput = z.infer<typeof resolveAlertSchema>;
+export type EscalateAlertInput = z.infer<typeof escalateAlertSchema>;
