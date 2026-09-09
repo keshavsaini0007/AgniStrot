@@ -72,6 +72,12 @@ export default function TabLayout() {
       <Tabs.Screen name="users" options={{ href: null }} />
       <Tabs.Screen name="audit-logs" options={{ href: null }} />
       <Tabs.Screen name="settings" options={{ href: null }} />
+      {/* Detail screens */}
+      <Tabs.Screen name="mine-detail" options={{ href: null }} />
+      <Tabs.Screen name="inspection-detail" options={{ href: null }} />
+      <Tabs.Screen name="observation-detail" options={{ href: null }} />
+      <Tabs.Screen name="corrective-action-detail" options={{ href: null }} />
+      <Tabs.Screen name="compliance-detail" options={{ href: null }} />
     </Tabs>
   );
 }

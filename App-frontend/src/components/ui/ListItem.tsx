@@ -21,20 +21,16 @@ export function ListItem({ title, subtitle, status, badge, badgeColor, date, onP
   const theme = useTheme();
   const statusConfig = status ? getStatusConfig(status) : null;
 
-  const Container = onPress ? Pressable : View;
+  const containerStyle = [
+    styles.container,
+    {
+      backgroundColor: theme.surface,
+      borderColor: theme.border,
+    },
+  ];
 
-  return (
-    <Container
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.container,
-        {
-          backgroundColor: theme.surface,
-          borderColor: theme.border,
-        },
-        pressed && onPress && { backgroundColor: theme.surfaceElevated },
-      ]}
-    >
+  const content = (
+    <>
       <View style={styles.content}>
         <View style={styles.header}>
           <Text style={[styles.title, { color: theme.text }]} numberOfLines={1}>
@@ -64,8 +60,24 @@ export function ListItem({ title, subtitle, status, badge, badgeColor, date, onP
         </View>
       </View>
       {rightElement}
-    </Container>
+    </>
   );
+
+  if (onPress) {
+    return (
+      <Pressable
+        onPress={onPress}
+        style={({ pressed }) => [
+          containerStyle,
+          pressed && { backgroundColor: theme.surfaceElevated },
+        ]}
+      >
+        {content}
+      </Pressable>
+    );
+  }
+
+  return <View style={containerStyle}>{content}</View>;
 }
 
 const styles = StyleSheet.create({

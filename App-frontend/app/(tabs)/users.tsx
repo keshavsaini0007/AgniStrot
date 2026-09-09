@@ -2,21 +2,15 @@ import React from 'react';
 import { View, Text, FlatList, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/hooks/use-theme';
+import { useUsers } from '@/hooks/useUsers';
 import { Card, Badge, LoadingState, EmptyState } from '@/components/ui';
 import { BorderRadius, FontSize, Spacing } from '@/constants/theme';
 import { getRoleConfig } from '@/utils/roles';
 import type { User, UserRole } from '@/types';
 
-const mockUsers: User[] = [
-  { id: 'usr-001', name: 'Rahul Kumar', email: 'rahul@coalindia.com', role: 'mine_officer', department: 'Mining Operations', status: 'active', createdAt: '2026-01-15T08:00:00Z', updatedAt: '2026-01-15T08:00:00Z' },
-  { id: 'usr-002', name: 'Priya Sharma', email: 'priya@coalindia.com', role: 'corporate_management', department: 'Corporate', status: 'active', createdAt: '2026-01-10T08:00:00Z', updatedAt: '2026-01-10T08:00:00Z' },
-  { id: 'usr-003', name: 'Amit Singh', email: 'amit@coalindia.com', role: 'field_inspector', department: 'Safety', status: 'active', createdAt: '2026-02-01T08:00:00Z', updatedAt: '2026-02-01T08:00:00Z' },
-  { id: 'usr-004', name: 'Admin User', email: 'admin@coalindia.com', role: 'system_admin', department: 'IT', status: 'active', createdAt: '2026-01-01T08:00:00Z', updatedAt: '2026-01-01T08:00:00Z' },
-  { id: 'usr-005', name: 'Neha Gupta', email: 'neha@coalindia.com', role: 'department_officer', department: 'Environment', status: 'active', createdAt: '2026-02-10T08:00:00Z', updatedAt: '2026-02-10T08:00:00Z' },
-];
-
 export default function UsersScreen() {
   const theme = useTheme();
+  const { data, isLoading } = useUsers();
 
   const renderUser = ({ item }: { item: User }) => {
     const roleCfg = getRoleConfig(item.role as UserRole);
@@ -41,18 +35,21 @@ export default function UsersScreen() {
     );
   };
 
+  if (isLoading) return <LoadingState message="Loading users..." />;
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
       <View style={styles.header}>
         <Text style={[styles.title, { color: theme.text }]}>Users</Text>
-        <Text style={[styles.subtitle, { color: theme.textSecondary }]}>{mockUsers.length} users</Text>
+        <Text style={[styles.subtitle, { color: theme.textSecondary }]}>{data?.meta.total || 0} users</Text>
       </View>
       <FlatList
-        data={mockUsers}
+        data={data?.data || []}
         renderItem={renderUser}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
+        ListEmptyComponent={<EmptyState title="No users found" icon="👥" />}
       />
     </SafeAreaView>
   );

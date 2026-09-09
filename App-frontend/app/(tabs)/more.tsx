@@ -22,8 +22,6 @@ export default function MoreScreen() {
     { icon: '📊', title: 'Analytics', screen: '/(tabs)/analytics' as const },
     { icon: '🗺️', title: 'GIS Map', screen: '/(tabs)/gis' as const },
     { icon: '📈', title: 'Reports', screen: '/(tabs)/reports' as const },
-    { icon: '👥', title: 'Users', screen: '/(tabs)/users' as const },
-    { icon: '📝', title: 'Audit Logs', screen: '/(tabs)/audit-logs' as const },
     { icon: '⚙️', title: 'Settings', screen: '/(tabs)/settings' as const },
   ];
 
