@@ -1,23 +1,22 @@
 import { authRepository } from '@/repositories';
-import type { User, LoginCredentials } from '@/types';
+import { getCachedUser } from '@/api/token';
+import type { User, AuthResult, LoginCredentials } from '@/types';
 
 export const authService = {
-  login: async (credentials: LoginCredentials): Promise<User> => {
-    const { user } = await authRepository.login(credentials);
-    return user;
+  login: async (credentials: LoginCredentials): Promise<AuthResult> => {
+    return await authRepository.login(credentials);
   },
 
-  logout: async (): Promise<void> => {
-    await authRepository.logout();
+  register: async (data: {
+    name: string;
+    email: string;
+    password: string;
+    role: User['role'];
+    siteId?: string | null;
+  }): Promise<User> => {
+    return await authRepository.register(data);
   },
 
-  me: async (): Promise<User> => {
-    const { user } = await authRepository.me();
-    return user;
-  },
-
-  refresh: async (): Promise<User> => {
-    const { user } = await authRepository.refresh();
-    return user;
-  },
+  /** Restores the cached session user — the backend has no `/auth/me`. */
+  restoreSession: (): User | null => getCachedUser<User>(),
 };
