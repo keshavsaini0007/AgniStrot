@@ -140,6 +140,7 @@ export interface IAttendance {
     lng: number;
   };
   capturedAt: Date;
+  syncedAt: Date;
 }
 
 export interface IAlert {
@@ -165,6 +166,7 @@ export interface IWorkflowState {
   deadline: Date;
   changedAt: Date;
   changedBy?: Types.ObjectId;
+  note?: string | null; // free-text captured alongside the transition (e.g. resolutionNote on resolve)
 }
 
 export interface IAuditLog {

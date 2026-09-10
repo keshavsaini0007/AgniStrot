@@ -186,6 +186,7 @@ export const syncAttendance = async (req: Request, res: Response): Promise<void>
           checkType:  v.checkType,
           location:   v.location ?? null,
           capturedAt: v.capturedAt,
+          syncedAt:   new Date(),
         }),
         Attendance,
         "attendance",

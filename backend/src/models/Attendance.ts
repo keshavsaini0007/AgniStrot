@@ -36,6 +36,12 @@ const attendanceSchema = new Schema<IAttendance>(
       required: [true, "capturedAt is required."],
       // device-local timestamp — same reasoning as Inspection.capturedAt
     },
+    syncedAt: {
+      type: Date,
+      default: Date.now,
+      // server receipt timestamp — mirrors Inspection.syncedAt, powers the
+      // "Synced/Pending" badge in the web attendance view
+    },
   }
   // no timestamps option — capturedAt IS the timestamp for attendance records
 );

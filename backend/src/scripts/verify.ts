@@ -392,9 +392,10 @@ async function attendanceBattery(
   check("attendance without token → 401", (await api("/attendance")).status === 401);
   check("field_officer blocked from attendance → 403", (await get(rahul, "/attendance")).status === 403);
 
-  const mo = (await get(priya, "/attendance")).body as { data: { siteId: string }[]; pagination: { total: number } };
+  const mo = (await get(priya, "/attendance")).body as { data: { siteId: string; syncedAt?: string }[]; pagination: { total: number } };
   check("mine_official sees attendance", Array.isArray(mo.data) && mo.pagination.total > 0);
   check("mine_official rows all SJ", mo.data.length > 0 && mo.data.every((r) => r.siteId === SJ));
+  check("attendance rows carry syncedAt", mo.data.length > 0 && mo.data.every((r) => typeof r.syncedAt === "string" && r.syncedAt.length > 0));
 
   const tampered = (await get(priya, `/attendance?siteId=${SD}`)).body as { data: { siteId: string }[] };
   check("mine_official ?siteId tamper-proof (SJ only)", tampered.data.length > 0 && tampered.data.every((r) => r.siteId === SJ));
@@ -742,9 +743,10 @@ async function documentBattery(
   // Test 1: Mine official lists pending documents
   const list = await get(t.priya, "/documents?reviewStatus=pending");
   check("mine_official lists pending documents → 200", list.status === 200);
-  const docs = (list.body as { data: Array<{ _id: string; reviewStatus: string }> }).data;
-  const foundTestDoc = docs.some((d) => d._id === testDoc._id.toString());
+  const docs = (list.body as { data: Array<{ id: string; siteId?: string; reviewStatus: string }> }).data;
+  const foundTestDoc = docs.some((d) => d.id === testDoc._id.toString());
   check("test document in list", foundTestDoc, `found ${docs.length} docs`);
+  check("document list rows carry string id + siteId", docs.length > 0 && docs.every((d) => typeof d.id === "string" && d.id.length > 0 && typeof d.siteId === "string" && d.siteId.length > 0));
 
   // Test 2: Corporate manager can confirm cross-site documents (no site restriction)
   const corporateConfirm = await post(t.amit, `/documents/${testDoc._id.toString()}/confirm`, {
@@ -1001,6 +1003,96 @@ async function detailBattery(
   check("unknown inspection id → 404", (await get(t.amit, `/inspections/${unknown}`)).status === 404);
 }
 
+// ── [F15] List payload shape ─────────────────────────────────────────────────
+// Regressions for the "list payloads don't feed the pages" fixes: incident list
+// must carry description, inspection list must carry a display-name inspectorId
+// plus syncedAt, and attendance must carry syncedAt.
+
+async function listShapeBattery(t: { amit: string }): Promise<void> {
+  console.log("\n== [F15] list payload shape ==");
+
+  const incidents = (await get(t.amit, "/incidents")).body as { data: Array<{ description?: unknown; siteId?: unknown }> };
+  check("incident list rows carry description", incidents.data.length > 0 && incidents.data.every((r) => typeof r.description === "string" && r.description.length > 0), `rows=${incidents.data.length}`);
+  check("incident list rows carry siteId", incidents.data.length > 0 && incidents.data.every((r) => typeof r.siteId === "string" && r.siteId.length > 0));
+
+  const inspections = (await get(t.amit, "/inspections")).body as { data: Array<{ inspectorId?: unknown; syncedAt?: unknown }> };
+  check("inspection list rows carry inspectorId display name", inspections.data.length > 0 && inspections.data.every((r) => typeof r.inspectorId === "string" && r.inspectorId.length > 0 && !/^[0-9a-f]{24}$/i.test(r.inspectorId)), `rows=${inspections.data.length}`);
+  check("inspection list rows carry syncedAt", inspections.data.length > 0 && inspections.data.every((r) => typeof r.syncedAt === "string" && r.syncedAt.length > 0));
+}
+
+// ── [F16] Real modules: corrective actions + compliance ─────────────────────
+// Verifies the Option-A backend-derived feeds: role gating, mapped row shape,
+// mine_official scoping, persistence of resolutionNote on resolve (surfaces as
+// a resolved corrective action), and compliance row completeness.
+
+async function realModulesBattery(
+  tokens: { priya: string; meena: string; amit: string; rahul: string },
+  sites: { SJ: string }
+): Promise<void> {
+  console.log("\n== [F16] corrective actions + compliance ==");
+
+  // ── RBAC ──────────────────────────────────────────────────────────────────
+  check("field_officer blocked from corrective-actions → 403", (await get(tokens.rahul, "/corrective-actions")).status === 403);
+  check("field_officer blocked from compliance → 403", (await get(tokens.rahul, "/compliance")).status === 403);
+  check("malformed site filter on corrective-actions → 400", (await get(tokens.amit, "/corrective-actions?siteId=zzz")).status === 400);
+
+  // ── Corrective actions: corporate sees mapped rows ────────────────────────
+  const CA = (await get(tokens.amit, "/corrective-actions")).body as {
+    data: Array<{
+      id?: unknown; siteId?: unknown; siteName?: unknown; title?: unknown;
+      description?: unknown; priority?: unknown; status?: unknown; department?: unknown;
+      assignedTo?: unknown; dueDate?: unknown; createdAt?: unknown;
+    }>;
+    total?: number;
+  };
+  check("corporate lists corrective actions with rows", Array.isArray(CA.data) && CA.data.length > 0, `rows=${CA.data.length}`);
+  check("CA rows carry id + siteId strings", CA.data.every((r) => typeof r.id === "string" && r.id.length > 0 && typeof r.siteId === "string" && r.siteId.length > 0));
+  check("CA rows carry mapped display fields", CA.data.every((r) => typeof r.title === "string" && r.title.length > 0 && typeof r.siteName === "string" && typeof r.priority === "string" && typeof r.status === "string" && typeof r.department === "string" && typeof r.dueDate === "string" && typeof r.createdAt === "string"));
+  check("CA total is a number", typeof CA.total === "number");
+
+  // ── mine_official scoping ─────────────────────────────────────────────────
+  const moCA = (await get(tokens.priya, "/corrective-actions")).body as { data: Array<{ siteId?: string }> };
+  check("mine_official CA rows all own site", moCA.data.length > 0 && moCA.data.every((r) => r.siteId === sites.SJ), `rows=${moCA.data.length}`);
+
+  // ── Resolve an open alert → note persists → surfaces as resolved CA ───────
+  const openAlerts = (await get(tokens.amit, "/alerts?status=open&limit=1")).body as { data: Array<{ id?: string }> };
+  const openAlertId = openAlerts.data[0]?.id;
+  check("resolve path: found an open alert", typeof openAlertId === "string" && openAlertId.length > 0);
+  if (openAlertId) {
+    const res = await post(tokens.amit, `/alerts/${openAlertId}/resolve`, { resolutionNote: "F16 corrective note" });
+    check("corporate resolves alert → 200", res.status === 200, `status=${res.status}`);
+    const wf = await WorkflowState.findOne({ alertId: openAlertId, state: "resolved" }).select("note changedBy").lean();
+    check("resolve persists resolutionNote on workflow", !!wf && (wf as { note?: string | null }).note === "F16 corrective note", JSON.stringify((wf as { note?: string | null } | null)?.note ?? null));
+    const resolvedCA = (await get(tokens.amit, `/corrective-actions/${openAlertId}`)).body as {
+      data?: { status?: string; verifiedBy?: string; resolutionNote?: string; verifiedAt?: string };
+    };
+    check(
+      "resolved alert surfaces as resolved CA with note + verifier",
+      resolvedCA.data?.status === "resolved" && typeof resolvedCA.data?.resolutionNote === "string" && typeof resolvedCA.data?.verifiedBy === "string" && typeof resolvedCA.data?.verifiedAt === "string",
+      JSON.stringify(resolvedCA.data).slice(0, 120)
+    );
+  }
+
+  // ── Compliance feed ───────────────────────────────────────────────────────
+  const comp = (await get(tokens.amit, "/compliance")).body as {
+    data: Array<{
+      id?: unknown; siteId?: unknown; siteName?: unknown; requirement?: unknown;
+      category?: unknown; description?: unknown; status?: unknown; dueDate?: unknown;
+      responsibleDepartment?: unknown;
+    }>;
+    total?: number;
+  };
+  const OK_STATUS = ["compliant", "non_compliant", "pending", "overdue"];
+  check("corporate lists compliance rows", Array.isArray(comp.data) && comp.data.length > 0, `rows=${comp.data.length}`);
+  check("compliance rows carry required fields + valid status", comp.data.every((r) => typeof r.siteId === "string" && typeof r.requirement === "string" && r.requirement.length > 0 && typeof r.category === "string" && typeof r.description === "string" && typeof r.status === "string" && OK_STATUS.includes(r.status as string) && typeof r.dueDate === "string" && typeof r.responsibleDepartment === "string"));
+
+  const moComp = (await get(tokens.priya, "/compliance")).body as { data: Array<{ siteId?: string }> };
+  check("mine_official compliance rows all own site", moComp.data.length > 0 && moComp.data.every((r) => r.siteId === sites.SJ), `rows=${moComp.data.length}`);
+
+  const filtComp = (await get(tokens.amit, "/compliance?status=non_compliant&limit=5")).body as { data: Array<{ status?: string }> };
+  check("compliance status filter applies", filtComp.data.every((r) => r.status === "non_compliant"), `rows=${filtComp.data.length}`);
+}
+
 // ── Runner ───────────────────────────────────────────────────────────────────
 
 async function main(): Promise<void> {
@@ -1067,6 +1159,8 @@ async function main(): Promise<void> {
     await aiBattery(tokens, { SJ, SD });
     await dashboardBattery({ priya: tokens.priya, amit: tokens.amit });
     await usersBattery({ amit: tokens.amit, priya: tokens.priya, meena: tokens.meena });
+    await listShapeBattery({ amit: tokens.amit });
+    await realModulesBattery(tokens, { SJ });
     const priyaUser = await User.findOne({ email: "priya@agnistrot.com" }).lean();
     const decoy = await Incident.create({
       clientUuid: `verify-decoy-${randomUUID()}`,

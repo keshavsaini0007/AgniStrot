@@ -55,7 +55,11 @@ export const listAlerts = async (
       };
     });
 
-    res.json({ data });
+    // Exact match count (unlimited) so the frontend can derive an
+    // accurate unread/notification tally without pagination metadata.
+    const total = await Alert.countDocuments(filter);
+
+    res.json({ data, total, limit });
   } catch (err) {
     console.error("List alerts error:", err);
     res.status(500).json({ error: "Internal server error." });
@@ -113,15 +117,15 @@ export const acknowledgeAlert = async (
     }
 
     const deadline = (await latestDeadline(alertId)) ?? new Date(Date.now() + ALERT_DEADLINES[alert.severity]);
+    const { note } = req.body as { note?: string };
     await WorkflowState.create({
       alertId,
       state: "acknowledged",
       deadline,
       changedBy: new Types.ObjectId(req.user!.id),
+      note: note ?? null,
     });
     await Alert.updateOne({ _id: alertId }, { status: "acknowledged" });
-
-    const { note } = req.body as { note?: string };
     await logAction({
       entityType: "alert",
       entityId: new Types.ObjectId(alertId),
@@ -167,19 +171,19 @@ export const resolveAlert = async (
     }
 
     const deadline = (await latestDeadline(alertId)) ?? new Date(Date.now() + ALERT_DEADLINES[alert.severity]);
+    const { resolutionNote } = req.body as { resolutionNote?: string };
     await WorkflowState.create({
       alertId,
       state: "resolved",
       deadline,
       changedBy: new Types.ObjectId(req.user!.id),
+      note: resolutionNote ?? null,
     });
     // BUG FIX #2: Set resolvedAt when closing alert
     await Alert.updateOne(
       { _id: alertId },
       { status: "closed", resolvedAt: new Date() }
     );
-
-    const { resolutionNote } = req.body as { resolutionNote?: string };
     await logAction({
       entityType: "alert",
       entityId: new Types.ObjectId(alertId),

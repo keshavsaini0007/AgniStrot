@@ -52,6 +52,7 @@ export const listAttendance = async (
       workerRef: r.workerRef,
       checkType: r.checkType,
       capturedAt: r.capturedAt,
+      syncedAt: r.syncedAt,
     }));
 
     res.json({

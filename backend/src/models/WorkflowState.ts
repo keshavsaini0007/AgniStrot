@@ -33,6 +33,12 @@ const workflowStateSchema = new Schema<IWorkflowState>(
       // null = system-triggered (cron escalation)
       // set = a user manually acknowledged or resolved the alert
     },
+    note: {
+      type: String,
+      default: null,
+      // free-text attached to the transition (acknowledge note, resolutionNote) —
+      // persistence makes the derived corrective-actions feed history complete.
+    },
   }
 );
 

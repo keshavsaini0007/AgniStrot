@@ -50,6 +50,7 @@ export const listIncidents = async (
       severity: r.severity,
       category: r.category,
       status: r.status,
+      description: r.description,
       reportedByName: (r.reportedBy as unknown as { name: string })?.name ?? "Unknown",
       capturedAt: r.capturedAt,
     }));

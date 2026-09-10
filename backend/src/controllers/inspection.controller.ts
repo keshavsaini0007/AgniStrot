@@ -47,8 +47,10 @@ export const listInspections = async (
       siteId: (r.siteId as unknown as string).toString(),
       type: r.type,
       inspectorName: (r.inspectorId as unknown as { name: string })?.name ?? "Unknown",
+      inspectorId: (r.inspectorId as unknown as { name: string })?.name ?? "Unknown",
       failedCount: r.checklist.filter((c) => c.result === "fail").length,
       capturedAt: r.capturedAt,
+      syncedAt: r.syncedAt,
     }));
 
     res.json({
