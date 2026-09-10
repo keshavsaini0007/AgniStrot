@@ -112,7 +112,7 @@ export const ReportsPage = () => {
               disabled={!canGenerate || isGenerating}
               isLoading={isGenerating}
             >
-              {isGenerating ? 'Generating...' : 'Download Report'} <Download className="h-4 w-4" />
+              {isGenerating ? 'Generating...' : 'Generate Report'}
             </Button>
           </CardContent>
         </Card>

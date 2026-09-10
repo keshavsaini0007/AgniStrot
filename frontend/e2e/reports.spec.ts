@@ -7,7 +7,7 @@ test.describe('reports', () => {
     await page.goto('/app/reports');
 
     await expect(page.getByRole('heading', { name: 'Reports', exact: true })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Download Report' })).toBeDisabled();
+    await expect(page.getByRole('button', { name: 'Generate Report' })).toBeDisabled();
 
     const siteSelect = page.locator('select').nth(0);
     const siteValue = await siteSelect.locator('option').nth(1).getAttribute('value');

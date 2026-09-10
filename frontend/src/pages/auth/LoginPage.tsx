@@ -137,7 +137,7 @@ export const LoginPage = () => {
             <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(7,18,28,0.72)_0%,rgba(7,18,28,0.38)_18%,transparent_30%)]" />
             <div className="relative flex h-full flex-col justify-between p-8 sm:p-10">
               <Link to="/" className="flex w-fit items-center">
-                <img src={logoImg} alt="AgniStrot" className="h-12 w-37.5 object-contain" />
+                <img src={logoImg} alt="AgniStrot" className="h-15 w-30.5 object-contain" />
               </Link>
               <div className="max-w-sm">
                 <p className="mb-3 text-[10px] uppercase tracking-[0.24em] text-[#F5B942]">
