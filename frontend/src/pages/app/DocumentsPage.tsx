@@ -10,6 +10,7 @@ import { TableSkeleton } from '@/components/ui/Skeleton';
 import { ErrorState } from '@/components/ui/ErrorState';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { PageHeader } from '@/components/layout/PageHeader';
+import { validateFile, sanitizeErrorMessage } from '@/utils/security';
 import { formatDate } from '@/utils/date';
 import type { OcrDocument } from '@/types';
 import documentsHeaderImg from '../../../assets/images/Documents.png';
@@ -32,6 +33,13 @@ export const DocumentsPage = () => {
     const file = event.target.files?.[0];
     if (!file) return;
     event.target.value = '';
+
+    const validation = validateFile(file);
+    if (!validation.valid) {
+      ingest.reset();
+      return;
+    }
+
     try {
       await ingest.mutateAsync(file);
     } catch {
@@ -71,7 +79,7 @@ export const DocumentsPage = () => {
 
       {ingest.isError && (
         <div className="rounded-lg border border-[#FF4D4F]/30 bg-[#FF4D4F]/10 p-3">
-          <p className="text-sm text-[#FF4D4F]">{(ingest.error as Error)?.message ?? 'Failed to scan document'}</p>
+          <p className="text-sm text-[#FF4D4F]">{sanitizeErrorMessage(ingest.error) ?? 'Failed to scan document'}</p>
         </div>
       )}
 

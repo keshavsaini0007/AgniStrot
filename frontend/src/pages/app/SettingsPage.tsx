@@ -17,7 +17,6 @@ export const SettingsPage = () => {
 
   const handleSave = () => {
     // TODO: Implement settings save
-    console.log('Saving settings:', { name, email });
   };
 
   return (
