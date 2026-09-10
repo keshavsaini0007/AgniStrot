@@ -20,8 +20,8 @@ export default function AnalyticsScreen() {
         <Card style={styles.section}>
           <Text style={[styles.sectionTitle, { color: theme.text }]}>Risk Overview</Text>
           <View style={styles.kpiRow}>
-            <KPICard title="High Risk" value={data?.kpis.highRiskMines ?? 0} icon="🔴" color={theme.danger} />
-            <KPICard title="Overdue" value={data?.kpis.overdueActions ?? 0} icon="⏰" color={theme.warning} />
+            <KPICard title="High Risk" value={data?.kpis.highRiskMines ?? 0} icon="circle" color={theme.danger} />
+            <KPICard title="Overdue" value={data?.kpis.overdueActions ?? 0} icon="alarm-clock" color={theme.warning} />
           </View>
         </Card>
 

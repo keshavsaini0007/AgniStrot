@@ -49,7 +49,7 @@ export default function UsersScreen() {
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
-        ListEmptyComponent={<EmptyState title="No users found" icon="👥" />}
+        ListEmptyComponent={<EmptyState title="No users found" icon="users" />}
       />
     </SafeAreaView>
   );

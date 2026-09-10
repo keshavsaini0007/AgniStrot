@@ -1,10 +1,13 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Image } from 'expo-image';
 import { useTheme } from '@/hooks/use-theme';
 import { useAuth } from '@/hooks/useAuth';
 import { Button, TextInput, Card } from '@/components/ui';
 import { BorderRadius, FontSize, Spacing } from '@/constants/theme';
+import { applyApiUrl, getApiBaseUrl } from '@/api/client';
+import { getApiUrlOverride, setApiUrlOverride } from '@/api/apiUrl';
 
 export default function LoginScreen() {
   const theme = useTheme();
@@ -12,6 +15,25 @@ export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [showServer, setShowServer] = useState(false);
+  const [apiUrl, setApiUrl] = useState('');
+  const [apiSaved, setApiSaved] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      const override = await getApiUrlOverride();
+      setApiUrl(override ?? getApiBaseUrl());
+    })();
+  }, []);
+
+  const saveApiUrl = async () => {
+    const trimmed = apiUrl.trim();
+    if (!trimmed) return;
+    await setApiUrlOverride(trimmed);
+    applyApiUrl(trimmed);
+    setApiSaved(true);
+    setTimeout(() => setApiSaved(false), 2500);
+  };
 
   const handleLogin = async () => {
     if (!email || !password) return;
@@ -30,10 +52,8 @@ export default function LoginScreen() {
       >
         <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
           <View style={styles.header}>
-            <View style={[styles.logo, { backgroundColor: theme.primary }]}>
-              <Text style={styles.logoText}>SM</Text>
-            </View>
-            <Text style={[styles.title, { color: theme.text }]}>Smart Mine</Text>
+            <Image source={require('../../src/assets/logo.png')} style={styles.logo} contentFit="contain" />
+            {/* <Text style={[styles.title, { color: theme.text }]}>Smart Mine</Text> */}
             <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
               Governance & Compliance System
             </Text>
@@ -64,7 +84,12 @@ export default function LoginScreen() {
             />
 
             {error && (
-              <Text style={[styles.error, { color: theme.danger }]}>{error}</Text>
+              <View style={styles.errorBox}>
+                <Text style={[styles.error, { color: theme.danger }]}>{error}</Text>
+                <Text style={[styles.errorUrl, { color: theme.textMuted }]}>
+                  Tried: {getApiBaseUrl()}
+                </Text>
+              </View>
             )}
 
             <Button
@@ -76,15 +101,44 @@ export default function LoginScreen() {
             />
 
             <View style={styles.demoSection}>
-              <Text style={[styles.demoTitle, { color: theme.textMuted }]}>Mine Officer Login</Text>
+              <Text style={[styles.demoTitle, { color: theme.textMuted }]}>Field Officer Login</Text>
               <View style={styles.demoAccounts}>
                 <Button
-                  title="Rahul Kumar (Mine Officer)"
+                  title="Rahul Kumar (Field Officer)"
                   variant="ghost"
                   size="sm"
-                  onPress={() => { setEmail('rahul@coalindia.com'); setPassword('password'); }}
+                  onPress={() => { setEmail('rahul@agnistrot.com'); setPassword('password123'); }}
                 />
               </View>
+            </View>
+
+            <View style={styles.demoSection}>
+              <Text style={[styles.demoTitle, { color: theme.textMuted }]}>API Server</Text>
+              <Button
+                title={showServer ? 'Hide server settings' : `Server: ${apiUrl || 'set…'}`}
+                variant="ghost"
+                size="sm"
+                onPress={() => { setShowServer((v) => !v); setApiSaved(false); }}
+              />
+              {showServer && (
+                <View style={styles.serverBox}>
+                  <TextInput
+                    label="API Base URL"
+                    value={apiUrl}
+                    onChangeText={setApiUrl}
+                    placeholder="https://xxxx.loca.lt/api/v1"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    keyboardType="email-address"
+                  />
+                  <Button title="Save API URL" size="sm" onPress={saveApiUrl} />
+                  {apiSaved && (
+                    <Text style={[styles.serverSaved, { color: theme.primary }]}>
+                      API URL saved. It persists across reloads.
+                    </Text>
+                  )}
+                </View>
+              )}
             </View>
           </Card>
         </ScrollView>
@@ -111,17 +165,9 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
   },
   logo: {
-    width: 64,
-    height: 64,
-    borderRadius: BorderRadius.xl,
-    alignItems: 'center',
-    justifyContent: 'center',
+    width: 160,
+    height: 112,
     marginBottom: Spacing.two,
-  },
-  logoText: {
-    color: '#FFFFFF',
-    fontSize: FontSize.xxl,
-    fontWeight: '800',
   },
   title: {
     fontSize: FontSize.xxxl,
@@ -145,6 +191,14 @@ const styles = StyleSheet.create({
     fontSize: FontSize.sm,
     textAlign: 'center',
   },
+  errorBox: {
+    width: '100%',
+    gap: Spacing.one,
+  },
+  errorUrl: {
+    fontSize: FontSize.xs,
+    textAlign: 'center',
+  },
   loginButton: {
     marginTop: Spacing.two,
   },
@@ -166,5 +220,14 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     justifyContent: 'center',
     gap: Spacing.one,
+  },
+  serverBox: {
+    width: '100%',
+    gap: Spacing.three,
+    marginTop: Spacing.two,
+  },
+  serverSaved: {
+    fontSize: FontSize.xs,
+    textAlign: 'center',
   },
 });

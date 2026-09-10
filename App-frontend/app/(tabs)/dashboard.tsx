@@ -29,11 +29,11 @@ export default function DashboardScreen() {
         </View>
 
         <View style={styles.kpiGrid}>
-          <KPICard title="Total Mines" value={kpis?.totalMines ?? 0} icon="⛏️" color={theme.primary} />
-          <KPICard title="Compliance" value={`${kpis?.complianceRate ?? 0}%`} icon="✅" color={theme.success} />
-          <KPICard title="High Risk" value={kpis?.highRiskMines ?? 0} icon="🔴" color={theme.danger} />
-          <KPICard title="Pending" value={kpis?.pendingInspections ?? 0} icon="📋" color={theme.info} />
-          <KPICard title="Overdue" value={kpis?.overdueActions ?? 0} icon="⏰" color={theme.warning} />
+          <KPICard title="Total Mines" value={kpis?.totalMines ?? 0} icon="pickaxe" color={theme.primary} />
+          <KPICard title="Compliance" value={`${kpis?.complianceRate ?? 0}%`} icon="check-circle-2" color={theme.success} />
+          <KPICard title="High Risk" value={kpis?.highRiskMines ?? 0} icon="circle" color={theme.danger} />
+          <KPICard title="Pending" value={kpis?.pendingInspections ?? 0} icon="clipboard-list" color={theme.info} />
+          <KPICard title="Overdue" value={kpis?.overdueActions ?? 0} icon="alarm-clock" color={theme.warning} />
         </View>
 
         <Card style={styles.section}>

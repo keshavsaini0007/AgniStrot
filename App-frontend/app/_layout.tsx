@@ -1,6 +1,8 @@
 import { useEffect } from 'react';
 import { Slot, useRouter, useSegments } from 'expo-router';
 import { useAuthStore } from '@/store/authStore';
+import { applyApiUrl } from '@/api/client';
+import { getApiUrlOverride } from '@/api/apiUrl';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { Colors } from '@/constants/theme';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -20,7 +22,11 @@ function AuthGate() {
   const router = useRouter();
 
   useEffect(() => {
-    fetchCurrentUser();
+    (async () => {
+      const override = await getApiUrlOverride();
+      if (override) applyApiUrl(override);
+      await fetchCurrentUser();
+    })();
   }, []);
 
   useEffect(() => {

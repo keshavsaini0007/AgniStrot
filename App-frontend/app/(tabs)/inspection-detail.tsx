@@ -5,7 +5,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTheme } from '@/hooks/use-theme';
 import { useInspection } from '@/hooks/useInspections';
 import { useMines } from '@/hooks/useMines';
-import { Card, Badge, LoadingState, EmptyState, Button } from '@/components/ui';
+import { Card, Badge, LoadingState, EmptyState, Button, Icon } from '@/components/ui';
 import { BorderRadius, FontSize, Spacing } from '@/constants/theme';
 import { getStatusConfig } from '@/utils/status';
 import { formatDate, formatDateTime } from '@/utils/date';
@@ -25,7 +25,7 @@ export default function InspectionDetailScreen() {
   const { data: minesData } = useMines();
 
   if (isLoading) return <LoadingState message="Loading inspection..." />;
-  if (error || !inspection) return <EmptyState title="Inspection not found" icon="📋" />;
+  if (error || !inspection) return <EmptyState title="Inspection not found" icon="clipboard-list" />;
 
   const statusCfg = getStatusConfig(inspection.status);
   const typeCfg = TYPE_CONFIG[inspection.type] || TYPE_CONFIG.safety;
@@ -35,7 +35,7 @@ export default function InspectionDetailScreen() {
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.headerRow}>
-          <Button title="← Back" variant="ghost" onPress={() => router.back()} size="sm" />
+          <Button icon={<Icon name="chevron-left" size={16} color={theme.primary} />} title="Back" variant="ghost" onPress={() => router.back()} size="sm" />
         </View>
 
         <View style={styles.titleSection}>

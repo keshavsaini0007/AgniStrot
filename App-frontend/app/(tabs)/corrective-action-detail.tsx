@@ -5,7 +5,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTheme } from '@/hooks/use-theme';
 import { useCorrectiveAction } from '@/hooks/useCorrectiveActions';
 import { useMines } from '@/hooks/useMines';
-import { Card, Badge, LoadingState, EmptyState, Button } from '@/components/ui';
+import { Card, Badge, LoadingState, EmptyState, Button, Icon } from '@/components/ui';
 import { BorderRadius, FontSize, Spacing } from '@/constants/theme';
 import { getStatusConfig } from '@/utils/status';
 import { formatDate } from '@/utils/date';
@@ -18,7 +18,7 @@ export default function CorrectiveActionDetailScreen() {
   const { data: minesData } = useMines();
 
   if (isLoading) return <LoadingState message="Loading corrective action..." />;
-  if (error || !action) return <EmptyState title="Action not found" icon="🚨" />;
+  if (error || !action) return <EmptyState title="Action not found" icon="siren" />;
 
   const statusCfg = getStatusConfig(action.status);
   const priorityCfg = getStatusConfig(action.priority);
@@ -28,7 +28,7 @@ export default function CorrectiveActionDetailScreen() {
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.headerRow}>
-          <Button title="← Back" variant="ghost" onPress={() => router.back()} size="sm" />
+          <Button icon={<Icon name="chevron-left" size={16} color={theme.primary} />} title="Back" variant="ghost" onPress={() => router.back()} size="sm" />
         </View>
 
         <View style={styles.titleSection}>

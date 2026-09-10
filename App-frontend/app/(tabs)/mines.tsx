@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useTheme } from '@/hooks/use-theme';
 import { useMines } from '@/hooks/useMines';
-import { Card, Badge, LoadingState, EmptyState, TextInput } from '@/components/ui';
+import { Card, Badge, LoadingState, EmptyState, TextInput, Icon } from '@/components/ui';
 import { BorderRadius, FontSize, Spacing } from '@/constants/theme';
 import { getStatusConfig } from '@/utils/status';
 import type { Mine } from '@/types';
@@ -36,9 +36,12 @@ export default function MinesScreen() {
           <Text style={[styles.mineCode, { color: theme.textMuted }]}>{item.code}</Text>
         </View>
 
-        <Text style={[styles.mineAddress, { color: theme.textSecondary }]} numberOfLines={1}>
-          📍 {item.location.address}
-        </Text>
+        <View style={styles.mineAddressRow}>
+          <Icon name="map-pin" size={14} color={theme.textSecondary} />
+          <Text style={[styles.mineAddress, { color: theme.textSecondary }]} numberOfLines={1}>
+            {item.location.address}
+          </Text>
+        </View>
 
         <View style={styles.mineStats}>
           <View style={styles.stat}>
@@ -65,8 +68,9 @@ export default function MinesScreen() {
 
         {item.overdueActions > 0 && (
           <View style={[styles.overdueBar, { backgroundColor: theme.danger + '15' }]}>
+            <Icon name="alert-triangle" size={14} color={theme.danger} />
             <Text style={[styles.overdueText, { color: theme.danger }]}>
-              ⚠️ {item.overdueActions} overdue action{item.overdueActions > 1 ? 's' : ''}
+              {item.overdueActions} overdue action{item.overdueActions > 1 ? 's' : ''}
             </Text>
           </View>
         )}
@@ -90,7 +94,7 @@ export default function MinesScreen() {
           value={search}
           onChangeText={setSearch}
           placeholder="Search mines..."
-          leftIcon="🔍"
+          leftIcon={<Icon name="search" size={18} color={theme.textMuted} />}
         />
       </View>
 
@@ -181,9 +185,18 @@ const styles = StyleSheet.create({
     height: 30,
   },
   overdueBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.one,
     paddingVertical: Spacing.two,
     paddingHorizontal: Spacing.three,
     borderRadius: BorderRadius.sm,
+  },
+  mineAddressRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   overdueText: {
     fontSize: FontSize.sm,

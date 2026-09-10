@@ -5,7 +5,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTheme } from '@/hooks/use-theme';
 import { useCompliance } from '@/hooks/useCompliance';
 import { useMines } from '@/hooks/useMines';
-import { Card, Badge, LoadingState, EmptyState, Button } from '@/components/ui';
+import { Card, Badge, LoadingState, EmptyState, Button, Icon } from '@/components/ui';
 import { BorderRadius, FontSize, Spacing } from '@/constants/theme';
 import { getStatusConfig } from '@/utils/status';
 import { formatDate } from '@/utils/date';
@@ -20,7 +20,7 @@ export default function ComplianceDetailScreen() {
   const compliance = complianceData?.data?.find((c) => c.id === id);
 
   if (isLoading) return <LoadingState message="Loading compliance..." />;
-  if (error || !compliance) return <EmptyState title="Compliance not found" icon="📋" />;
+  if (error || !compliance) return <EmptyState title="Compliance not found" icon="clipboard-list" />;
 
   const statusCfg = getStatusConfig(compliance.status);
   const mine = minesData?.data?.find((m) => m.id === compliance.mineId);
@@ -29,7 +29,7 @@ export default function ComplianceDetailScreen() {
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.headerRow}>
-          <Button title="← Back" variant="ghost" onPress={() => router.back()} size="sm" />
+          <Button icon={<Icon name="chevron-left" size={16} color={theme.primary} />} title="Back" variant="ghost" onPress={() => router.back()} size="sm" />
         </View>
 
         <View style={styles.titleSection}>
@@ -62,7 +62,10 @@ export default function ComplianceDetailScreen() {
           <Card style={styles.infoCard}>
             <Text style={[styles.sectionTitle, { color: theme.textSecondary }]}>DOCUMENTS</Text>
             {compliance.documents.map((doc, idx) => (
-              <Text key={idx} style={[styles.docItem, { color: theme.text }]}>📄 {doc}</Text>
+              <View key={idx} style={styles.docItemRow}>
+                <Icon name="file-text" size={14} color={theme.text} />
+                <Text style={[styles.docItem, { color: theme.text }]}>{doc}</Text>
+              </View>
             ))}
           </Card>
         )}
@@ -93,5 +96,6 @@ const styles = StyleSheet.create({
   infoRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: Spacing.two, borderBottomWidth: 1 },
   infoLabel: { fontSize: FontSize.sm },
   infoValue: { fontSize: FontSize.sm, fontWeight: '500', maxWidth: '60%', textAlign: 'right' },
-  docItem: { fontSize: FontSize.sm, paddingVertical: Spacing.one },
+  docItemRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, paddingVertical: Spacing.one },
+  docItem: { fontSize: FontSize.sm, flex: 1 },
 });

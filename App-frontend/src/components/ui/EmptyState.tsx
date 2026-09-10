@@ -2,21 +2,22 @@ import React from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { useTheme } from '@/hooks/use-theme';
 import { BorderRadius, FontSize, Spacing } from '@/constants/theme';
+import { Icon, type IconName } from './Icon';
 
 interface EmptyStateProps {
-  icon?: string;
+  icon?: IconName;
   title: string;
   description?: string;
   actionLabel?: string;
   onAction?: () => void;
 }
 
-export function EmptyState({ icon = '📋', title, description, actionLabel, onAction }: EmptyStateProps) {
+export function EmptyState({ icon = 'clipboard-list', title, description, actionLabel, onAction }: EmptyStateProps) {
   const theme = useTheme();
 
   return (
     <View style={styles.container}>
-      <Text style={styles.icon}>{icon}</Text>
+      <Icon name={icon} size={48} color={theme.textMuted} />
       <Text style={[styles.title, { color: theme.text }]}>{title}</Text>
       {description && (
         <Text style={[styles.description, { color: theme.textSecondary }]}>{description}</Text>
@@ -40,10 +41,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: Spacing.eight,
     gap: Spacing.three,
-  },
-  icon: {
-    fontSize: 48,
-    marginBottom: Spacing.two,
   },
   title: {
     fontSize: FontSize.lg,

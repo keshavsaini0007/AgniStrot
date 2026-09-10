@@ -72,7 +72,7 @@ export default function NotificationsScreen() {
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
-        ListEmptyComponent={<EmptyState title="No notifications" icon="🔔" />}
+        ListEmptyComponent={<EmptyState title="No notifications" icon="bell" />}
       />
     </SafeAreaView>
   );

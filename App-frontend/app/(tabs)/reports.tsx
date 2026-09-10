@@ -7,7 +7,7 @@ import { useInspections } from '@/hooks/useInspections';
 import { useObservations } from '@/hooks/useObservations';
 import { useCorrectiveActions } from '@/hooks/useCorrectiveActions';
 import { useCompliance } from '@/hooks/useCompliance';
-import { Card, Badge, Button, KPICard } from '@/components/ui';
+import { Card, Badge, Button, KPICard, Icon, type IconName } from '@/components/ui';
 import { BorderRadius, FontSize, Spacing } from '@/constants/theme';
 import { getStatusConfig } from '@/utils/status';
 import { formatDate } from '@/utils/date';
@@ -33,11 +33,11 @@ export default function ReportsScreen() {
     setGenerating(false);
   };
 
-  const reportTypes = [
-    { type: 'compliance' as ReportType, icon: '📋', title: 'Compliance Report', desc: 'Compliance status across all mines' },
-    { type: 'inspection' as ReportType, icon: '🔍', title: 'Inspection Report', desc: 'Inspection summary and findings' },
-    { type: 'violation' as ReportType, icon: '⚠️', title: 'Violation Report', desc: 'All violations and corrective actions' },
-    { type: 'risk' as ReportType, icon: '📊', title: 'Risk Assessment', desc: 'Risk analysis per mine' },
+  const reportTypes: { type: ReportType; icon: IconName; title: string; desc: string }[] = [
+    { type: 'compliance', icon: 'clipboard-list', title: 'Compliance Report', desc: 'Compliance status across all mines' },
+    { type: 'inspection', icon: 'search', title: 'Inspection Report', desc: 'Inspection summary and findings' },
+    { type: 'violation', icon: 'alert-triangle', title: 'Violation Report', desc: 'All violations and corrective actions' },
+    { type: 'risk', icon: 'bar-chart-3', title: 'Risk Assessment', desc: 'Risk analysis per mine' },
   ];
 
   const renderComplianceReport = () => {
@@ -46,15 +46,18 @@ export default function ReportsScreen() {
     return (
       <Card style={styles.reportContent}>
         <View style={styles.reportHeader}>
-          <Text style={[styles.reportHeading, { color: theme.text }]}>📋 Compliance Status Report</Text>
+          <View style={styles.reportHeadingRow}>
+            <Icon name="clipboard-list" size={20} color={theme.text} />
+            <Text style={[styles.reportHeading, { color: theme.text }]}>Compliance Status Report</Text>
+          </View>
           <Text style={[styles.reportDate, { color: theme.textMuted }]}>Generated: {formatDate(new Date().toISOString())}</Text>
         </View>
 
         <View style={styles.kpiRow}>
-          <KPICard title="Total Mines" value={mines.length} icon="⛏️" color={theme.primary} />
-          <KPICard title="Compliant" value={compliance.filter((c) => c.status === 'compliant').length} icon="✅" color={theme.success} />
-          <KPICard title="Non-Compliant" value={compliance.filter((c) => c.status === 'non_compliant').length} icon="❌" color={theme.danger} />
-          <KPICard title="Overdue" value={compliance.filter((c) => c.status === 'overdue').length} icon="⏰" color={theme.warning} />
+          <KPICard title="Total Mines" value={mines.length} icon="pickaxe" color={theme.primary} />
+          <KPICard title="Compliant" value={compliance.filter((c) => c.status === 'compliant').length} icon="check-circle-2" color={theme.success} />
+          <KPICard title="Non-Compliant" value={compliance.filter((c) => c.status === 'non_compliant').length} icon="x-circle" color={theme.danger} />
+          <KPICard title="Overdue" value={compliance.filter((c) => c.status === 'overdue').length} icon="alarm-clock" color={theme.warning} />
         </View>
 
         <Text style={[styles.subHeading, { color: theme.text }]}>Mine Compliance Rates</Text>
@@ -93,15 +96,18 @@ export default function ReportsScreen() {
     return (
       <Card style={styles.reportContent}>
         <View style={styles.reportHeader}>
-          <Text style={[styles.reportHeading, { color: theme.text }]}>🔍 Inspection Report</Text>
+          <View style={styles.reportHeadingRow}>
+            <Icon name="search" size={20} color={theme.text} />
+            <Text style={[styles.reportHeading, { color: theme.text }]}>Inspection Report</Text>
+          </View>
           <Text style={[styles.reportDate, { color: theme.textMuted }]}>Generated: {formatDate(new Date().toISOString())}</Text>
         </View>
 
         <View style={styles.kpiRow}>
-          <KPICard title="Total" value={inspections.length} icon="📋" color={theme.info} />
-          <KPICard title="Completed" value={inspections.filter((i) => i.status === 'completed').length} icon="✅" color={theme.success} />
-          <KPICard title="Scheduled" value={inspections.filter((i) => i.status === 'scheduled').length} icon="📅" color={theme.primary} />
-          <KPICard title="In Progress" value={inspections.filter((i) => i.status === 'in_progress').length} icon="🔄" color={theme.warning} />
+          <KPICard title="Total" value={inspections.length} icon="clipboard-list" color={theme.info} />
+          <KPICard title="Completed" value={inspections.filter((i) => i.status === 'completed').length} icon="check-circle-2" color={theme.success} />
+          <KPICard title="Scheduled" value={inspections.filter((i) => i.status === 'scheduled').length} icon="calendar" color={theme.primary} />
+          <KPICard title="In Progress" value={inspections.filter((i) => i.status === 'in_progress').length} icon="refresh-cw" color={theme.warning} />
         </View>
 
         <Text style={[styles.subHeading, { color: theme.text }]}>Inspection Details</Text>
@@ -127,15 +133,18 @@ export default function ReportsScreen() {
     return (
       <Card style={styles.reportContent}>
         <View style={styles.reportHeader}>
-          <Text style={[styles.reportHeading, { color: theme.text }]}>⚠️ Violation Report</Text>
+          <View style={styles.reportHeadingRow}>
+            <Icon name="alert-triangle" size={20} color={theme.text} />
+            <Text style={[styles.reportHeading, { color: theme.text }]}>Violation Report</Text>
+          </View>
           <Text style={[styles.reportDate, { color: theme.textMuted }]}>Generated: {formatDate(new Date().toISOString())}</Text>
         </View>
 
         <View style={styles.kpiRow}>
-          <KPICard title="Total Violations" value={observations.length} icon="⚠️" color={theme.danger} />
-          <KPICard title="Critical" value={observations.filter((o) => o.severity === 'critical').length} icon="🔴" color={theme.danger} />
-          <KPICard title="High" value={observations.filter((o) => o.severity === 'high').length} icon="🟠" color="#FF8C42" />
-          <KPICard title="Actions Open" value={actions.filter((a) => a.status !== 'closed' && a.status !== 'resolved').length} icon="📋" color={theme.warning} />
+          <KPICard title="Total Violations" value={observations.length} icon="alert-triangle" color={theme.danger} />
+          <KPICard title="Critical" value={observations.filter((o) => o.severity === 'critical').length} icon="circle" color={theme.danger} />
+          <KPICard title="High" value={observations.filter((o) => o.severity === 'high').length} icon="circle" color="#FF8C42" />
+          <KPICard title="Actions Open" value={actions.filter((a) => a.status !== 'closed' && a.status !== 'resolved').length} icon="clipboard-list" color={theme.warning} />
         </View>
 
         <Text style={[styles.subHeading, { color: theme.text }]}>Violations by Severity</Text>
@@ -175,15 +184,18 @@ export default function ReportsScreen() {
     return (
       <Card style={styles.reportContent}>
         <View style={styles.reportHeader}>
-          <Text style={[styles.reportHeading, { color: theme.text }]}>📊 Risk Assessment Report</Text>
+          <View style={styles.reportHeadingRow}>
+            <Icon name="bar-chart-3" size={20} color={theme.text} />
+            <Text style={[styles.reportHeading, { color: theme.text }]}>Risk Assessment Report</Text>
+          </View>
           <Text style={[styles.reportDate, { color: theme.textMuted }]}>Generated: {formatDate(new Date().toISOString())}</Text>
         </View>
 
         <View style={styles.kpiRow}>
-          <KPICard title="Total Mines" value={mines.length} icon="⛏️" color={theme.primary} />
-          <KPICard title="High Risk" value={mines.filter((m) => m.riskScore >= 70).length} icon="🔴" color={theme.danger} />
-          <KPICard title="Medium Risk" value={mines.filter((m) => m.riskScore >= 40 && m.riskScore < 70).length} icon="🟡" color={theme.warning} />
-          <KPICard title="Low Risk" value={mines.filter((m) => m.riskScore < 40).length} icon="🟢" color={theme.success} />
+          <KPICard title="Total Mines" value={mines.length} icon="pickaxe" color={theme.primary} />
+          <KPICard title="High Risk" value={mines.filter((m) => m.riskScore >= 70).length} icon="circle" color={theme.danger} />
+          <KPICard title="Medium Risk" value={mines.filter((m) => m.riskScore >= 40 && m.riskScore < 70).length} icon="circle" color={theme.warning} />
+          <KPICard title="Low Risk" value={mines.filter((m) => m.riskScore < 40).length} icon="circle" color={theme.success} />
         </View>
 
         <Text style={[styles.subHeading, { color: theme.text }]}>Mine Risk Scores</Text>
@@ -256,7 +268,7 @@ export default function ReportsScreen() {
                   pressed && { opacity: 0.7 },
                 ]}
               >
-                <Text style={styles.reportIcon}>{report.icon}</Text>
+                <Icon name={report.icon} size={24} color={theme.textMuted} />
                 <View style={styles.reportInfo}>
                   <Text style={[styles.reportTitle, { color: isActive ? theme.primary : theme.text }]}>{report.title}</Text>
                   <Text style={[styles.reportDesc, { color: theme.textSecondary }]}>{report.desc}</Text>
@@ -288,13 +300,13 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.three, paddingHorizontal: Spacing.three,
     borderRadius: BorderRadius.md, borderWidth: 1,
   },
-  reportIcon: { fontSize: 24 },
   reportInfo: { flex: 1 },
   reportTitle: { fontSize: FontSize.md, fontWeight: '600' },
   reportDesc: { fontSize: FontSize.xs },
   reportContent: { gap: Spacing.three },
   reportHeader: { gap: Spacing.one },
   reportHeading: { fontSize: FontSize.lg, fontWeight: '700' },
+  reportHeadingRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   reportDate: { fontSize: FontSize.xs },
   kpiRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
   subHeading: { fontSize: FontSize.md, fontWeight: '600', marginTop: Spacing.two },

@@ -3,7 +3,7 @@ import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/hooks/use-theme';
 import { useMines } from '@/hooks/useMines';
-import { Card, EmptyState, LoadingState } from '@/components/ui';
+import { Card, EmptyState, LoadingState, Icon } from '@/components/ui';
 import { BorderRadius, FontSize, Spacing } from '@/constants/theme';
 
 export default function GISScreen() {
@@ -18,7 +18,7 @@ export default function GISScreen() {
         <Text style={[styles.title, { color: theme.text }]}>GIS Intelligence</Text>
       </View>
       <Card style={styles.mapPlaceholder}>
-        <Text style={[styles.mapIcon, { color: theme.textMuted }]}>🗺️</Text>
+        <Icon name="map" size={64} color={theme.textMuted} />
         <Text style={[styles.mapText, { color: theme.textSecondary }]}>Mine Locations Map</Text>
         <Text style={[styles.mapSubtext, { color: theme.textMuted }]}>
           {data?.meta.total || 0} mines across Jharkhand
@@ -43,7 +43,6 @@ const styles = StyleSheet.create({
   header: { paddingHorizontal: Spacing.four, paddingTop: Spacing.four },
   title: { fontSize: FontSize.xxl, fontWeight: '700' },
   mapPlaceholder: { flex: 1, margin: Spacing.four, alignItems: 'center', justifyContent: 'center', gap: Spacing.three },
-  mapIcon: { fontSize: 64 },
   mapText: { fontSize: FontSize.lg, fontWeight: '600' },
   mapSubtext: { fontSize: FontSize.sm },
   mineList: { width: '100%', marginTop: Spacing.four },

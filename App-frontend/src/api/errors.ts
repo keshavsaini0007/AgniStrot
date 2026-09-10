@@ -13,11 +13,8 @@ export class ApiError extends Error {
 export const handleApiError = (error: any): ApiError => {
   if (error.response) {
     const { status, data } = error.response;
-    return new ApiError(
-      data?.message || 'Something went wrong',
-      status,
-      data?.code
-    );
+    const message = data?.error || data?.message || 'Something went wrong';
+    return new ApiError(message, status, data?.code);
   }
   if (error.request) {
     return new ApiError('Network error. Please check your connection.', 0);

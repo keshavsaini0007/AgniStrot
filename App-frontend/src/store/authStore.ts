@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { authService } from '@/services/authService';
+import { onUnauthorized } from '@/api/client';
 import type { User, LoginCredentials } from '@/types';
 
 interface AuthState {
@@ -52,3 +53,7 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   clearError: () => set({ error: null }),
 }));
+
+onUnauthorized(() => {
+  useAuthStore.setState({ user: null, isAuthenticated: false, isLoading: false });
+});

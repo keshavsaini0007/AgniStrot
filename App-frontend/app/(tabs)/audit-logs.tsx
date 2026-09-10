@@ -48,7 +48,7 @@ export default function AuditLogsScreen() {
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
-        ListEmptyComponent={<EmptyState title="No audit logs" icon="📝" />}
+        ListEmptyComponent={<EmptyState title="No audit logs" icon="notebook-pen" />}
       />
     </SafeAreaView>
   );

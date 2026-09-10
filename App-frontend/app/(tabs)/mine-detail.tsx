@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTheme } from '@/hooks/use-theme';
 import { useMine } from '@/hooks/useMines';
-import { Card, Badge, LoadingState, EmptyState, Button } from '@/components/ui';
+import { Card, Badge, LoadingState, EmptyState, Button, Icon } from '@/components/ui';
 import { BorderRadius, FontSize, Spacing } from '@/constants/theme';
 import { getStatusConfig } from '@/utils/status';
 import { formatDate } from '@/utils/date';
@@ -16,7 +16,7 @@ export default function MineDetailScreen() {
   const { data: mine, isLoading, error } = useMine(id || '');
 
   if (isLoading) return <LoadingState message="Loading mine details..." />;
-  if (error || !mine) return <EmptyState title="Mine not found" icon="⛏️" />;
+  if (error || !mine) return <EmptyState title="Mine not found" icon="pickaxe" />;
 
   const statusCfg = getStatusConfig(mine.status);
 
@@ -24,7 +24,7 @@ export default function MineDetailScreen() {
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.headerRow}>
-          <Button title="← Back" variant="ghost" onPress={() => router.back()} size="sm" />
+          <Button icon={<Icon name="chevron-left" size={16} color={theme.primary} />} title="Back" variant="ghost" onPress={() => router.back()} size="sm" />
         </View>
 
         <View style={styles.titleSection}>
@@ -33,7 +33,10 @@ export default function MineDetailScreen() {
             <Badge label={statusCfg.label} color={statusCfg.color} backgroundColor={statusCfg.bg} size="sm" />
           </View>
           <Text style={[styles.code, { color: theme.textMuted }]}>{mine.code}</Text>
-          <Text style={[styles.address, { color: theme.textSecondary }]}>📍 {mine.location.address}</Text>
+          <View style={styles.addressRow}>
+            <Icon name="map-pin" size={14} color={theme.textSecondary} />
+            <Text style={[styles.address, { color: theme.textSecondary }]}>{mine.location.address}</Text>
+          </View>
           {mine.subsidiary && (
             <Text style={[styles.subsidiary, { color: theme.textSecondary }]}>{mine.subsidiary}</Text>
           )}
@@ -104,6 +107,7 @@ const styles = StyleSheet.create({
   title: { fontSize: FontSize.xxl, fontWeight: '700', flex: 1 },
   code: { fontSize: FontSize.sm },
   address: { fontSize: FontSize.sm },
+  addressRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one },
   subsidiary: { fontSize: FontSize.sm },
   statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
   statCard: { flex: 1, minWidth: '45%', alignItems: 'center', padding: Spacing.three, gap: Spacing.one },

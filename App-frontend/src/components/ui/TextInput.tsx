@@ -33,7 +33,11 @@ export function TextInput({ label, error, leftIcon, style, ...props }: TextInput
           style,
         ]}
       >
-        {leftIcon ? <Text style={styles.icon}>{typeof leftIcon === 'string' ? leftIcon : leftIcon}</Text> : null}
+        {leftIcon && (
+          <View style={styles.iconWrap} pointerEvents="none">
+            {leftIcon}
+          </View>
+        )}
         <RNTextInput
           style={[styles.input, { color: theme.text }]}
           placeholderTextColor={theme.textMuted}
@@ -62,8 +66,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.four,
     minHeight: 48,
   },
-  icon: {
-    fontSize: 16,
+  iconWrap: {
+    marginRight: Spacing.two,
   },
   input: {
     flex: 1,

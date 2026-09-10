@@ -3,7 +3,7 @@ import { View, Text, FlatList, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/hooks/use-theme';
 import { useDocuments } from '@/hooks/useDocuments';
-import { Card, Badge, LoadingState, EmptyState } from '@/components/ui';
+import { Card, Badge, LoadingState, EmptyState, Icon } from '@/components/ui';
 import { BorderRadius, FontSize, Spacing } from '@/constants/theme';
 import { formatDate } from '@/utils/date';
 import type { Document } from '@/types';
@@ -15,7 +15,10 @@ export default function DocumentsScreen() {
   const renderDocument = ({ item }: { item: Document }) => (
     <Card style={styles.card}>
       <View style={styles.cardHeader}>
-        <Text style={[styles.docName, { color: theme.text }]} numberOfLines={1}>📄 {item.name}</Text>
+        <View style={styles.docNameRow}>
+          <Icon name="file-text" size={16} color={theme.text} />
+          <Text style={[styles.docName, { color: theme.text }]} numberOfLines={1}>{item.name}</Text>
+        </View>
         <Badge label={item.category} color={theme.info} backgroundColor={theme.info + '20'} size="sm" />
       </View>
       <Text style={[styles.docMeta, { color: theme.textSecondary }]}>
@@ -38,7 +41,7 @@ export default function DocumentsScreen() {
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
-        ListEmptyComponent={<EmptyState title="No documents" icon="📄" />}
+        ListEmptyComponent={<EmptyState title="No documents" icon="file-text" />}
       />
     </SafeAreaView>
   );
@@ -52,6 +55,7 @@ const styles = StyleSheet.create({
   list: { paddingHorizontal: Spacing.four, paddingBottom: Spacing.eight, gap: Spacing.three, paddingTop: Spacing.three },
   card: { gap: Spacing.two },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  docNameRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, flex: 1 },
   docName: { fontSize: FontSize.md, fontWeight: '600', flex: 1 },
   docMeta: { fontSize: FontSize.xs },
 });

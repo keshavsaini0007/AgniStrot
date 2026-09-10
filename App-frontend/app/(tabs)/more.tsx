@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useTheme } from '@/hooks/use-theme';
 import { useAuth } from '@/hooks/useAuth';
-import { Card, Badge, Button } from '@/components/ui';
+import { Card, Badge, Button, Icon, type IconName } from '@/components/ui';
 import { BorderRadius, FontSize, Spacing } from '@/constants/theme';
 import { getRoleConfig } from '@/utils/roles';
 
@@ -15,15 +15,15 @@ export default function MoreScreen() {
   const roleConfig = user ? getRoleConfig(user.role) : null;
 
   const menuItems = [
-    { icon: '🚨', title: 'Corrective Actions', screen: '/(tabs)/corrective-actions' as const },
-    { icon: '📋', title: 'Compliance', screen: '/(tabs)/compliance' as const },
-    { icon: '🔔', title: 'Notifications', screen: '/(tabs)/notifications' as const },
-    { icon: '📄', title: 'Documents', screen: '/(tabs)/documents' as const },
-    { icon: '📊', title: 'Analytics', screen: '/(tabs)/analytics' as const },
-    { icon: '🗺️', title: 'GIS Map', screen: '/(tabs)/gis' as const },
-    { icon: '📈', title: 'Reports', screen: '/(tabs)/reports' as const },
-    { icon: '⚙️', title: 'Settings', screen: '/(tabs)/settings' as const },
-  ];
+    { icon: 'siren', title: 'Corrective Actions', screen: '/(tabs)/corrective-actions' as const },
+    { icon: 'clipboard-list', title: 'Compliance', screen: '/(tabs)/compliance' as const },
+    { icon: 'bell', title: 'Notifications', screen: '/(tabs)/notifications' as const },
+    { icon: 'file-text', title: 'Documents', screen: '/(tabs)/documents' as const },
+    { icon: 'bar-chart-3', title: 'Analytics', screen: '/(tabs)/analytics' as const },
+    { icon: 'map', title: 'GIS Map', screen: '/(tabs)/gis' as const },
+    { icon: 'trending-up', title: 'Reports', screen: '/(tabs)/reports' as const },
+    { icon: 'settings', title: 'Settings', screen: '/(tabs)/settings' as const },
+  ] satisfies { icon: IconName; title: string; screen: string }[];
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
@@ -59,9 +59,9 @@ export default function MoreScreen() {
                 pressed && { backgroundColor: theme.surfaceElevated },
               ]}
             >
-              <Text style={styles.menuIcon}>{item.icon}</Text>
+              <Icon name={item.icon} size={20} color={theme.textMuted} />
               <Text style={[styles.menuTitle, { color: theme.text }]}>{item.title}</Text>
-              <Text style={[styles.menuArrow, { color: theme.textMuted }]}>›</Text>
+              <Icon name="chevron-right" size={18} color={theme.textMuted} />
             </Pressable>
           ))}
         </Card>
@@ -117,8 +117,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.four,
     gap: Spacing.three,
   },
-  menuIcon: { fontSize: 20 },
   menuTitle: { flex: 1, fontSize: FontSize.md, fontWeight: '500' },
-  menuArrow: { fontSize: 24, fontWeight: '300' },
   logoutButton: { marginTop: Spacing.two },
 });

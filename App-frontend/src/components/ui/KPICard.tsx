@@ -2,12 +2,13 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { useTheme } from '@/hooks/use-theme';
 import { BorderRadius, FontSize, Spacing } from '@/constants/theme';
+import { Icon, type IconName } from './Icon';
 
 interface KPICardProps {
   title: string;
   value: string | number;
   subtitle?: string;
-  icon?: string;
+  icon?: IconName;
   color?: string;
 }
 
@@ -20,7 +21,7 @@ export function KPICard({ title, value, subtitle, icon, color }: KPICardProps) {
         <Text style={[styles.title, { color: theme.textSecondary }]} numberOfLines={1}>
           {title}
         </Text>
-        {icon && <Text style={styles.icon}>{icon}</Text>}
+        {icon && <Icon name={icon} size={18} color={color ?? theme.textMuted} filled={icon === 'circle'} />}
       </View>
       <Text style={[styles.value, { color: color || theme.text }]}>{value}</Text>
       {subtitle && (
@@ -52,9 +53,6 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     flex: 1,
-  },
-  icon: {
-    fontSize: 18,
   },
   value: {
     fontSize: FontSize.xxl,
