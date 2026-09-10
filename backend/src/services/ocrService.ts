@@ -91,13 +91,17 @@ const extractRemarks = (text: string): string | null => {
 
 // ── Main OCR extraction function ───────────────────────────────────────────
 
-export const extractFormFields = async (imageUrl: string): Promise<OcrResult> => {
+export const extractFormFields = async (
+  imageSource: string | Buffer
+): Promise<OcrResult> => {
   let worker: Worker | null = null;
   try {
     worker = await createOcrWorker();
 
-    // Recognize text from the image URL (Tesseract can fetch from URL directly)
-    const { data } = await worker.recognize(imageUrl);
+    // Recognize text from the image. When passed a URL, Tesseract fetches it
+    // (production path); when passed a Buffer, it reads it directly — used by
+    // the self-contained mode that skips Cloudinary (CLOUDINARY_ENABLED=false).
+    const { data } = await worker.recognize(imageSource as string);
 
     // Calculate average confidence from word-level confidence scores
     const words = (data as { words?: Array<{ confidence: number }> }).words || [];

@@ -8,6 +8,37 @@ import { extractFormFields } from "../services/ocrService.js";
 import { logAction } from "../services/auditLogger.js";
 import type { AuthenticatedRequest } from "../types/index.js";
 
+// ── Document DTO ────────────────────────────────────────────────────────────
+// Every other list endpoint maps raw Mongoose docs to a canonical
+// `{ id, siteId: string }` shape. Documents list/confirm were returning raw
+// docs (`_id`, `__v`, populated `siteId` object) which broke the frontend's
+// `OcrDocument` contract — normalize here so the API stays consistent.
+type DocumentRow = {
+  _id: unknown;
+  siteId: unknown;
+  sourceImageUrl: string;
+  extractedFields?: Record<string, unknown>;
+  confidence?: number;
+  reviewStatus: string;
+  createdAt?: Date;
+};
+
+function documentDto(d: DocumentRow) {
+  const siteId =
+    (d.siteId as unknown as { _id?: unknown })?._id?.toString() ??
+    (d.siteId as unknown as string | undefined)?.toString() ??
+    "";
+  return {
+    id: (d._id as unknown as string).toString(),
+    siteId,
+    sourceImageUrl: d.sourceImageUrl,
+    extractedFields: d.extractedFields,
+    confidence: d.confidence,
+    reviewStatus: d.reviewStatus,
+    createdAt: d.createdAt,
+  };
+}
+
 // ── Multer config ───────────────────────────────────────────────────────────
 // Reuse pattern from media.controller.ts — memory storage, 5MB limit, images only.
 
@@ -40,8 +71,16 @@ export const ingestDocument = async (
       return;
     }
 
-    // Extract and validate siteId from request body
-    const { siteId } = req.body;
+    // Extract and validate siteId from request body. The caller's assigned site
+    // (from the JWT) is used as a default when the body omits it — the web client
+    // always knows its own site, so field officers/mine officials can ingest
+    // without repeating the id in the multipart payload.
+    const { siteId: bodySiteId } = req.body;
+    let siteId = bodySiteId && typeof bodySiteId === "string" ? bodySiteId : "";
+
+    if (!siteId && req.user.siteId) {
+      siteId = String(req.user.siteId);
+    }
 
     if (!siteId || !/^[a-f\d]{24}$/i.test(siteId)) {
       res.status(400).json({ error: "Valid siteId is required." });
@@ -57,29 +96,46 @@ export const ingestDocument = async (
 
     // Role-based access control: mine_official can only ingest for their site
     if (req.user.role === "mine_official") {
-      if (!req.user.siteId || req.user.siteId !== siteId) {
+      if (!req.user.siteId || String(req.user.siteId) !== siteId) {
         res.status(403).json({ error: "Access denied. You can only ingest documents for your assigned site." });
         return;
       }
     }
 
-    // Upload image to Cloudinary
-    const cloudinaryResult = await new Promise<CloudinaryUploadResult>((resolve, reject) => {
-      const stream = cloudinary.uploader.upload_stream(
-        { folder: "agnistrot/documents" },
-        (error, result) => {
-          if (error) return reject(error);
-          resolve(result as CloudinaryUploadResult);
-        }
-      );
-      stream.end(req.file!.buffer);
-    });
+    // Resolve the OCR source and the persisted image reference. Production uses
+    // Cloudinary (upload the file, OCR from the hosted URL). Setting
+    // CLOUDINARY_ENABLED=false makes the flow fully self-contained for demos and
+    // tests: OCR runs straight from the upload buffer and a local:// reference is
+    // stored instead of a hosted URL.
+    let sourceImageUrl: string;
+    let ocrTarget: string | Buffer;
 
-    const sourceImageUrl = cloudinaryResult.secure_url;
+    if (process.env.CLOUDINARY_ENABLED === "false") {
+      // Sanitize + namespace the original filename so the placeholder is stable.
+      const safeName = req.file.originalname.replace(/[^\w.-]/g, "_");
+      sourceImageUrl = `local://${Date.now().toString(36)}-${safeName}`;
+      ocrTarget = req.file.buffer;
+      console.log(`Running OCR on uploaded buffer (local mode): ${sourceImageUrl}`);
+    } else {
+      // Upload image to Cloudinary
+      const cloudinaryResult = await new Promise<CloudinaryUploadResult>((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream(
+          { folder: "agnistrot/documents" },
+          (error, result) => {
+            if (error) return reject(error);
+            resolve(result as CloudinaryUploadResult);
+          }
+        );
+        stream.end(req.file!.buffer);
+      });
+
+      sourceImageUrl = cloudinaryResult.secure_url;
+      ocrTarget = sourceImageUrl;
+      console.log(`Running OCR on image: ${sourceImageUrl}`);
+    }
 
     // Run OCR extraction
-    console.log(`Running OCR on image: ${sourceImageUrl}`);
-    const ocrResult = await extractFormFields(sourceImageUrl);
+    const ocrResult = await extractFormFields(ocrTarget);
 
     // Create document record
     const document = await Document.create({
@@ -101,6 +157,7 @@ export const ingestDocument = async (
 
     res.status(201).json({
       data: {
+        id: document._id,
         documentId: document._id,
         sourceImageUrl: document.sourceImageUrl,
         extractedFields: document.extractedFields,
@@ -176,7 +233,7 @@ export const listDocuments = async (
     ]);
 
     res.json({
-      data: documents,
+      data: documents.map(documentDto),
       total,
       page: pageNum,
       limit: limitNum,
@@ -243,7 +300,7 @@ export const confirmDocument = async (
     });
 
     res.json({
-      data: document,
+      data: documentDto(document),
     });
   } catch (err) {
     console.error("Confirm document error:", err);
