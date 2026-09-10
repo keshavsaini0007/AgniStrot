@@ -1,4 +1,5 @@
 import type { Request, Response } from "express";
+import { Types } from "mongoose";
 import Inspection from "../models/Inspection.js";
 import { buildScope } from "../utils/roleScope.js";
 import type { ListInspectionsQuery } from "../validators/query.validator.js";
@@ -56,6 +57,56 @@ export const listInspections = async (
     });
   } catch (err) {
     console.error("List inspections error:", err);
+    res.status(500).json({ error: "Internal server error." });
+  }
+};
+
+// ── GET /api/v1/inspections/:id ──────────────────────────────────────────────
+// Role-scoped inspection detail. Out-of-scope and unknown ids both return 404
+// so the endpoint never confirms whether a record exists.
+
+export const getInspectionById = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const { id } = req.params as { id: string };
+    if (!Types.ObjectId.isValid(id)) {
+      res.status(400).json({ error: "Invalid inspection ID." });
+      return;
+    }
+
+    const filter: Record<string, unknown> = { _id: id, ...buildScope(req, "inspection") };
+    const doc = await Inspection.findOne(filter)
+      .populate("inspectorId", "name")
+      .lean();
+
+    if (!doc) {
+      res.status(404).json({ error: "Inspection not found." });
+      return;
+    }
+
+    const inspectorName =
+      (doc.inspectorId as unknown as { name: string })?.name ?? "Unknown";
+
+    res.json({
+      data: {
+        id: (doc._id as unknown as string).toString(),
+        clientUuid: doc.clientUuid,
+        siteId: (doc.siteId as unknown as string).toString(),
+        inspectorId: inspectorName,
+        inspectorName,
+        type: doc.type,
+        checklist: doc.checklist,
+        location: doc.location,
+        photoUrls: doc.photoUrls,
+        capturedAt: doc.capturedAt,
+        syncedAt: doc.syncedAt,
+        failedCount: doc.checklist.filter((c) => c.result === "fail").length,
+      },
+    });
+  } catch (err) {
+    console.error("Get inspection error:", err);
     res.status(500).json({ error: "Internal server error." });
   }
 };

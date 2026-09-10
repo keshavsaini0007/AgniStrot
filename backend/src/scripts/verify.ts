@@ -12,6 +12,8 @@ import User from "../models/User.js";
 import Alert from "../models/Alert.js";
 import WorkflowState from "../models/WorkflowState.js";
 import AuditLog from "../models/AuditLog.js";
+import Incident from "../models/Incident.js";
+import Inspection from "../models/Inspection.js";
 import { computeThisHash, GENESIS_HASH } from "../services/auditLogger.js";
 import { runEscalations } from "../services/workflowEngine.js";
 import { ALERT_DEADLINES } from "../types/index.js";
@@ -903,6 +905,102 @@ async function aiBattery(
   check("trends incidents.total is a number", typeof trendsIncidents.total === "number");
 }
 
+// ── [F12] Dashboard 7-day KPI battery ────────────────────────────────────────
+// Backend now supplies truthful 7-day counts: mine_official gets inspections7d
+// + alerts7d, corporate gets inspections7d + incidents7d (frontend dashboard
+// adapter consumes these to fill the "7d" KPI boxes).
+
+async function dashboardBattery(
+  t: { priya: string; amit: string },
+): Promise<void> {
+  console.log("\n== [F12] Dashboard 7-day KPIs ==");
+
+  const mo = await get(t.priya, "/dashboard/summary");
+  check("mine_official dashboard → 200", mo.status === 200);
+  const moBody = mo.body as { inspections7d?: number; alerts7d?: number; todaysInspections?: unknown[] };
+  check("mine_official inspections7d is a number", typeof moBody.inspections7d === "number");
+  check("mine_official alerts7d is a number", typeof moBody.alerts7d === "number");
+  check("mine_official recent-scans list still present", Array.isArray(moBody.todaysInspections));
+
+  const corp = await get(t.amit, "/dashboard/summary");
+  check("corporate dashboard → 200", corp.status === 200);
+  const corpBody = corp.body as { inspections7d?: number; incidents7d?: number; trend7Day?: { totals?: { alerts: number } } };
+  check("corporate inspections7d is a number", typeof corpBody.inspections7d === "number");
+  check("corporate incidents7d is a number", typeof corpBody.incidents7d === "number");
+  check("corporate trend7Day totals present", !!corpBody.trend7Day?.totals);
+}
+
+// ── [F13] Users directory battery ────────────────────────────────────────────
+// GET /users powers the real "Add Field Officer" screen: corporate-only, never
+// exposes passwordHash, and lists every provisioned account with its site bind.
+
+async function usersBattery(
+  t: { amit: string; priya: string; meena: string },
+): Promise<void> {
+  console.log("\n== [F13] Users directory ==");
+
+  const list = await get(t.amit, "/users");
+  check("corporate lists users → 200", list.status === 200, `got ${list.status}`);
+  const data = (list.body as { data?: Array<{ email: string; role: string; siteId: string | null }> }).data ?? [];
+  check("seeded users present", data.some((u) => u.email === "priya@agnistrot.com"), `${data.length} users`);
+
+  const rahul = data.find((u) => u.email === "rahul@agnistrot.com");
+  check("field_officer row has site binding", !!rahul && typeof rahul.siteId === "string", JSON.stringify(rahul));
+
+  const passwordLeak = JSON.stringify(list.body).includes("passwordHash") || JSON.stringify(list.body).includes("password");
+  check("no password fields exposed", !passwordLeak);
+
+  check("mine_official blocked from /users → 403", (await get(t.priya, "/users")).status === 403);
+  check("regulator blocked from /users → 403", (await get(t.meena, "/users")).status === 403);
+}
+
+// ── [F14] Detail endpoints battery ────────────────────────────────────────────
+// GET /incidents/:id and /inspections/:id power the frontend detail pages. Both
+// must fail closed: out-of-scope ids return the same 404 as unknown ids,
+// malformed ids → 400, and the payload must serve what the pages render.
+
+async function detailBattery(
+  t: { priya: string; meena: string; amit: string; rahul: string },
+  ids: { incSJ: string; incSD: string; incDecoy: string; inspSJ: string; inspSD: string },
+): Promise<void> {
+  console.log("\n== [F14] Incident & inspection detail ==");
+
+  const incSJ = await get(t.amit, `/incidents/${ids.incSJ}`);
+  check("corporate incident detail → 200", incSJ.status === 200, `got ${incSJ.status}`);
+  check("regulator incident detail → 200", (await get(t.meena, `/incidents/${ids.incSJ}`)).status === 200);
+  check("mine_official own-site incident → 200", (await get(t.priya, `/incidents/${ids.incSJ}`)).status === 200);
+  check("mine_official cross-site incident → 404", (await get(t.priya, `/incidents/${ids.incSD}`)).status === 404);
+  check("field_officer own incident (any site) → 200", (await get(t.rahul, `/incidents/${ids.incSD}`)).status === 200);
+  check("field_officer others' incident → 404", (await get(t.rahul, `/incidents/${ids.incDecoy}`)).status === 404);
+
+  const inc = (incSJ.body as { data?: Record<string, unknown> }).data ?? {};
+  check("incident detail has description", typeof inc.description === "string" && inc.description.length > 0, JSON.stringify(inc).slice(0, 80));
+  const reportedBy = String(inc.reportedBy ?? "");
+  check("incident reportedBy is a display name", typeof inc.reportedBy === "string" && !/^[0-9a-f]{24}$/i.test(reportedBy), reportedBy);
+  const sev = String(inc.severity ?? "");
+  check("incident severity is valid enum", ["low", "medium", "high", "critical"].includes(sev), sev);
+
+  const insp = await get(t.amit, `/inspections/${ids.inspSJ}`);
+  check("corporate inspection detail → 200", insp.status === 200, `got ${insp.status}`);
+  check("mine_official own-site inspection → 200", (await get(t.priya, `/inspections/${ids.inspSJ}`)).status === 200);
+  check("mine_official cross-site inspection → 404", (await get(t.priya, `/inspections/${ids.inspSD}`)).status === 404);
+  check("field_officer inspection (their own) → 200", (await get(t.rahul, `/inspections/${ids.inspSD}`)).status === 200);
+
+  const inspBody = (insp.body as { data?: Record<string, unknown> }).data ?? {};
+  const checklist = inspBody.checklist;
+  check("inspection detail has non-empty checklist", Array.isArray(checklist) && checklist.length > 0, JSON.stringify(checklist).slice(0, 80));
+  check("inspection failedCount is a number", typeof inspBody.failedCount === "number", `got ${String(inspBody.failedCount)}`);
+  const inspectorName = String(inspBody.inspectorId ?? "");
+  check("inspection inspectorId is a display name", typeof inspBody.inspectorId === "string" && !/^[0-9a-f]{24}$/i.test(inspectorName), inspectorName);
+
+  check("malformed incident id → 400", (await get(t.amit, "/incidents/not-an-id")).status === 400);
+  check("malformed inspection id → 400", (await get(t.amit, "/inspections/not-an-id")).status === 400);
+
+  const unknown = new Types.ObjectId().toString();
+  check("unknown incident id → 404", (await get(t.amit, `/incidents/${unknown}`)).status === 404);
+  check("unknown inspection id → 404", (await get(t.amit, `/inspections/${unknown}`)).status === 404);
+}
+
 // ── Runner ───────────────────────────────────────────────────────────────────
 
 async function main(): Promise<void> {
@@ -919,6 +1017,15 @@ async function main(): Promise<void> {
   const SJ = id(sites.find((s) => s.name === "Jharia Underground Mine")!);
   const SD = id(sites.find((s) => s.name === "Dhanbad Coal Mine")!);
   check("canonical seed: 10 alerts / 10 workflows", alerts === 10 && workflows === 10, `${alerts}/${workflows}`);
+
+  const [incSJ, incSD, inspSJ, inspSD] = await Promise.all([
+    Incident.findOne({ siteId: SJ }).lean(),
+    Incident.findOne({ siteId: SD }).lean(),
+    Inspection.findOne({ siteId: SJ }).lean(),
+    Inspection.findOne({ siteId: SD }).lean(),
+  ]);
+  const asId = (d: { _id: unknown } | null): string =>
+    d ? (d._id as unknown as string).toString() : "";
 
   const baseline = await auditChain();
   check(`audit chain VALID after seed (${baseline.count} entries)`, baseline.ok, `broken at ${baseline.broken.join(",")}`);
@@ -958,6 +1065,29 @@ async function main(): Promise<void> {
     await gisBattery(tokens, { SJ, SD });
     await documentBattery(tokens, { SJ, SD });
     await aiBattery(tokens, { SJ, SD });
+    await dashboardBattery({ priya: tokens.priya, amit: tokens.amit });
+    await usersBattery({ amit: tokens.amit, priya: tokens.priya, meena: tokens.meena });
+    const priyaUser = await User.findOne({ email: "priya@agnistrot.com" }).lean();
+    const decoy = await Incident.create({
+      clientUuid: `verify-decoy-${randomUUID()}`,
+      siteId: SD,
+      reportedBy: (priyaUser?._id ?? new Types.ObjectId()) as Types.ObjectId,
+      severity: "medium",
+      category: "other",
+      description: "Decoy incident for detail fail-closed test.",
+      capturedAt: new Date(),
+      status: "open",
+    });
+    await detailBattery(
+      { priya: tokens.priya, meena: tokens.meena, amit: tokens.amit, rahul: tokens.rahul },
+      {
+        incSJ: asId(incSJ),
+        incSD: asId(incSD),
+        incDecoy: (decoy._id as unknown as string).toString(),
+        inspSJ: asId(inspSJ),
+        inspSD: asId(inspSD),
+      },
+    );
   } finally {
     stopServer(server);
   }

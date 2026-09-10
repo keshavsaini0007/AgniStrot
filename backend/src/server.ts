@@ -18,6 +18,7 @@ import reportRoutes from "./routes/reports.js";
 import documentRoutes from "./routes/documents.js";
 import gisRoutes from "./routes/gis.js";
 import aiRoutes from "./routes/ai.js";
+import userRoutes from "./routes/users.js";
 import { authenticate } from "./middleware/auth.js";
 import { runBatchRules } from "./services/batchRules.js";
 import { runEscalations } from "./services/workflowEngine.js";
@@ -57,6 +58,7 @@ app.use(["/api/v1/reports", "/reports"], authenticate, reportRoutes);
 app.use(["/api/v1/documents", "/documents"], authenticate, documentRoutes);
 app.use(["/api/v1/gis", "/gis"], authenticate, gisRoutes);
 app.use(["/api/v1/ai", "/ai"], authenticate, aiRoutes);
+app.use(["/api/v1/users", "/users"], authenticate, userRoutes);
 
 // ── Start server ───────────────────────────────────────────
 const start = async (): Promise<void> => {

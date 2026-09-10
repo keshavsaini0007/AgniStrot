@@ -19,6 +19,14 @@ function todayRange(): { $gte: Date; $lt: Date } {
   return { $gte: start, $lt: end };
 }
 
+// Start-of-day `days` days ago (inclusive of today) for 7-day KPIs.
+function sinceNDaysAgo(days: number): Date {
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
+  start.setDate(start.getDate() - (days - 1));
+  return start;
+}
+
 // ── GET /api/v1/dashboard/summary ──────────────────────────────────────────
 
 export const getSummary = async (
@@ -53,25 +61,28 @@ async function mineOfficialSummary(
   res: Response
 ): Promise<void> {
   if (!user.siteId) {
-    res.json({ site: null, openAlerts: [], todaysInspections: [], attendanceToday: { present: 0, absent: 0 }, pendingWorkflows: [] });
+    res.json({ site: null, openAlerts: [], todaysInspections: [], inspections7d: 0, alerts7d: 0, attendanceToday: { present: 0, absent: 0 }, pendingWorkflows: [] });
     return;
   }
 
   const siteId = new Types.ObjectId(user.siteId);
   const today = todayRange();
+  const since7d = sinceNDaysAgo(7);
 
-  const [site, openAlerts, todaysInspections, presentWorkers, pendingWorkflows] = await Promise.all([
+  const [site, openAlerts, todaysInspections, inspections7d, alerts7d, presentWorkers, pendingWorkflows] = await Promise.all([
     Site.findById(siteId).lean(),
     Alert.find({ siteId, status: "open" })
       .sort({ createdAt: -1 })
       .limit(10)
       .populate("assignedTo", "name")
       .lean(),
-    Inspection.find({ siteId, capturedAt: today })
+    Inspection.find({ siteId, capturedAt: { $gte: since7d } })
       .sort({ capturedAt: -1 })
       .limit(10)
       .populate("inspectorId", "name")
       .lean(),
+    Inspection.countDocuments({ siteId, capturedAt: { $gte: since7d } }),
+    Alert.countDocuments({ siteId, createdAt: { $gte: since7d } }),
     Attendance.distinct("workerRef", { siteId, capturedAt: today, checkType: "in" }),
     getPendingWorkflows(siteId),
   ]);
@@ -99,6 +110,8 @@ async function mineOfficialSummary(
       capturedAt: i.capturedAt,
     })),
     attendanceToday: { present, absent },
+    inspections7d,
+    alerts7d,
     pendingWorkflows,
   });
 }
@@ -144,7 +157,7 @@ async function corporateManagerSummary(res: Response): Promise<void> {
   const now = new Date();
   const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
-  const [sites, criticalAlerts, trendData] = await Promise.all([
+  const [sites, criticalAlerts, trendData, inspections7d, incidents7d] = await Promise.all([
     Site.find({}).lean(),
     Alert.find({ severity: "critical", status: "open" })
       .sort({ createdAt: -1 })
@@ -163,6 +176,8 @@ async function corporateManagerSummary(res: Response): Promise<void> {
       },
       { $sort: { _id: 1 } },
     ]),
+    Inspection.countDocuments({ capturedAt: { $gte: sevenDaysAgo } }),
+    Incident.countDocuments({ capturedAt: { $gte: sevenDaysAgo } }),
   ]);
 
   // Per-site alert counts
@@ -209,6 +224,8 @@ async function corporateManagerSummary(res: Response): Promise<void> {
       status: a.status,
       createdAt: a.createdAt,
     })),
+    inspections7d,
+    incidents7d,
     trend7Day: { daily, totals },
   });
 }

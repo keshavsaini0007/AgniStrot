@@ -1,4 +1,5 @@
 import type { Request, Response } from "express";
+import { Types } from "mongoose";
 import Incident from "../models/Incident.js";
 import { buildScope } from "../utils/roleScope.js";
 import type { ListIncidentsQuery } from "../validators/query.validator.js";
@@ -59,6 +60,57 @@ export const listIncidents = async (
     });
   } catch (err) {
     console.error("List incidents error:", err);
+    res.status(500).json({ error: "Internal server error." });
+  }
+};
+
+// ── GET /api/v1/incidents/:id ────────────────────────────────────────────────
+// Role-scoped incident detail. Out-of-scope and unknown ids both return 404 so
+// the endpoint never confirms whether a record exists.
+
+export const getIncidentById = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const { id } = req.params as { id: string };
+    if (!Types.ObjectId.isValid(id)) {
+      res.status(400).json({ error: "Invalid incident ID." });
+      return;
+    }
+
+    const filter: Record<string, unknown> = { _id: id, ...buildScope(req, "incident") };
+    const doc = await Incident.findOne(filter)
+      .populate("reportedBy", "name")
+      .lean();
+
+    if (!doc) {
+      res.status(404).json({ error: "Incident not found." });
+      return;
+    }
+
+    const reportedByName =
+      (doc.reportedBy as unknown as { name: string })?.name ?? "Unknown";
+
+    res.json({
+      data: {
+        id: (doc._id as unknown as string).toString(),
+        clientUuid: doc.clientUuid,
+        siteId: (doc.siteId as unknown as string).toString(),
+        reportedBy: reportedByName,
+        reportedByName,
+        severity: doc.severity,
+        category: doc.category,
+        description: doc.description,
+        location: doc.location,
+        photoUrls: doc.photoUrls,
+        capturedAt: doc.capturedAt,
+        syncedAt: doc.syncedAt,
+        status: doc.status,
+      },
+    });
+  } catch (err) {
+    console.error("Get incident error:", err);
     res.status(500).json({ error: "Internal server error." });
   }
 };
