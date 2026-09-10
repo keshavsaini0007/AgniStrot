@@ -18,5 +18,15 @@ export default defineConfig({
         changeOrigin: true,
       },
     },
+    headers: {
+      'X-Content-Type-Options': 'nosniff',
+      'X-Frame-Options': 'DENY',
+      'X-XSS-Protection': '1; mode=block',
+      'Referrer-Policy': 'strict-origin-when-cross-origin',
+    },
+  },
+  build: {
+    target: 'es2022',
+    sourcemap: false,
   },
 })
