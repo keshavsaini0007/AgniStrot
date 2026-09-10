@@ -8,17 +8,17 @@ interface MineMapProps {
   onMarkerClick: (id: string) => void;
 }
 
+const SEVERITY_COLORS: Record<string, string> = {
+  critical: '#FF4058',
+  high: '#FF4D4F',
+  medium: '#F5B942',
+};
+
 const markerIcon = (severity?: string) =>
   divIcon({
     className: '',
     html: `<div style="width:18px;height:18px;border-radius:9999px;border:2px solid #fff;background:${
-      severity === 'critical'
-        ? '#FF4058'
-        : severity === 'high'
-        ? '#FF4D4F'
-        : severity === 'medium'
-        ? '#F5B942'
-        : '#35C759'
+      SEVERITY_COLORS[severity ?? ''] ?? '#35C759'
     };box-shadow:0 0 8px rgba(0,0,0,0.6);"></div>`,
     iconSize: [18, 18],
     iconAnchor: [9, 9],

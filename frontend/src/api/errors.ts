@@ -15,11 +15,16 @@ export class ApiError extends Error {
 export const handleApiError = (error: any): ApiError => {
   if (error.response) {
     const { status, data } = error.response;
+    const rawMessage = data?.message;
+    const safeMessage =
+      typeof rawMessage === 'string' && rawMessage.length <= 200
+        ? rawMessage
+        : 'An error occurred';
     return new ApiError(
-      data.message || 'An error occurred',
+      safeMessage,
       status,
-      data.code || 'UNKNOWN_ERROR',
-      data.errors || []
+      data?.code || 'UNKNOWN_ERROR',
+      Array.isArray(data?.errors) ? data.errors : []
     );
   }
   if (error.request) {
@@ -30,7 +35,7 @@ export const handleApiError = (error: any): ApiError => {
     );
   }
   return new ApiError(
-    error.message || 'An unexpected error occurred',
+    'An unexpected error occurred',
     0,
     'UNEXPECTED_ERROR'
   );

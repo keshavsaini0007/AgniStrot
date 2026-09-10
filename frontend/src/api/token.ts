@@ -1,4 +1,8 @@
 // Central JWT token storage — single source of truth for auth headers + socket.
+//
+// SECURITY NOTE: Storing JWTs in localStorage is vulnerable to XSS attacks.
+// For production, prefer HttpOnly Secure SameSite cookies managed by the backend.
+// This requires backend changes to issue cookies instead of response-body tokens.
 const TOKEN_KEY = 'agnistrot_token';
 
 export const getToken = (): string | null => {
