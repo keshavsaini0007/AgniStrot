@@ -35,14 +35,19 @@ export const normalizeList = <T>(
 ): PaginatedResponse<T> => {
   const raw = Array.isArray(body) ? body : body?.data ?? [];
   const pagination: Pagination = body?.pagination ?? body?.meta ?? fallback;
+  // Flat pagination (`{ data, total, page, limit }` — used by /documents).
+  const page = pagination.page ?? (typeof body?.page === 'number' ? body.page : fallback.page);
+  const limit = pagination.limit ?? (typeof body?.limit === 'number' ? body.limit : fallback.limit);
+  const total = pagination.total ?? (typeof body?.total === 'number' ? body.total : Array.isArray(raw) ? raw.length : 0);
   return {
     success: true,
     data: (raw ?? []) as T[],
     meta: {
-      page: pagination.page ?? fallback.page,
-      limit: pagination.limit ?? fallback.limit,
-      total: pagination.total ?? (Array.isArray(raw) ? raw.length : 0),
-      totalPages: pagination.totalPages ?? fallback.totalPages,
+      page,
+      limit,
+      total,
+      totalPages:
+        pagination.totalPages ?? (total > 0 && limit > 0 ? Math.ceil(total / limit) : 0),
     },
   };
 };

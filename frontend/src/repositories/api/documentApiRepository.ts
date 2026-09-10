@@ -16,7 +16,7 @@ export const documentApiRepository = {
   ingest: async (file: File): Promise<ItemResponse<OcrDocument>> => {
     try {
       const formData = new FormData();
-      formData.append('file', file);
+      formData.append('image', file);
       const response = await apiClient.post(API_ENDPOINTS.DOCUMENTS.INGEST, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
