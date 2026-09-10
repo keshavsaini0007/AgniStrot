@@ -1,8 +1,8 @@
 import { mockIncidents, mockInspections, mockAttendance, mockSites, mockAlerts, delay } from '@/mock/database';
-import type { DashboardSummary } from '@/types';
+import type { DashboardSummary, UserRole } from '@/types';
 
 export const dashboardMockRepository = {
-  getSummary: async (): Promise<DashboardSummary> => {
+  getSummary: async (_role?: UserRole): Promise<DashboardSummary> => {
     await delay(500);
     const code = "STATUTORY_REPORT_SEC";
     const state: DashboardSummary = {

@@ -13,3 +13,4 @@ export { aiMockRepository } from './aiMockRepository';
 export { correctiveActionMockRepository } from './correctiveActionMockRepository';
 export { complianceMockRepository } from './complianceMockRepository';
 export { notificationMockRepository } from './notificationMockRepository';
+export { usersMockRepository } from './usersMockRepository';

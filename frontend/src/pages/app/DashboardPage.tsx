@@ -30,7 +30,7 @@ const kpiVisuals: Array<{
   { key: 'openIncidents', label: 'Open Incidents', icon: CircleAlert, color: 'text-[#FF4D5F]' },
   { key: 'inspections7d', label: 'Inspections (7d)', icon: ClipboardCheck, color: 'text-[#4DA3FF]' },
   { key: 'alerts7d', label: 'Alerts (7d)', icon: AlarmClock, color: 'text-[#F5B942]' },
-  { key: 'attendance7d', label: 'Attendance (7d)', icon: Users2, color: 'text-[#35C759]' },
+  { key: 'attendance7d', label: 'Attendance (today)', icon: Users2, color: 'text-[#35C759]' },
   { key: 'complianceRate', label: 'Compliance Rate', icon: ShieldCheck, color: 'text-[#35C759]', suffix: '%' },
 ];
 

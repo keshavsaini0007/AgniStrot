@@ -1,11 +1,14 @@
 // Real backend endpoint map (mirrors `backend/src/routes/**`).
 // Every listed endpoint exists in the backend. Demo-only domains (mines,
-// corrective actions, compliance, notifications, users) have NO endpoints and
+// corrective actions, compliance, notifications) have NO endpoints and
 // are intentionally NOT listed here — their repositories are mock-locked.
 export const API_ENDPOINTS = {
   AUTH: {
     LOGIN: '/auth/login',
     REGISTER: '/auth/register',
+  },
+  USERS: {
+    LIST: '/users',
   },
   INSPECTIONS: {
     BASE: '/inspections',

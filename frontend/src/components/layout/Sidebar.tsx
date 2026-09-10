@@ -47,6 +47,10 @@ const demoNav = [
   { name: 'Users', href: '/app/users', icon: Users },
 ];
 
+// Real-mode admin — only corporate managers provision accounts (backend 403s
+// everyone else on /users). Shown in real mode, hidden on the demo build.
+const corporateNav = [{ name: 'Users', href: '/app/users', icon: Users }];
+
 export const Sidebar = () => {
   const { sidebarOpen, setSidebarOpen } = useUIStore();
   const { user } = useAuth();
@@ -118,6 +122,15 @@ export const Sidebar = () => {
                   <Sparkles className="w-3.5 h-3.5" /> Demo / pitch preview
                 </div>
                 {renderNav(demoNav)}
+              </>
+            )}
+
+            {!env.DEMO_FEATURES && user?.role === 'corporate_manager' && (
+              <>
+                <div className="px-3 pt-5 pb-2 flex items-center gap-1.5 text-[10px] uppercase tracking-[0.18em] text-[#8D969B]">
+                  <Users className="w-3.5 h-3.5" /> Administration
+                </div>
+                {renderNav(corporateNav)}
               </>
             )}
           </nav>

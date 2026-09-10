@@ -53,6 +53,9 @@ export const queryKeys = {
     all: ['notifications'] as const,
     unreadCount: ['notifications', 'unreadCount'] as const,
   },
+  users: {
+    all: ['users'] as const,
+  },
 };
 
 export const useMines = (params?: FilterParams) => {

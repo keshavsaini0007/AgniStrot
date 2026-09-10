@@ -12,6 +12,7 @@ import {
   documentMockRepository,
   dashboardMockRepository,
   aiMockRepository,
+  usersMockRepository,
   correctiveActionMockRepository,
   complianceMockRepository,
   notificationMockRepository,
@@ -28,6 +29,7 @@ import {
   documentApiRepository,
   dashboardApiRepository,
   aiApiRepository,
+  usersApiRepository,
 } from './api';
 
 const useMockApi = env.USE_MOCK_API;
@@ -48,6 +50,10 @@ export const gisRepository = useMockApi ? gisMockRepository : gisApiRepository;
 export const documentRepository = useMockApi ? documentMockRepository : documentApiRepository;
 export const dashboardRepository = useMockApi ? dashboardMockRepository : dashboardApiRepository;
 export const aiRepository = useMockApi ? aiMockRepository : aiApiRepository;
+
+// User directory — real now (backend GET /users + /auth/register). Mock repo
+// feeds the demo screen with canned people.
+export const usersRepository = useMockApi ? usersMockRepository : usersApiRepository;
 
 /**
  * Pitch-only / demo modules — the backend has no endpoints for these. They are

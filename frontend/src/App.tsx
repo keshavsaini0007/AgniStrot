@@ -84,7 +84,7 @@ function App() {
               <Route path="/app/gis" element={<GISPage />} />
               <Route path="/app/reports" element={<ReportsPage />} />
               <Route path="/app/notifications" element={<DemoGate><NotificationsPage /></DemoGate>} />
-              <Route path="/app/users" element={<DemoGate><UsersPage /></DemoGate>} />
+              <Route path="/app/users" element={<UsersPage />} />
               <Route path="/app/audit-logs" element={<AuditLogsPage />} />
               <Route path="/app/settings" element={<SettingsPage />} />
             </Route>
