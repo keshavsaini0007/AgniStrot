@@ -13,7 +13,7 @@ import { TableSkeleton } from '@/components/ui/Skeleton';
 import { ErrorState } from '@/components/ui/ErrorState';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { PageHeader } from '@/components/layout/PageHeader';
-import { DemoBadge } from '@/components/demo/DemoGate';
+import { env } from '@/config/env';
 import { formatDate } from '@/utils/date';
 import type { CorrectiveAction } from '@/types';
 import correctiveActionsHeaderImg from '../../../assets/images/Corrective Actions.png';
@@ -78,10 +78,11 @@ export const CorrectiveActionsPage = () => {
         backgroundImage={correctiveActionsHeaderImg}
         action={
           <div className="flex items-center gap-3">
-            <DemoBadge />
-            <Button variant="primary" leftIcon={<Plus className="w-4 h-4" />}>
-              New Action
-            </Button>
+            {env.DEMO_FEATURES && (
+              <Button variant="primary" leftIcon={<Plus className="w-4 h-4" />}>
+                New Action
+              </Button>
+            )}
           </div>
         }
       />

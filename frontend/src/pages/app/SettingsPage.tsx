@@ -15,8 +15,28 @@ export const SettingsPage = () => {
   const [emailNotifications, setEmailNotifications] = useState(true);
   const [pushNotifications, setPushNotifications] = useState(true);
 
-  const handleSave = () => {
-    // TODO: Implement settings save
+  const handleSave = async () => {
+    try {
+      // TODO: Implement settings save
+      const response = await fetch('/api/v1/users/me', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('agnistrot_token')}`,
+        },
+        body: JSON.stringify({ name }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update profile');
+      }
+
+      // TODO: Show success toast
+      alert('Profile updated successfully!');
+    } catch (error) {
+      // TODO: Show error toast
+      alert('Failed to update profile');
+    }
   };
 
   return (

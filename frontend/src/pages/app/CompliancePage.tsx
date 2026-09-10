@@ -13,7 +13,7 @@ import { TableSkeleton } from '@/components/ui/Skeleton';
 import { ErrorState } from '@/components/ui/ErrorState';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { PageHeader } from '@/components/layout/PageHeader';
-import { DemoBadge } from '@/components/demo/DemoGate';
+import { env } from '@/config/env';
 import { formatDate } from '@/utils/date';
 import type { ComplianceRequirement } from '@/types';
 import complianceHeaderImg from '../../../assets/images/Compliance.png';
@@ -78,10 +78,11 @@ export const CompliancePage = () => {
         backgroundImage={complianceHeaderImg}
         action={
           <div className="flex items-center gap-3">
-            <DemoBadge />
-            <Button variant="primary" leftIcon={<Plus className="w-4 h-4" />}>
-              Add Requirement
-            </Button>
+            {env.DEMO_FEATURES && (
+              <Button variant="primary" leftIcon={<Plus className="w-4 h-4" />}>
+                Add Requirement
+              </Button>
+            )}
           </div>
         }
       />
