@@ -74,6 +74,16 @@ export const STATUS_CONFIG = {
     color: 'text-yellow-400',
     dot: 'bg-yellow-400',
   },
+  confirmed: {
+    label: 'Confirmed',
+    color: 'text-green-400',
+    dot: 'bg-green-400',
+  },
+  rejected: {
+    label: 'Rejected',
+    color: 'text-red-400',
+    dot: 'bg-red-400',
+  },
   overdue: {
     label: 'Overdue',
     color: 'text-red-400',

@@ -13,12 +13,15 @@ export const documentApiRepository = {
     }
   },
 
-  ingest: async (file: File): Promise<ItemResponse<OcrDocument>> => {
+  ingest: async (file: File, siteId: string): Promise<ItemResponse<OcrDocument>> => {
     try {
       const formData = new FormData();
       formData.append('image', file);
+      formData.append('siteId', siteId);
+      // Let axios set `multipart/form-data; boundary=...` itself — a manual
+      // Content-Type without the boundary breaks multer on the backend.
       const response = await apiClient.post(API_ENDPOINTS.DOCUMENTS.INGEST, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
+        headers: { 'Content-Type': undefined },
       });
       return { success: true, data: unwrap<OcrDocument>(response.data) };
     } catch (error) {

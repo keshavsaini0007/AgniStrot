@@ -10,3 +10,7 @@ export { documentApiRepository } from './documentApiRepository';
 export { dashboardApiRepository } from './dashboardApiRepository';
 export { aiApiRepository } from './aiApiRepository';
 export { usersApiRepository } from './usersApiRepository';
+export { siteApiRepository } from './siteApiRepository';
+export { correctiveActionApiRepository } from './correctiveActionApiRepository';
+export { complianceApiRepository } from './complianceApiRepository';
+export { notificationApiRepository } from './notificationApiRepository';

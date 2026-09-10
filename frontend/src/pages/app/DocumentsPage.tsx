@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { FileText, Upload, CheckCircle2, Loader2, ScanText } from 'lucide-react';
 import { useDocuments, useIngestDocument, useConfirmDocument } from '@/hooks/useDocuments';
+import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -21,6 +22,7 @@ export const DocumentsPage = () => {
   const [confirming, setConfirming] = useState<OcrDocument | null>(null);
   const [fields, setFields] = useState<Record<string, string>>({});
 
+  const { user, can } = useAuth();
   const { data, isLoading, error, refetch } = useDocuments({ page, limit: 10 });
   const ingest = useIngestDocument();
   const confirm = useConfirmDocument();
@@ -41,7 +43,10 @@ export const DocumentsPage = () => {
     }
 
     try {
-      await ingest.mutateAsync(file);
+      if (!user?.siteId) {
+        throw new Error('No site is assigned to your account.');
+      }
+      await ingest.mutateAsync({ file, siteId: user.siteId });
     } catch {
       // surfaced below via mutation error state
     }
@@ -63,17 +68,19 @@ export const DocumentsPage = () => {
         subtitle="OCR ingest of paper forms awaiting human confirmation"
         backgroundImage={documentsHeaderImg}
         action={
-          <>
-            <input ref={fileInputRef} type="file" accept="image/*,.pdf" className="hidden" onChange={handleFile} />
-            <Button
-              variant="primary"
-              leftIcon={ingest.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-              onClick={() => fileInputRef.current?.click()}
-              isLoading={ingest.isPending}
-            >
-              {ingest.isPending ? 'Scanning...' : 'Scan Document'}
-            </Button>
-          </>
+          can('documents', 'create') ? (
+            <>
+              <input ref={fileInputRef} type="file" accept="image/*,.pdf" className="hidden" onChange={handleFile} />
+              <Button
+                variant="primary"
+                leftIcon={ingest.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                onClick={() => fileInputRef.current?.click()}
+                isLoading={ingest.isPending}
+              >
+                {ingest.isPending ? 'Scanning...' : 'Scan Document'}
+              </Button>
+            </>
+          ) : null
         }
       />
 

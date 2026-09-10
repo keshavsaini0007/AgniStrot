@@ -30,6 +30,10 @@ import {
   dashboardApiRepository,
   aiApiRepository,
   usersApiRepository,
+  siteApiRepository,
+  correctiveActionApiRepository,
+  complianceApiRepository,
+  notificationApiRepository,
 } from './api';
 
 const useMockApi = env.USE_MOCK_API;
@@ -59,8 +63,14 @@ export const usersRepository = useMockApi ? usersMockRepository : usersApiReposi
  * Pitch-only / demo modules — the backend has no endpoints for these. They are
  * locked to the mock implementations and gated behind VITE_DEMO_FEATURES in the
  * UI (see config/env + pages).
+ * 
+ * UPDATE: 'mines' now has real backend support via /api/v1/sites!
  */
-export const mineRepository = mineMockRepository;
-export const correctiveActionRepository = correctiveActionMockRepository;
-export const complianceRepository = complianceMockRepository;
-export const notificationRepository = notificationMockRepository;
+export const mineRepository = useMockApi ? mineMockRepository : siteApiRepository;
+
+// Corrective actions, compliance + notifications are now REAL, backend-derived
+// feeds (backend correctiveAction.controller.ts / compliance.controller.ts; the
+// notification feed aliases /alerts). Mock repos still drive the demo build.
+export const correctiveActionRepository = useMockApi ? correctiveActionMockRepository : correctiveActionApiRepository;
+export const complianceRepository = useMockApi ? complianceMockRepository : complianceApiRepository;
+export const notificationRepository = useMockApi ? notificationMockRepository : notificationApiRepository;

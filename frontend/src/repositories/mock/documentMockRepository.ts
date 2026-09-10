@@ -38,13 +38,14 @@ export const documentMockRepository = {
     };
   },
 
-  ingest: async (file: File): Promise<ItemResponse<OcrDocument>> => {
+  ingest: async (file: File, siteId?: string): Promise<ItemResponse<OcrDocument>> => {
     await delay(900);
+    const docSiteId = siteId ?? 'mine-001';
     const doc: OcrDocument = {
       id: `doc-${String(documents.length + 1).padStart(3, '0')}`,
-      siteId: 'mine-001',
+      siteId: docSiteId,
       sourceImageUrl: URL.createObjectURL(file),
-      extractedFields: { name: '(parsed by OCR)', siteId: 'mine-001' },
+      extractedFields: { name: '(parsed by OCR)', siteId: docSiteId },
       confidence: 0.72,
       reviewStatus: 'pending',
       createdAt: new Date().toISOString(),

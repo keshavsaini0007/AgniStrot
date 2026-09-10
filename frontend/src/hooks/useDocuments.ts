@@ -13,7 +13,8 @@ export const useDocuments = (params?: FilterParams) => {
 export const useIngestDocument = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: documentService.ingest,
+    mutationFn: ({ file, siteId }: { file: File; siteId: string }) =>
+      documentService.ingest(file, siteId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.documents.all });
     },

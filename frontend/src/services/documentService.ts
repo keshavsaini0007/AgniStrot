@@ -6,8 +6,8 @@ export const documentService = {
     return await documentRepository.getDocuments(params);
   },
 
-  ingest: async (file: File): Promise<ItemResponse<OcrDocument>> => {
-    return await documentRepository.ingest(file);
+  ingest: async (file: File, siteId: string): Promise<ItemResponse<OcrDocument>> => {
+    return await documentRepository.ingest(file, siteId);
   },
 
   confirm: async (id: string, fields: { fieldName: string; value: string }[]): Promise<ItemResponse<OcrDocument>> => {
