@@ -12,8 +12,8 @@ import loginBackgroundImg from '../../../assets/images/login-bg.png';
 import logoImg from '../../../assets/images/logo.png';
 
 const loginSchema = z.object({
-  email: z.string().email('Please enter a valid email'),
-  password: z.string().min(6, 'Password must be at least 6 characters'),
+  email: z.string().email('Please enter a valid email').max(254, 'Email is too long'),
+  password: z.string().min(6, 'Password must be at least 6 characters').max(128, 'Password is too long'),
 });
 
 type LoginFormData = z.infer<typeof loginSchema>;

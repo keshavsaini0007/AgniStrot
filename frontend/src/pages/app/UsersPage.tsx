@@ -15,13 +15,14 @@ import { DemoBadge } from '@/components/demo/DemoGate';
 import { formatDate } from '@/utils/date';
 import { authService } from '@/services/authService';
 import { ROLE_CONFIG } from '@/utils/roles';
+import { sanitizeErrorMessage } from '@/utils/security';
 import type { User, UserRole } from '@/types';
 import usersHeaderImg from '../../../assets/images/Users.png';
 
 const userSchema = z.object({
-  name: z.string().min(2),
-  email: z.string().email(),
-  password: z.string().min(6),
+  name: z.string().min(2, 'Name is required').max(100, 'Name is too long'),
+  email: z.string().email('Please enter a valid email').max(254, 'Email is too long'),
+  password: z.string().min(6, 'Password must be at least 6 characters').max(128, 'Password is too long'),
   role: z.enum(['field_officer', 'mine_official', 'corporate_manager', 'regulator'] as const),
   siteId: z.string().nullable(),
 });
@@ -134,7 +135,7 @@ export const UsersPage = () => {
               setIsOpen(false);
               reset();
             } catch (err: any) {
-              setSubmitError(err?.message ?? 'Failed to create user');
+              setSubmitError(sanitizeErrorMessage(err) ?? 'Failed to create user');
             } finally {
               setIsSubmitting(false);
             }

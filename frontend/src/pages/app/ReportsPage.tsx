@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { FileBarChart, Download, Calendar } from 'lucide-react';
 import { useDashboardSummary } from '@/hooks/useDashboard';
 import { reportService } from '@/services/reportService';
+import { sanitizeErrorMessage } from '@/utils/security';
 import { Card, CardHeader, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Select';
@@ -51,7 +52,7 @@ export const ReportsPage = () => {
       downloadBlob(blob, filename);
       setGenerated({ name: filename, date: new Date().toLocaleDateString('en-IN') });
     } catch (err: any) {
-      setError(err?.message ?? 'Failed to generate report');
+      setError(sanitizeErrorMessage(err) ?? 'Failed to generate report');
     } finally {
       setIsGenerating(false);
     }
