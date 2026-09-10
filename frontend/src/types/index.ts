@@ -376,6 +376,15 @@ export interface Mine {
   lastInspectionAt?: string;
   createdAt: string;
   updatedAt: string;
+  // Enriched fields supplied by the real /sites + AI-risk adapter
+  address?: string;
+  riskLevel?: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  inspections?: number;
+  incidents?: number;
+  openAlerts?: number;
+  compliance?: number;
+  lastInspection?: string;
+  image?: string;
 }
 
 /** Demo/legacy field report ("observation") used by the mock dashboard feed. */

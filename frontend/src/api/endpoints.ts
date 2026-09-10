@@ -1,7 +1,6 @@
 // Real backend endpoint map (mirrors `backend/src/routes/**`).
-// Every listed endpoint exists in the backend. Demo-only domains (mines,
-// corrective actions, compliance, notifications) have NO endpoints and
-// are intentionally NOT listed here — their repositories are mock-locked.
+// Every listed endpoint exists in the backend. `mines` maps to the `/sites`
+// route; corrective actions + compliance are backend-derived feeds.
 export const API_ENDPOINTS = {
   AUTH: {
     LOGIN: '/auth/login',
@@ -49,6 +48,13 @@ export const API_ENDPOINTS = {
     BASE: '/documents',
     INGEST: '/documents/ingest',
     CONFIRM: (id: string) => `/documents/${id}/confirm`,
+  },
+  CORRECTIVE_ACTIONS: {
+    BASE: '/corrective-actions',
+    DETAIL: (id: string) => `/corrective-actions/${id}`,
+  },
+  COMPLIANCE: {
+    BASE: '/compliance',
   },
   MEDIA: {
     UPLOAD: '/media/upload',

@@ -15,7 +15,7 @@ export class ApiError extends Error {
 export const handleApiError = (error: any): ApiError => {
   if (error.response) {
     const { status, data } = error.response;
-    const rawMessage = data?.message;
+    const rawMessage = data?.message ?? data?.error;
     const safeMessage =
       typeof rawMessage === 'string' && rawMessage.length <= 200
         ? rawMessage

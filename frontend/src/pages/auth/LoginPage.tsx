@@ -13,7 +13,7 @@ import logoImg from '../../../assets/images/logo.png';
 
 const loginSchema = z.object({
   email: z.string().email('Please enter a valid email').max(254, 'Email is too long'),
-  password: z.string().min(6, 'Password must be at least 6 characters').max(128, 'Password is too long'),
+  password: z.string().min(8, 'Password must be at least 8 characters').max(128, 'Password is too long'),
 });
 
 type LoginFormData = z.infer<typeof loginSchema>;
@@ -27,6 +27,7 @@ const DEMO_ACCOUNTS = [
 
 export const LoginPage = () => {
   const [showPassword, setShowPassword] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const navigate = useNavigate();
   const { login, isLoading, error, clearError } = useAuth();
 
@@ -41,10 +42,13 @@ export const LoginPage = () => {
   const onSubmit = async (data: LoginFormData) => {
     try {
       clearError();
+      setSubmitting(true);
       await login(data);
       navigate('/app/dashboard');
     } catch {
       // Error is handled by the auth store
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -97,7 +101,7 @@ export const LoginPage = () => {
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
-              <Button type="submit" className="w-full" isLoading={isLoading}>
+              <Button type="submit" className="w-full" isLoading={isLoading || submitting}>
                 Sign in <ArrowRight className="h-4 w-4" />
               </Button>
             </form>
@@ -119,7 +123,7 @@ export const LoginPage = () => {
               </div>
               <p className="mt-4 flex items-center justify-center gap-1.5 text-center text-xs text-[#8D969B]">
                 <ShieldCheck className="h-3.5 w-3.5 text-[#35C759]" />
-                Access is provisioned by site administrators — no self sign-up.
+                Secure access — contact your administrator for an account.
               </p>
             </div>
           </div>

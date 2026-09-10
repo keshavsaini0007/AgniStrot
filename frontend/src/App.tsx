@@ -5,9 +5,9 @@ import { useAuthStore } from '@/store/authStore';
 import { ProtectedRoute } from '@/routes/ProtectedRoute';
 import { PublicLayout } from '@/layouts/PublicLayout';
 import { AppLayout } from '@/layouts/AppLayout';
-import { DemoGate } from '@/components/demo/DemoGate';
 import { LandingPage } from '@/pages/public/LandingPage';
 import { LoginPage } from '@/pages/auth/LoginPage';
+import { RegisterPage } from '@/pages/auth/RegisterPage';
 import {
   DashboardPage,
   MinesPage,
@@ -62,28 +62,29 @@ function App() {
           <Route element={<PublicLayout />}>
             <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/register" element={<RegisterPage />} />
           </Route>
 
           {/* Protected Routes */}
           <Route element={<ProtectedRoute />}>
             <Route element={<AppLayout />}>
               <Route path="/app/dashboard" element={<DashboardPage />} />
-              <Route path="/app/mines" element={<DemoGate><MinesPage /></DemoGate>} />
-              <Route path="/app/mines/:mineId" element={<DemoGate><MineDetailPage /></DemoGate>} />
+              <Route path="/app/mines" element={<MinesPage />} />
+              <Route path="/app/mines/:mineId" element={<MineDetailPage />} />
               <Route path="/app/inspections" element={<InspectionsPage />} />
               <Route path="/app/inspections/:inspectionId" element={<InspectionDetailPage />} />
               <Route path="/app/incidents" element={<IncidentsPage />} />
               <Route path="/app/incidents/:incidentId" element={<IncidentDetailPage />} />
               <Route path="/app/alerts" element={<AlertsPage />} />
               <Route path="/app/attendance" element={<AttendancePage />} />
-              <Route path="/app/corrective-actions" element={<DemoGate><CorrectiveActionsPage /></DemoGate>} />
-              <Route path="/app/compliance" element={<DemoGate><CompliancePage /></DemoGate>} />
-              <Route path="/app/compliance/:complianceId" element={<DemoGate><CompliancePage /></DemoGate>} />
+              <Route path="/app/corrective-actions" element={<CorrectiveActionsPage />} />
+              <Route path="/app/compliance" element={<CompliancePage />} />
+              <Route path="/app/compliance/:complianceId" element={<CompliancePage />} />
               <Route path="/app/documents" element={<DocumentsPage />} />
               <Route path="/app/analytics" element={<AnalyticsPage />} />
               <Route path="/app/gis" element={<GISPage />} />
               <Route path="/app/reports" element={<ReportsPage />} />
-              <Route path="/app/notifications" element={<DemoGate><NotificationsPage /></DemoGate>} />
+              <Route path="/app/notifications" element={<NotificationsPage />} />
               <Route path="/app/users" element={<UsersPage />} />
               <Route path="/app/audit-logs" element={<AuditLogsPage />} />
               <Route path="/app/settings" element={<SettingsPage />} />

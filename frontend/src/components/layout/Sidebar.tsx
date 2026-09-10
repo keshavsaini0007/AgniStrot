@@ -18,42 +18,43 @@ import {
   Bell,
   Users,
   X,
-  Sparkles,
 } from 'lucide-react';
 import { useUIStore } from '@/store/uiStore';
 import { useAuth } from '@/hooks/useAuth';
-import { env } from '@/config/env';
 import logoImg from '../../../assets/images/logo.png';
 
+// Navigation items with required permissions. Mines/corrective-actions/compliance/
+// notifications are all real, backend-backed routes now (no demo-only gating).
 const workspaceNav = [
-  { name: 'Dashboard', href: '/app/dashboard', icon: LayoutDashboard },
-  { name: 'Inspections', href: '/app/inspections', icon: ClipboardCheck },
-  { name: 'Incidents', href: '/app/incidents', icon: AlertTriangle },
-  { name: 'Alerts', href: '/app/alerts', icon: AlarmClock },
-  { name: 'Attendance', href: '/app/attendance', icon: Users2 },
-  { name: 'AI Risk Intelligence', href: '/app/analytics', icon: Brain },
-  { name: 'GIS Intelligence', href: '/app/gis', icon: Globe },
-  { name: 'Reports', href: '/app/reports', icon: FileBarChart },
-  { name: 'Documents', href: '/app/documents', icon: FolderOpen },
-  { name: 'Audit Logs', href: '/app/audit-logs', icon: History },
-  { name: 'Settings', href: '/app/settings', icon: Settings },
+  { name: 'Dashboard', href: '/app/dashboard', icon: LayoutDashboard, permission: 'dashboard.read' },
+  { name: 'Inspections', href: '/app/inspections', icon: ClipboardCheck, permission: 'inspections.read' },
+  { name: 'Incidents', href: '/app/incidents', icon: AlertTriangle, permission: 'incidents.read' },
+  { name: 'Alerts', href: '/app/alerts', icon: AlarmClock, permission: 'alerts.read' },
+  { name: 'Attendance', href: '/app/attendance', icon: Users2, permission: 'attendance.read' },
+  { name: 'Mines', href: '/app/mines', icon: MapPin, permission: 'mines.read' },
+  { name: 'Corrective Actions', href: '/app/corrective-actions', icon: CheckCircle, permission: 'correctiveactions.read' },
+  { name: 'Compliance', href: '/app/compliance', icon: FileText, permission: 'compliance.read' },
+  { name: 'Notifications', href: '/app/notifications', icon: Bell, permission: 'notifications.read' },
+  { name: 'AI Risk Intelligence', href: '/app/analytics', icon: Brain, permission: 'analytics.read' },
+  { name: 'GIS Intelligence', href: '/app/gis', icon: Globe, permission: 'gis.read' },
+  { name: 'Reports', href: '/app/reports', icon: FileBarChart, permission: 'reports.read' },
+  { name: 'Documents', href: '/app/documents', icon: FolderOpen, permission: 'documents.read' },
+  { name: 'Audit Logs', href: '/app/audit-logs', icon: History, permission: 'audit.read' },
+  { name: 'Settings', href: '/app/settings', icon: Settings, permission: 'settings.read' },
 ];
 
-const demoNav = [
-  { name: 'Mines', href: '/app/mines', icon: MapPin },
-  { name: 'Corrective Actions', href: '/app/corrective-actions', icon: CheckCircle },
-  { name: 'Compliance', href: '/app/compliance', icon: FileText },
-  { name: 'Notifications', href: '/app/notifications', icon: Bell },
-  { name: 'Users', href: '/app/users', icon: Users },
-];
-
-// Real-mode admin — only corporate managers provision accounts (backend 403s
-// everyone else on /users). Shown in real mode, hidden on the demo build.
-const corporateNav = [{ name: 'Users', href: '/app/users', icon: Users }];
+// User directory — corporate managers provision accounts (backend 403s everyone
+// else on /users). Visible in both real and demo builds.
+const corporateNav = [{ name: 'Users', href: '/app/users', icon: Users, permission: 'users.read' }];
 
 export const Sidebar = () => {
   const { sidebarOpen, setSidebarOpen } = useUIStore();
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
+
+  // Filter navigation items based on user permissions
+  const filteredWorkspaceNav = workspaceNav.filter((item) => 
+    !item.permission || hasPermission(item.permission)
+  );
 
   const renderNav = (items: typeof workspaceNav) =>
     items.map((item) => (
@@ -114,18 +115,9 @@ export const Sidebar = () => {
 
           {/* Navigation */}
           <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-            {renderNav(workspaceNav)}
+            {renderNav(filteredWorkspaceNav)}
 
-            {env.DEMO_FEATURES && (
-              <>
-                <div className="px-3 pt-5 pb-2 flex items-center gap-1.5 text-[10px] uppercase tracking-[0.18em] text-[#8D969B]">
-                  <Sparkles className="w-3.5 h-3.5" /> Demo / pitch preview
-                </div>
-                {renderNav(demoNav)}
-              </>
-            )}
-
-            {!env.DEMO_FEATURES && user?.role === 'corporate_manager' && (
+            {user?.role === 'corporate_manager' && (
               <>
                 <div className="px-3 pt-5 pb-2 flex items-center gap-1.5 text-[10px] uppercase tracking-[0.18em] text-[#8D969B]">
                   <Users className="w-3.5 h-3.5" /> Administration
