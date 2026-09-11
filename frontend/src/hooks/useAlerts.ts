@@ -3,10 +3,11 @@ import { alertService } from '@/services/alertService';
 import { queryKeys } from './useMines';
 import type { FilterParams } from '@/types';
 
-export const useAlerts = (params?: FilterParams) => {
+export const useAlerts = (params?: FilterParams, options?: { enabled?: boolean }) => {
   return useQuery({
     queryKey: [...queryKeys.alerts.all, params],
     queryFn: () => alertService.getAlerts(params),
+    enabled: options?.enabled ?? true,
   });
 };
 

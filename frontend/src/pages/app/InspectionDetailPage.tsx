@@ -1,5 +1,5 @@
 import { useParams } from 'react-router-dom';
-import { Calendar, MapPin, User, FileText, CheckCircle2, XCircle, MinusCircle, Shield, Leaf, Wrench, Users } from 'lucide-react';
+import { Calendar, MapPin, User, FileText, CheckCircle2, XCircle, MinusCircle, Shield, Leaf, Wrench, Users, ImageOff } from 'lucide-react';
 import { useInspection } from '@/hooks/useInspections';
 import { Card, CardHeader, CardContent } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
@@ -137,6 +137,31 @@ export const InspectionDetailPage = () => {
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader>
+          <h3 className="text-lg font-semibold text-[#F4F5F5]">Inspection photo</h3>
+        </CardHeader>
+        <CardContent>
+          {inspection.photoUrls.length > 0 ? (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {inspection.photoUrls.map((url, index) => (
+                <img
+                  key={index}
+                  src={url}
+                  alt={`Inspection photo ${index + 1}`}
+                  className="h-48 w-full rounded-lg border border-[#252A2D] object-cover"
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-10 px-4 text-center">
+              <ImageOff className="h-8 w-8 text-[#8D969B]" />
+              <p className="mt-3 text-sm font-medium text-[#F4F5F5]">No image uploaded</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 };
