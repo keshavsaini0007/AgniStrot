@@ -50,3 +50,21 @@ export function emitAlertEvent(
   if (!io) return;
   io.to(`site:${siteId}`).to("role:corporate_manager").to("role:regulator").emit(event, data);
 }
+
+// ── Record-sync events ──────────────────────────────────────────────────────
+// Pushed when the mobile app syncs new field records. Target rooms mirror
+// alert targeting: the site where the record was captured + corporate/regulator.
+//   inspection:new  → inspection synced from the field
+//   incident:new    → incident reported from the field
+//   attendance:new  → attendance check-in/out synced
+
+export type RecordSource = "inspection" | "incident" | "attendance";
+
+export function emitRecordEvent(
+  source: RecordSource,
+  siteId: string,
+  data: Record<string, unknown>
+): void {
+  if (!io) return;
+  io.to(`site:${siteId}`).to("role:corporate_manager").to("role:regulator").emit(`${source}:new`, data);
+}

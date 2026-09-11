@@ -7,6 +7,7 @@ import Incident from "../models/Incident.js";
 import Attendance from "../models/Attendance.js";
 import { evaluateRules } from "../services/ruleEngine.js";
 import { logAction } from "../services/auditLogger.js";
+import { emitRecordEvent } from "../sockets/index.js";
 import { syncBatchSchema } from "../validators/sync.validator.js";
 import {
   inspectionRecordSchema,
@@ -63,10 +64,23 @@ async function processRecord(
   if (result.lastErrorObject?.upserted) {
     // New document inserted — trigger rule engine
     results.accepted.push(uuid);
-    try {
-      const doc = result.value as { _id: Types.ObjectId } | undefined;
-      if (doc) {
-        const siteId = new Types.ObjectId(validated.siteId as string);
+    const doc = result.value as { _id: Types.ObjectId } | undefined;
+    if (doc) {
+      // Push the live event FIRST so the dashboards always update in real
+      // time, even if the rule engine (DB lookups/alert creation) fails below.
+      emitRecordEvent(sourceType, String(validated.siteId), {
+        recordId: doc._id.toString(),
+        siteId: validated.siteId,
+        severity: validated.severity,
+        category: validated.category,
+        type: validated.type,
+        checkType: validated.checkType,
+        workerRef: validated.workerRef,
+        capturedAt: validated.capturedAt,
+      });
+
+      const siteId = new Types.ObjectId(validated.siteId as string);
+      try {
         await logAction({
           entityType: sourceType,
           entityId: doc._id,
@@ -82,9 +96,9 @@ async function processRecord(
           },
         });
         await evaluateRules(sourceType, doc._id, siteId, safeDoc);
+      } catch (ruleErr) {
+        console.error(`Rule engine error for ${sourceType} ${uuid}:`, ruleErr);
       }
-    } catch (ruleErr) {
-      console.error(`Rule engine error for ${sourceType} ${uuid}:`, ruleErr);
     }
   } else {
     results.rejected.push({ clientUuid: uuid, reason: "duplicate" });

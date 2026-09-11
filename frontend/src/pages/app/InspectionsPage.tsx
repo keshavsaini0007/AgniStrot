@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowUpRight, CalendarDays, ChevronRight, ClipboardCheck, Eye, Leaf, Search, Shield, SlidersHorizontal, Wrench, Users } from 'lucide-react';
 import { useInspections } from '@/hooks/useInspections';
+import { useLiveRecords } from '@/hooks/useLiveRecords';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
@@ -38,6 +39,7 @@ export const InspectionsPage = () => {
     search: search || undefined,
     type: typeFilter || undefined,
   });
+  const { version, newRowId, clearRowId } = useLiveRecords(['inspection']);
 
   const stats = useMemo(() => {
     const inspections = data?.data ?? [];
@@ -87,8 +89,10 @@ export const InspectionsPage = () => {
             <div className="absolute inset-0 -z-10 bg-[linear-gradient(90deg,#07121C_4%,rgba(7,18,28,0.25)_43%,rgba(7,18,28,0.08)_100%)]" />
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-[12px] text-[#c8d3da]">{label}</p>
-                <p className="mt-1 text-2xl font-semibold text-[#F4F7F8]">{value}</p>
+                <p className="text-[14px] text-[#c8d3da]">{label}</p>
+                <p className="mt-1 text-2xl font-semibold text-[#F4F7F8]">
+                  <span key={version} className={version > 0 ? 'inline-block animate-counter-pop' : undefined}>{value}</span>
+                </p>
               </div>
               <span className={`flex h-8 w-8 items-center justify-center rounded-lg bg-[#07121C] ${color}`}>
                 <Icon className="h-4 w-4" />
@@ -138,13 +142,25 @@ export const InspectionsPage = () => {
                     <span>Inspection</span><span>Type</span><span>Site</span><span>Captured</span><span>Failures</span><span>Sync</span><span />
                   </div>
                   {inspections.map((inspection) => (
-                    <InspectionRow key={inspection.id} inspection={inspection} navigate={navigate} />
+                    <InspectionRow
+                      key={inspection.id}
+                      inspection={inspection}
+                      navigate={navigate}
+                      isNew={inspection.id === newRowId}
+                      onAnimationEnd={clearRowId}
+                    />
                   ))}
                 </div>
               </div>
               <div className="grid gap-3 p-3 md:hidden">
                 {inspections.map((inspection) => (
-                  <InspectionMobileCard key={inspection.id} inspection={inspection} navigate={navigate} />
+                  <InspectionMobileCard
+                    key={inspection.id}
+                    inspection={inspection}
+                    navigate={navigate}
+                    isNew={inspection.id === newRowId}
+                    onAnimationEnd={clearRowId}
+                  />
                 ))}
               </div>
               {data?.meta && <Pagination page={data.meta.page} totalPages={data.meta.totalPages} onPageChange={setPage} />}
@@ -156,7 +172,17 @@ export const InspectionsPage = () => {
   );
 };
 
-const InspectionRow = ({ inspection, navigate }: { inspection: Inspection; navigate: (path: string) => void }) => {
+const InspectionRow = ({
+  inspection,
+  navigate,
+  isNew = false,
+  onAnimationEnd,
+}: {
+  inspection: Inspection;
+  navigate: (path: string) => void;
+  isNew?: boolean;
+  onAnimationEnd?: () => void;
+}) => {
   const tone = typeTone[inspection.type] ?? typeTone.safety;
   const TypeIcon = tone.icon;
   const failures = inspection.failedCount ?? 0;
@@ -164,7 +190,8 @@ const InspectionRow = ({ inspection, navigate }: { inspection: Inspection; navig
     <button
       type="button"
       onClick={() => navigate(`/app/inspections/${inspection.id}`)}
-      className="group grid w-full grid-cols-[1.2fr_1fr_1fr_1.3fr_1fr_0.8fr_32px] items-center gap-4 border-b border-[#1E3545] px-5 py-3 text-left transition-colors hover:bg-[#102435]"
+      onAnimationEnd={isNew ? onAnimationEnd : undefined}
+      className={`group grid w-full grid-cols-[1.2fr_1fr_1fr_1.3fr_1fr_0.8fr_32px] items-center gap-4 border-b border-[#1E3545] px-5 py-3 text-left transition-colors hover:bg-[#102435] ${isNew ? 'animate-row-slide-in' : ''}`}
     >
       <div className="min-w-0">
         <p className="truncate text-xs font-semibold text-[#E8F0F3]">{inspection.id}</p>
@@ -190,7 +217,17 @@ const InspectionRow = ({ inspection, navigate }: { inspection: Inspection; navig
   );
 };
 
-const InspectionMobileCard = ({ inspection, navigate }: { inspection: Inspection; navigate: (path: string) => void }) => {
+const InspectionMobileCard = ({
+  inspection,
+  navigate,
+  isNew = false,
+  onAnimationEnd,
+}: {
+  inspection: Inspection;
+  navigate: (path: string) => void;
+  isNew?: boolean;
+  onAnimationEnd?: () => void;
+}) => {
   const tone = typeTone[inspection.type] ?? typeTone.safety;
   const TypeIcon = tone.icon;
   const failures = inspection.failedCount ?? 0;
@@ -198,7 +235,8 @@ const InspectionMobileCard = ({ inspection, navigate }: { inspection: Inspection
     <button
       type="button"
       onClick={() => navigate(`/app/inspections/${inspection.id}`)}
-      className="group w-full rounded-xl border border-[#21415A] bg-[#0D1C28] p-3 text-left transition-colors hover:bg-[#102435]"
+      onAnimationEnd={isNew ? onAnimationEnd : undefined}
+      className={`group w-full rounded-xl border border-[#21415A] bg-[#0D1C28] p-3 text-left transition-colors hover:bg-[#102435] ${isNew ? 'animate-row-slide-in' : ''}`}
     >
       <div className="flex items-start gap-3">
         <div className="min-w-0 flex-1">

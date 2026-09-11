@@ -151,7 +151,7 @@ export const AlertsPage = () => {
             <div className="absolute inset-0 -z-10 bg-[linear-gradient(90deg,#07121C_4%,rgba(7,18,28,0.25)_43%,rgba(7,18,28,0.08)_100%)]" />
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-[12px] text-[#c8d3da]">{label}</p>
+                <p className="text-[14px] text-[#c8d3da]">{label}</p>
                 <p className="mt-1 text-2xl font-semibold text-[#F4F7F8]">{value}</p>
               </div>
               <span className={`flex h-8 w-8 items-center justify-center rounded-lg bg-[#07121C] ${color}`}>

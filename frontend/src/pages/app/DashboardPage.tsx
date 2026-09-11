@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { useDashboardSummary } from '@/hooks/useDashboard';
+import { useLiveRecords } from '@/hooks/useLiveRecords';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { CardSkeleton } from '@/components/ui/Skeleton';
@@ -42,6 +43,7 @@ const kpiVisuals: Array<{
 
 export const DashboardPage = () => {
   const { data, isLoading, error, refetch } = useDashboardSummary();
+  const { version, newRowId, clearRowId } = useLiveRecords(['inspection', 'incident', 'attendance']);
   const navigate = useNavigate();
 
   if (isLoading) {
@@ -78,9 +80,11 @@ export const DashboardPage = () => {
             <div className="absolute inset-0 -z-10 bg-[linear-gradient(90deg,#07121C_4%,rgba(7,18,28,0.25)_43%,rgba(7,18,28,0.08)_100%)]" />
             <div className="flex items-start justify-between gap-2">
               <div>
-                <p className="text-[10px] text-[#A5BAC7]">{label}</p>
+                <p className="text-[14px] text-[#A5BAC7]">{label}</p>
                 <p className="mt-1 text-2xl font-semibold text-[#F4F7F8]">
-                  {stats[key] ?? 0}{suffix ?? ''}
+                  <span key={version} className={version > 0 ? 'inline-block animate-counter-pop' : undefined}>
+                    {stats[key] ?? 0}{suffix ?? ''}
+                  </span>
                 </p>
               </div>
               <span className={`flex h-8 w-8 items-center justify-center rounded-lg bg-[#07121C]/80 ${color}`}>
@@ -96,7 +100,7 @@ export const DashboardPage = () => {
           <div className="flex items-center justify-between border-b border-[#21415A] px-4 py-4 sm:px-5">
             <div>
               <h2 className="text-base font-semibold text-[#F4F7F8]">Recent Incidents</h2>
-              <p className="mt-1 text-[10px] text-[#8299A7]">Latest field reports across accessible sites</p>
+              <p className="mt-1 text-[14px] text-[#8299A7]">Latest field reports across accessible sites</p>
             </div>
             <button
               onClick={() => navigate('/app/incidents')}
@@ -114,7 +118,8 @@ export const DashboardPage = () => {
                 key={incident.id}
                 type="button"
                 onClick={() => navigate(`/app/incidents/${incident.id}`)}
-                className="group flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-[#102435] sm:px-5"
+                onAnimationEnd={incident.id === newRowId ? clearRowId : undefined}
+                className={`group flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-[#102435] sm:px-5 ${incident.id === newRowId ? 'animate-row-slide-in' : ''}`}
               >
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-xs font-semibold text-[#E8F0F3]">{incident.id}</p>
@@ -151,10 +156,10 @@ export const DashboardPage = () => {
               <div key={site.siteId} className="flex items-center gap-3 px-4 py-3 sm:px-5">
                 <div className="min-w-0 flex-1">
                   <p className="text-xs font-semibold text-[#E8F0F3]">{site.name}</p>
-                  <p className="mt-1 text-[10px] text-[#8299A7]">{site.siteId}</p>
+                  <p className="mt-1 text-[14px] text-[#8299A7]">{site.siteId}</p>
                 </div>
                 <div className="flex shrink-0 items-center gap-1.5">
-                  <span className="flex items-center gap-1 text-[10px] text-[#8299A7]">
+                  <span className="flex items-center gap-1 text-[14px] text-[#8299A7]">
                     <CircleAlert className="h-3 w-3 text-[#F5B942]" />{site.openAlerts ?? 0} alerts
                   </span>
                   {typeof site.riskScore === 'number' && (

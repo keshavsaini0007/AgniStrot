@@ -29,6 +29,21 @@ type AlertEventData = {
 
 type SocketEventHandler = (data: AlertEventData) => void;
 
+type RecordEventSource = 'inspection' | 'incident' | 'attendance';
+
+type RecordEventData = {
+  recordId: string;
+  siteId: string;
+  severity?: string;
+  category?: string;
+  type?: string;
+  checkType?: string;
+  workerRef?: string;
+  capturedAt?: string;
+};
+
+type RecordEventHandler = (data: RecordEventData) => void;
+
 class SocketService {
   private socket: Socket | null = null;
   private reconnectAttempts = 0;
@@ -106,9 +121,16 @@ class SocketService {
   }
 
   /**
+   * Listen for record-sync events (inspection:new, incident:new, attendance:new)
+   */
+  onRecordNew(source: RecordEventSource, handler: RecordEventHandler): void {
+    this.socket?.on(`${source}:new`, handler);
+  }
+
+  /**
    * Remove event listener
    */
-  off(event: string, handler?: SocketEventHandler): void {
+  off(event: string, handler?: SocketEventHandler | RecordEventHandler): void {
     if (handler) {
       this.socket?.off(event, handler);
     } else {

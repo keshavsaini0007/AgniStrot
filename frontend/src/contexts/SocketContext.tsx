@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { socketService } from '@/services/socketService';
 import { useAuthStore } from '@/store/authStore';
@@ -23,6 +23,7 @@ import { queryKeys } from '@/hooks/useMines';
 interface SocketContextValue {
   isConnected: boolean;
   lastAlertEvent: AlertEvent | null;
+  lastRecordEvent: RecordEvent | null;
 }
 
 interface AlertEvent {
@@ -36,6 +37,14 @@ interface AlertEvent {
   timestamp: number; // Local timestamp for UI
 }
 
+type RecordEventSource = 'inspection' | 'incident' | 'attendance';
+
+interface RecordEvent {
+  source: RecordEventSource;
+  recordId: string;
+  seq: number; // Monotonic counter so consumers can re-trigger animations
+}
+
 const SocketContext = createContext<SocketContextValue | undefined>(undefined);
 
 interface SocketProviderProps {
@@ -46,6 +55,8 @@ export const SocketProvider = ({ children }: SocketProviderProps) => {
   const { isAuthenticated } = useAuthStore();
   const [isConnected, setIsConnected] = useState(false);
   const [lastAlertEvent, setLastAlertEvent] = useState<AlertEvent | null>(null);
+  const [lastRecordEvent, setLastRecordEvent] = useState<RecordEvent | null>(null);
+  const recordSeqRef = useRef(0);
   const queryClient = useQueryClient();
 
   useEffect(() => {
@@ -124,11 +135,41 @@ export const SocketProvider = ({ children }: SocketProviderProps) => {
     socketService.onNewAlert(handleNewAlert);
     socketService.onAlertEscalated(handleAlertEscalated);
 
+    // Record-sync events from the mobile app (inspection:new, incident:new,
+    // attendance:new). Invalidates the matching list query + the dashboard
+    // (which aggregates all domains) so pages refetch and re-animate.
+    const handleRecordNew = (source: RecordEventSource) => (data: { recordId?: string }) => {
+      console.log(`[Socket] ${source}:new received:`, data);
+
+      recordSeqRef.current += 1;
+      setLastRecordEvent({
+        source,
+        recordId: data.recordId ?? '',
+        seq: recordSeqRef.current,
+      });
+
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all });
+      if (source === 'inspection') {
+        queryClient.invalidateQueries({ queryKey: queryKeys.inspections.all });
+      } else if (source === 'incident') {
+        queryClient.invalidateQueries({ queryKey: queryKeys.incidents.all });
+      } else {
+        queryClient.invalidateQueries({ queryKey: queryKeys.attendance.all });
+      }
+    };
+
+    socketService.onRecordNew('inspection', handleRecordNew('inspection'));
+    socketService.onRecordNew('incident', handleRecordNew('incident'));
+    socketService.onRecordNew('attendance', handleRecordNew('attendance'));
+
     // Cleanup on unmount or auth change
     return () => {
       clearInterval(intervalId);
       socketService.off('alert:new', handleNewAlert);
       socketService.off('alert:escalated', handleAlertEscalated);
+      socketService.off('inspection:new');
+      socketService.off('incident:new');
+      socketService.off('attendance:new');
       socketService.disconnect();
       setIsConnected(false);
     };
@@ -137,6 +178,7 @@ export const SocketProvider = ({ children }: SocketProviderProps) => {
   const value: SocketContextValue = {
     isConnected,
     lastAlertEvent,
+    lastRecordEvent,
   };
 
   return <SocketContext.Provider value={value}>{children}</SocketContext.Provider>;
