@@ -208,20 +208,30 @@ export const AlertsPage = () => {
           ) : (
             <>
               <div className="hidden overflow-x-auto lg:block">
-                <div className="min-w-[960px]">
-                  <div className="grid grid-cols-[1.5fr_0.9fr_1fr_1fr_1fr_1.3fr_32px] gap-4 border-b border-[#1E3545] px-5 py-3 text-[9px] uppercase tracking-[0.16em] text-[#78919F]">
-                    <span>Alert</span><span>Severity</span><span>Rule</span><span>Status</span><span>Deadline</span><span>Actions</span><span />
-                  </div>
-                  {alerts.map((alert) => (
-                    <AlertRow
-                      key={alert.id}
-                      alert={alert}
-                      onAcknowledge={(id) => acknowledge.mutate({ id })}
-                      onResolve={openResolve}
-                      onEscalate={(id) => escalate.mutate({ id })}
-                    />
-                  ))}
-                </div>
+                <table className="w-full min-w-[1000px] table-fixed border-collapse">
+                  <thead>
+                    <tr className="border-b border-[#1E3545] text-left text-[9px] uppercase tracking-[0.16em] text-[#78919F]">
+                      <th className="w-[20%] px-5 py-3 font-medium">Alert</th>
+                      <th className="w-[11%] px-3 py-3 font-medium">Severity</th>
+                      <th className="w-[13%] px-3 py-3 font-medium">Rule</th>
+                      <th className="w-[11%] px-3 py-3 font-medium">Status</th>
+                      <th className="w-[13%] px-3 py-3 font-medium">Deadline</th>
+                      <th className="w-[30%] px-3 py-3 font-medium">Actions</th>
+                      <th className="w-[2%] px-3 py-3" />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {alerts.map((alert) => (
+                      <AlertRow
+                        key={alert.id}
+                        alert={alert}
+                        onAcknowledge={(id) => acknowledge.mutate({ id })}
+                        onResolve={openResolve}
+                        onEscalate={(id) => escalate.mutate({ id })}
+                      />
+                    ))}
+                  </tbody>
+                </table>
               </div>
               <div className="grid gap-3 p-3 lg:hidden">
                 {alerts.map((alert) => (
@@ -318,21 +328,25 @@ const AlertRow = ({ alert, onAcknowledge, onResolve, onEscalate }: {
   const deadline = deadlineFor(alert);
   const dl = deadline ? deadlineLabel(deadline) : null;
   return (
-    <div className="group grid w-full grid-cols-[1.5fr_0.9fr_1fr_1fr_1fr_1.3fr_32px] items-center gap-4 border-b border-[#1E3545] px-5 py-3 transition-colors hover:bg-[#102435]">
-      <div className="min-w-0">
-        <p className="flex items-center gap-2 text-xs font-semibold text-[#E8F0F3]">
+    <tr className="group border-b border-[#1E3545] transition-colors hover:bg-[#102435]">
+      <td className="px-5 py-3">
+        <p className="flex items-center gap-2 overflow-hidden text-xs font-semibold text-[#E8F0F3]">
           <Icon className={`h-4 w-4 shrink-0 ${icon.color}`} />
-          {alert.id}
+          <span className="truncate">{alert.id}</span>
         </p>
-        <p className="mt-1 text-[10px] text-[#78919F]">{formatRelativeTime(alert.createdAt)} · {alert.sourceType} · {alert.siteId}</p>
-      </div>
-      <span className="w-fit"><Badge status={alert.severity} /></span>
-      <span className="font-mono text-[10px] text-[#A9BBC4]">{alert.ruleCode}</span>
-      <span className="w-fit"><Badge status={alert.status} /></span>
-      <span className={`text-xs ${dl?.tone ?? ''}`}>{dl?.text ?? '—'}</span>
-      <AlertActions alert={alert} onAcknowledge={onAcknowledge} onResolve={onResolve} onEscalate={onEscalate} />
-      <ChevronRight className="h-4 w-4 text-[#527084]" />
-    </div>
+        <p className="mt-1 truncate text-[10px] text-[#78919F]">{formatRelativeTime(alert.createdAt)} · {alert.sourceType} · {alert.siteId}</p>
+      </td>
+      <td className="px-3 py-3"><Badge status={alert.severity} /></td>
+      <td className="truncate px-3 py-3 font-mono text-[10px] text-[#A9BBC4]">{alert.ruleCode}</td>
+      <td className="px-3 py-3"><Badge status={alert.status} /></td>
+      <td className={`whitespace-nowrap px-3 py-3 text-xs ${dl?.tone ?? ''}`}>{dl?.text ?? '—'}</td>
+      <td className="whitespace-nowrap px-3 py-3">
+        <AlertActions alert={alert} onAcknowledge={onAcknowledge} onResolve={onResolve} onEscalate={onEscalate} />
+      </td>
+      <td className="px-3 py-3 pl-0">
+        <ChevronRight className="h-4 w-4 text-[#527084]" />
+      </td>
+    </tr>
   );
 };
 
