@@ -212,7 +212,7 @@ export const LandingPage = () => {
           className="relative"
         >
           <ImageReveal delay={0.5} direction="left" mode="mount" className="aspect-[1.16/1] min-h-[360px] w-full sm:min-h-[430px] lg:aspect-[1.22/1] lg:max-h-[min(520px,calc(100vh_-_380px))]">
-            <VisualPanel label="Mine operations / live view" imageSrc={mineOperationsImg} className="h-full w-full" />
+            <VisualPanel label="Mine operations" imageSrc={mineOperationsImg} className="h-full w-full" />
           </ImageReveal>
 
           <motion.div
