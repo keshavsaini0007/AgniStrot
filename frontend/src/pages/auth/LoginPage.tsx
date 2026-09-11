@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { useAuth } from '@/hooks/useAuth';
 import loginBackgroundImg from '../../../assets/images/login-bg.png';
+import structuralBgImg from '../../../assets/images/Structural Weakness in Support Beam-clean.png';
 import logoImg from '../../../assets/images/logo.png';
 
 const loginSchema = z.object({
@@ -53,23 +54,30 @@ export const LoginPage = () => {
   };
 
   return (
-    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#0B0D0E] px-4 py-8 sm:px-8">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_20%,rgba(216,138,50,0.12),transparent_30%),radial-gradient(circle_at_85%_80%,rgba(77,163,255,0.08),transparent_28%)]" />
+    <main className="relative flex min-h-dvh flex-col overflow-y-auto bg-[#0b0d0e00] px-4 py-2 sm:px-8">
+      <img src={structuralBgImg} alt="" aria-hidden="true" className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-60" />
+      <div className="pointer-events-none absolute inset-0 bg-[#0b0d0e00]/80" />
+      <div className="m-auto w-full max-w-5xl">
       <motion.section
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="relative w-full max-w-5xl overflow-hidden rounded-[26px] border border-[#2A383F] bg-[#111A20] shadow-[0_24px_80px_rgba(0,0,0,0.42)]"
+        className="relative w-full overflow-hidden rounded-[26px] border border-[#2A383F] backdrop-blur-[1px] bg-[#0b0d0e00] shadow-[0_24px_80px_rgba(0,0,0,0.42)]"
       >
-        <div className="flex min-h-[560px] flex-col min-[900px]:flex-row">
-          <div className="flex w-full flex-col justify-center p-7 sm:p-10 min-[900px]:w-1/2">
-            <div className="mb-3 flex items-center gap-2 text-[#35C759]">
+        <div className="flex min-h-[440px] flex-col min-[900px]:flex-row">
+          <div className="flex w-full flex-col justify-center p-5 sm:p-6 min-[900px]:w-1/2">
+            <div className="mb-1.5 flex items-center gap-2 text-[#35C759]">
               <CheckCircle2 className="h-4 w-4" />
               <span className="text-[10px] uppercase tracking-[0.2em]">Secure workspace access</span>
             </div>
-            <h2 className="text-3xl font-semibold tracking-[-0.04em] text-[#F4F7F8]">Sign in</h2>
-            <p className="mt-2 text-sm text-[#8D969B]">Access the governance platform</p>
+            <h2 className="text-2xl font-semibold tracking-[-0.04em] text-[#F4F7F8] sm:text-3xl">Sign in</h2>
+            <p className="mt-1 text-sm text-[#8D969B]">Access the governance platform</p>
 
-            <form onSubmit={handleSubmit(onSubmit)} className="mt-8 space-y-4">
+            <div className="mt-3 flex rounded-lg border border-[#2A383F] bg-[#0D1318] p-1">
+              <span className="flex-1 rounded-md bg-[#D88A32] py-2 text-center text-xs font-medium text-white">Sign in</span>
+              <Link to="/register" className="flex-1 rounded-md py-2 text-center text-xs font-medium text-[#8D969B] transition-colors hover:text-[#F4F7F8]">Sign up</Link>
+            </div>
+
+            <form onSubmit={handleSubmit(onSubmit)} className="mt-4 space-y-3">
               {error && (
                 <div className="rounded-lg border border-[#FF4D4F]/30 bg-[#FF4D4F]/10 p-3">
                   <p className="text-sm text-[#FF4D4F]">{error}</p>
@@ -106,22 +114,22 @@ export const LoginPage = () => {
               </Button>
             </form>
 
-            <div className="mt-7 border-t border-[#2A383F] pt-5">
-              <p className="mb-3 text-center text-xs uppercase tracking-[0.16em] text-[#8299A7]">
+            <div className="mt-3 border-t border-[#2A383F] pt-2">
+              <p className="mb-1.5 text-center text-xs uppercase tracking-[0.16em] text-[#8299A7]">
                 Demo accounts (password: password123)
               </p>
               <div className="grid grid-cols-2 gap-2 text-center text-[10px]">
                 {DEMO_ACCOUNTS.map((acc) => (
                   <div
                     key={acc.email}
-                    className="rounded-lg border border-[#2A383F] bg-[#172229] p-2"
+                    className="rounded-lg border border-[#2A383F] bg-[#172229] px-2 py-0.5"
                   >
                     <p className="text-[#C0D0D7]">{acc.email}</p>
-                    <p className="mt-1 text-[#8299A7]">{acc.role}</p>
+                    <p className="mt-0.5 text-[#8299A7]">{acc.role}</p>
                   </div>
                 ))}
               </div>
-              <p className="mt-4 flex items-center justify-center gap-1.5 text-center text-xs text-[#8D969B]">
+              <p className="mt-2 flex items-center justify-center gap-1.5 text-center text-xs text-[#8D969B]">
                 <ShieldCheck className="h-3.5 w-3.5 text-[#35C759]" />
                 Secure access — contact your administrator for an account.
               </p>
@@ -144,7 +152,7 @@ export const LoginPage = () => {
                   Governance platform / field intelligence
                 </p>
                 <h1 className="text-3xl font-semibold tracking-[-0.04em] text-[#F4F7F8]">Hello there.</h1>
-                <p className="mt-3 text-sm leading-6 text-[#C0D0D7]">
+                <p className="mt-3 text-sm leading-6 text-[#ffffff]">
                   Review your latest field signals and keep every operational decision grounded in
                   evidence — inspections, incidents, attendance and alerts across every site.
                 </p>
@@ -159,10 +167,11 @@ export const LoginPage = () => {
       </motion.section>
       <Link
         to="/"
-        className="absolute bottom-5 left-1/2 flex -translate-x-1/2 items-center gap-1 text-sm text-[#8D969B] hover:text-[#D88A32]"
+        className="mt-3 flex items-center justify-center gap-1 text-sm text-[#8D969B] hover:text-[#D88A32]"
       >
         <ArrowLeft className="h-4 w-4" /> Back to home
       </Link>
+      </div>
     </main>
   );
 };
