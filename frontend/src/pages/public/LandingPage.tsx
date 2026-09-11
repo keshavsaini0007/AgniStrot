@@ -140,7 +140,7 @@ export const LandingPage = () => {
         id="system"
         onMouseMove={handleMouseMove}
         style={{ y: heroY, scale: heroScale, opacity: heroOpacity }}
-        className="relative mx-auto grid min-h-[calc(100vh-74px)] max-w-[1440px] items-end gap-10 px-5 pb-14 pt-30 sm:px-8 lg:grid-cols-[0.88fr_1.12fr] lg:gap-14 lg:px-12 lg:pb-16 lg:pt-36"
+        className="relative mx-auto grid min-h-[min(100vh-74px,540px)] max-w-[1440px] items-center gap-10 px-5 pb-16 pt-16 sm:px-8 lg:grid-cols-[0.88fr_1.12fr] lg:gap-14 lg:px-12 lg:pb-20 lg:pt-20"
       >
         {/* Background glow — moves with mouse */}
         <motion.div

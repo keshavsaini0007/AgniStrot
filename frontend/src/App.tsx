@@ -20,6 +20,7 @@ import {
   AlertsPage,
   AttendancePage,
   CorrectiveActionsPage,
+  CorrectiveActionDetailPage,
   CompliancePage,
   DocumentsPage,
   AnalyticsPage,
@@ -80,6 +81,7 @@ function App() {
                 <Route path="/app/alerts" element={<AlertsPage />} />
                 <Route path="/app/attendance" element={<AttendancePage />} />
                 <Route path="/app/corrective-actions" element={<CorrectiveActionsPage />} />
+                <Route path="/app/corrective-actions/:actionId" element={<CorrectiveActionDetailPage />} />
                 <Route path="/app/compliance" element={<CompliancePage />} />
                 <Route path="/app/compliance/:complianceId" element={<CompliancePage />} />
                 <Route path="/app/documents" element={<DocumentsPage />} />
