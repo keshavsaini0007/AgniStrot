@@ -1,15 +1,24 @@
 import React from 'react';
-import { View, Text, ScrollView, RefreshControl, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, RefreshControl, StyleSheet, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { useTheme } from '@/hooks/use-theme';
 import { useDashboard } from '@/hooks/useAnalytics';
-import { Card, KPICard, Badge, ListItem } from '@/components/ui';
+import { Card, KPICard, Badge, ListItem, Icon, type IconName } from '@/components/ui';
 import { BorderRadius, FontSize, Spacing } from '@/constants/theme';
 import { formatRelativeTime } from '@/utils/date';
 import { getStatusConfig } from '@/utils/status';
 
+const FIELD_ACTIONS: { title: string; icon: IconName; screen: string }[] = [
+  { title: 'New Inspection', icon: 'clipboard-list', screen: '/capture/inspection' },
+  { title: 'Report Incident', icon: 'siren', screen: '/capture/incident' },
+  { title: 'Attendance', icon: 'users', screen: '/capture/attendance' },
+  { title: 'Sync & Offline', icon: 'refresh-cw', screen: '/capture/sync' },
+];
+
 export default function DashboardScreen() {
   const theme = useTheme();
+  const router = useRouter();
   const { data, isLoading, refetch, isRefetching } = useDashboard();
 
   const kpis = data?.kpis;
@@ -35,6 +44,28 @@ export default function DashboardScreen() {
           <KPICard title="Pending" value={kpis?.pendingInspections ?? 0} icon="clipboard-list" color={theme.info} />
           <KPICard title="Overdue" value={kpis?.overdueActions ?? 0} icon="alarm-clock" color={theme.warning} />
         </View>
+
+        <Card style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>Field Actions</Text>
+          <View style={styles.actionGrid}>
+            {FIELD_ACTIONS.map((action) => (
+              <Pressable
+                key={action.screen}
+                onPress={() => router.push(action.screen as any)}
+                style={({ pressed }) => [
+                  styles.actionCard,
+                  { backgroundColor: theme.surfaceElevated, borderColor: theme.border },
+                  pressed && { opacity: 0.7 },
+                ]}
+              >
+                <Icon name={action.icon} size={20} color={theme.primary} />
+                <Text style={[styles.actionTitle, { color: theme.text }]} numberOfLines={2}>
+                  {action.title}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        </Card>
 
         <Card style={styles.section}>
           <Text style={[styles.sectionTitle, { color: theme.text }]}>Recent Alerts</Text>
@@ -103,6 +134,24 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: Spacing.three,
+  },
+  actionGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.three,
+  },
+  actionCard: {
+    width: '47%',
+    flexGrow: 1,
+    borderWidth: 1,
+    borderRadius: BorderRadius.lg,
+    paddingVertical: Spacing.four,
+    paddingHorizontal: Spacing.three,
+    gap: Spacing.two,
+  },
+  actionTitle: {
+    fontSize: FontSize.sm,
+    fontWeight: '600',
   },
   section: {
     gap: Spacing.three,

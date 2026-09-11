@@ -3,7 +3,7 @@ import { View, Text, FlatList, StyleSheet, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/hooks/use-theme';
 import { useNotifications } from '@/hooks/useNotifications';
-import { Badge, LoadingState, EmptyState } from '@/components/ui';
+import { Badge, LoadingState, EmptyState, MockBadge } from '@/components/ui';
 import { BorderRadius, FontSize, Spacing } from '@/constants/theme';
 import { formatRelativeTime } from '@/utils/date';
 import type { Notification } from '@/types';
@@ -60,7 +60,10 @@ export default function NotificationsScreen() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
       <View style={styles.header}>
-        <Text style={[styles.screenTitle, { color: theme.text }]}>Notifications</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <Text style={[styles.screenTitle, { color: theme.text }]}>Notifications</Text>
+          <MockBadge />
+        </View>
         <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
           {data?.meta.total || 0} notifications
         </Text>

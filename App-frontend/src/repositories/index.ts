@@ -49,4 +49,4 @@ export const auditLogRepository = useMockApi
   ? auditLogMockRepository
   : auditLogMockRepository;
 
-export { incidentApiRepository, attendanceApiRepository, mediaApiRepository };
+export { inspectionApiRepository, incidentApiRepository, attendanceApiRepository, mediaApiRepository };

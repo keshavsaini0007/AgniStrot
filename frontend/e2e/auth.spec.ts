@@ -36,7 +36,7 @@ test.describe('auth', () => {
     await page.goto('/login');
     await page.getByPlaceholder('Enter your email').fill(ACCOUNTS.mineOfficial.email);
     await page.getByPlaceholder('Enter your password').fill('wrong-password');
-    await page.getByRole('button', { name: /sign in/i }).click();
+    await page.locator('form').getByRole('button', { name: /sign in/i }).click();
     await expect(page.getByText(/invalid credentials/i)).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
   });

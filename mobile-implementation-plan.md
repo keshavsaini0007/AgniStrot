@@ -223,6 +223,30 @@ Per-type fields:
 **Definition of done**
 - PRD MVP loop (G1 → G3 → G4) demonstrable on the mobile app: capture → detect → alert → escalate → resolve, with the resolve step completing on the web/alerts interface.
 
+#### Phase 6 — verification report (2026-09-11, branch `feat/phase6-e2e-verify`)
+
+| Check | Result |
+|---|---|
+| Full loop (scripted): login `field_officer` → photo upload → `inspections/sync` with a safety `fail` item → `SAFETY_CHECKLIST_FAIL` alert (high) assigned to site `mine_official` | ✅ 12/12 (localhost + tunnel) |
+| Dedup: resend same `clientUuid` → `rejected:[{reason:"duplicate"}]`, row count +1 across both calls exactly, `clientUuid` preserved on detail | ✅ |
+| Alert visible + actionable on web dashboard (login Priya → `/app/alerts`, High badge, Acknowledge/Escalate) | ✅ Playwright UI probe |
+| Playwright alerts lifecycle (acknowledge → resolve, escalate) against REAL backend | ✅ 2 passed |
+| Playwright auth suite | ✅ 5 passed (after strict-mode fix) |
+| `expo lint` / `npx tsc --noEmit` | ✅ 1 pre-existing error only / clean |
+| Backend `npm run verify` | ⏳ pending (run last; reseeds DB) |
+
+Deviations / findings (documented deliberately):
+- **One backend change** (deviation from "no backend changes"): `backend/src/controllers/media.controller.ts` gained a `CLOUDINARY_ENABLED=false` branch mirroring `document.controller.ts` — media upload returned HTTP 500 in demo mode because the controller always called Cloudinary. Now returns a schema-valid placeholder URL (`https://local.invalid/agnistrot/...`). Required for the photo-upload leg of the loop.
+- **Deployment sanity (task 5) DEFERRED**: no deploy config exists in the repo (no render.yaml/railway.toml/Dockerfile/Procfile) and no hosting accounts are provisioned. `EXPO_PUBLIC_API_URL` stays pointed at the dev tunnel `https://actual-february-parish-sound.trycloudflare.com/api/v1`. Deploy steps documented below.
+- **Pre-existing e2e failures (unrelated)**: `documents.spec.ts` (waits for a `/api/v1/documents` GET that never fires in real-API mode) and `reports.spec.ts` (45s PDF-generation download timeout). Pre-date Phase 6; left untouched.
+- **e2e helper fix**: `frontend/e2e/helpers.ts:18` and `auth.spec.ts:39` now scope the "Sign in" click to the login form — the login header also renders a "Sign in" toggle button (strict-mode violation otherwise).
+
+Deployment steps (for task 5 completion later):
+1. Provision MongoDB Atlas cluster → set `MONGO_URI`.
+2. Provision Cloudinary → set `CLOUDINARY_CLOUD_NAME/API_KEY/API_SECRET`; leave `CLOUDINARY_ENABLED=true` for hosted images.
+3. Render/Railway service from `backend/` (build `npm ci && npm run build`, start `node dist/server.js`); set `JWT_SECRET`, `MONGO_URI`, Cloudinary vars.
+4. Point `App-frontend/.env` `EXPO_PUBLIC_API_URL` at the deployed base; re-verify with `node App-frontend/scripts/phase6-verify.mjs`.
+
 ---
 
 ## 5. Files to create / change (app side only)

@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useTheme } from '@/hooks/use-theme';
 import { useCompliance } from '@/hooks/useCompliance';
-import { Badge, LoadingState, EmptyState } from '@/components/ui';
+import { Badge, LoadingState, EmptyState, MockBadge } from '@/components/ui';
 import { BorderRadius, FontSize, Spacing } from '@/constants/theme';
 import { getStatusConfig } from '@/utils/status';
 import { formatDate } from '@/utils/date';
@@ -59,7 +59,10 @@ export default function ComplianceScreen() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
       <View style={styles.header}>
-        <Text style={[styles.screenTitle, { color: theme.text }]}>Compliance</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <Text style={[styles.screenTitle, { color: theme.text }]}>Compliance</Text>
+          <MockBadge />
+        </View>
         <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
           {data?.meta.total || 0} requirements
         </Text>

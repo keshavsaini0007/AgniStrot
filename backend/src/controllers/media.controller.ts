@@ -29,6 +29,18 @@ export const uploadMedia = async (req: Request, res: Response): Promise<void> =>
       return;
     }
 
+    // Local mode (CLOUDINARY_ENABLED=false) — fully self-contained for demos and
+    // tests, mirroring document.controller. A schema-valid placeholder URL is
+    // returned so uploaded photos still flow through the sync validator, which
+    // requires HTTP(s) URLs (sync.validator photoUrls: z.string().url()).
+    if (process.env.CLOUDINARY_ENABLED === "false") {
+      const safeName = req.file.originalname.replace(/[^\w.-]/g, "_");
+      const url = `https://local.invalid/agnistrot/${Date.now().toString(36)}-${safeName}`;
+      console.log(`Storing media placeholder (local mode): ${url}`);
+      res.json({ url });
+      return;
+    }
+
     const result = await new Promise<CloudinaryUploadResult>((resolve, reject) => {
       const stream = cloudinary.uploader.upload_stream(
         { folder: "agnistrot" },

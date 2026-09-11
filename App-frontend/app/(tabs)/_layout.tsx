@@ -2,13 +2,16 @@ import { Tabs } from 'expo-router';
 import { useColorScheme } from 'react-native';
 import { Colors } from '@/constants/theme';
 import { Icon } from '@/components/ui';
+import { SyncMonitor } from '@/components/SyncMonitor';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme === 'dark' || colorScheme === 'unspecified' ? 'dark' : 'light'];
 
   return (
-    <Tabs
+    <>
+      <SyncMonitor />
+      <Tabs
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: colors.primary,
@@ -80,5 +83,6 @@ export default function TabLayout() {
       <Tabs.Screen name="corrective-action-detail" options={{ href: null }} />
       <Tabs.Screen name="compliance-detail" options={{ href: null }} />
     </Tabs>
+    </>
   );
 }

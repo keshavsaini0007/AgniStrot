@@ -7,7 +7,7 @@ import { useInspections } from '@/hooks/useInspections';
 import { useObservations } from '@/hooks/useObservations';
 import { useCorrectiveActions } from '@/hooks/useCorrectiveActions';
 import { useCompliance } from '@/hooks/useCompliance';
-import { Card, Badge, Button, KPICard, Icon, type IconName } from '@/components/ui';
+import { Card, Badge, Button, KPICard, Icon, MockBadge, type IconName } from '@/components/ui';
 import { BorderRadius, FontSize, Spacing } from '@/constants/theme';
 import { getStatusConfig } from '@/utils/status';
 import { formatDate } from '@/utils/date';
@@ -251,7 +251,10 @@ export default function ReportsScreen() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <Text style={[styles.title, { color: theme.text }]}>Reports</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <Text style={[styles.title, { color: theme.text }]}>Reports</Text>
+          <MockBadge />
+        </View>
 
         <Card style={styles.section}>
           <Text style={[styles.sectionTitle, { color: theme.text }]}>Generate Reports</Text>

@@ -3,7 +3,7 @@ import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/hooks/use-theme';
 import { useDashboard } from '@/hooks/useAnalytics';
-import { Card, KPICard, LoadingState } from '@/components/ui';
+import { Card, KPICard, LoadingState, MockBadge } from '@/components/ui';
 import { BorderRadius, FontSize, Spacing } from '@/constants/theme';
 
 export default function AnalyticsScreen() {
@@ -15,7 +15,10 @@ export default function AnalyticsScreen() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <Text style={[styles.title, { color: theme.text }]}>AI Risk Intelligence</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <Text style={[styles.title, { color: theme.text }]}>AI Risk Intelligence</Text>
+          <MockBadge />
+        </View>
 
         <Card style={styles.section}>
           <Text style={[styles.sectionTitle, { color: theme.text }]}>Risk Overview</Text>

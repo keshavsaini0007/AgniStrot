@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useTheme } from '@/hooks/use-theme';
 import { useObservations } from '@/hooks/useObservations';
-import { Badge, LoadingState, EmptyState } from '@/components/ui';
+import { Badge, LoadingState, EmptyState, MockBadge } from '@/components/ui';
 import { BorderRadius, FontSize, Spacing } from '@/constants/theme';
 import { getStatusConfig } from '@/utils/status';
 import { formatDate } from '@/utils/date';
@@ -61,7 +61,10 @@ export default function ObservationsScreen() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
       <View style={styles.header}>
-        <Text style={[styles.screenTitle, { color: theme.text }]}>Observations</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <Text style={[styles.screenTitle, { color: theme.text }]}>Observations</Text>
+          <MockBadge />
+        </View>
         <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
           {data?.meta.total || 0} observations
         </Text>

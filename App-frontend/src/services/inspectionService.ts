@@ -11,6 +11,11 @@ export const inspectionService = {
   createInspection: async (data: Omit<Inspection, 'id' | 'createdAt' | 'updatedAt'>): Promise<Inspection> => {
     return await inspectionRepository.createInspection(data);
   },
+  createInspectionRecord: async (record: Record<string, unknown>): Promise<Inspection> => {
+    return await inspectionRepository.createInspection(
+      record as Omit<Inspection, 'id' | 'createdAt' | 'updatedAt'>
+    );
+  },
   updateInspection: async (id: string, data: Partial<Inspection>): Promise<Inspection> => {
     return await inspectionRepository.updateInspection(id, data);
   },

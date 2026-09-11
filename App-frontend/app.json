@@ -35,7 +35,19 @@
           "imageWidth": 76
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Smart Mine accesses your photos so you can attach evidence to inspections, incidents and attendance records."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Smart Mine uses your location to stamp field records with GPS coordinates."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

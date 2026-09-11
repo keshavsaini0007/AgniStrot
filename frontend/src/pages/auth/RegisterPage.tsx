@@ -108,7 +108,7 @@ export const RegisterPage = () => {
   // Success state
   if (created) {
     return (
-      <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#0B0D0E] px-4 py-8 sm:px-8">
+      <main className="relative flex min-h-screen items-center justify-center overflow-x-hidden bg-[#0B0D0E] px-4 py-8 sm:px-8">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_20%,rgba(216,138,50,0.12),transparent_30%),radial-gradient(circle_at_85%_80%,rgba(77,163,255,0.08),transparent_28%)]" />
         <motion.section
           initial={{ opacity: 0, y: 20 }}
@@ -134,7 +134,7 @@ export const RegisterPage = () => {
   }
 
   return (
-    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#0B0D0E] px-4 py-8 sm:px-8">
+    <main className="relative flex min-h-screen items-start justify-center overflow-x-hidden bg-[#0B0D0E] px-4 py-8 sm:items-center sm:px-8">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_20%,rgba(216,138,50,0.12),transparent_30%),radial-gradient(circle_at_85%_80%,rgba(77,163,255,0.08),transparent_28%)]" />
       <motion.section
         initial={{ opacity: 0, y: 20 }}
@@ -221,18 +221,36 @@ export const RegisterPage = () => {
             </div>
           </div>
 
-          <div className="relative hidden min-[900px]:block min-[900px]:w-1/2">
+          <div className="relative order-first block min-h-[200px] min-[900px]:order-none min-[900px]:min-h-full min-[900px]:w-1/2">
             <img
               src={loginBackgroundImg}
               alt="Open-pit mine operations"
               className="absolute inset-0 h-full w-full object-cover"
             />
             <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(7,18,28,0.72)_0%,rgba(7,18,28,0.38)_18%,transparent_30%)]" />
-            <div className="relative flex h-full flex-col justify-between p-8 sm:p-10">
-              <Link to="/app/dashboard" className="flex w-fit items-center">
-                <img src={logoImg} alt="AgniStrot" className="h-15 w-37.5 object-contain" />
-              </Link>
-              <div className="max-w-sm">
+            <div className="relative flex h-full flex-col justify-between gap-6 p-6 sm:p-10">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <Link to="/app/dashboard" className="flex w-fit items-center">
+                  <img src={logoImg} alt="AgniStrot" className="h-10 w-auto object-contain min-[900px]:h-15 min-[900px]:w-37.5" />
+                </Link>
+                <div className="flex items-center rounded-full border border-[#2A383F] bg-[#111A20]/90 p-1">
+                  <button
+                    type="button"
+                    onClick={() => navigate('/login')}
+                    className="rounded-full px-4 py-1.5 text-xs font-medium text-[#8D969B] transition-colors hover:text-[#F4F7F8]"
+                  >
+                    Sign in
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => navigate('/register')}
+                    className="rounded-full bg-[#D88A32] px-4 py-1.5 text-xs font-medium text-white transition-colors"
+                  >
+                    Sign up
+                  </button>
+                </div>
+              </div>
+              <div className="hidden max-w-sm min-[900px]:block">
                 <p className="mb-3 text-[10px] uppercase tracking-[0.24em] text-[#F5B942]">
                   Governance platform / user management
                 </p>
@@ -241,7 +259,7 @@ export const RegisterPage = () => {
                   Field officers and mine officials are bound to the site they work from. Corporate managers and regulators operate cross-site.
                 </p>
               </div>
-              <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.16em] text-[#B3C5D0]">
+              <div className="hidden items-center gap-2 text-[10px] uppercase tracking-[0.16em] text-[#B3C5D0] min-[900px]:flex">
                 <span className="h-2 w-2 rounded-full bg-[#35C759] shadow-[0_0_10px_#35C759]" />
                 Corporate access only
               </div>

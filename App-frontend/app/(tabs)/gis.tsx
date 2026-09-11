@@ -3,7 +3,7 @@ import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/hooks/use-theme';
 import { useMines } from '@/hooks/useMines';
-import { Card, EmptyState, LoadingState, Icon } from '@/components/ui';
+import { Card, EmptyState, LoadingState, Icon, MockBadge } from '@/components/ui';
 import { BorderRadius, FontSize, Spacing } from '@/constants/theme';
 
 export default function GISScreen() {
@@ -15,7 +15,10 @@ export default function GISScreen() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
       <View style={styles.header}>
-        <Text style={[styles.title, { color: theme.text }]}>GIS Intelligence</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <Text style={[styles.title, { color: theme.text }]}>GIS Intelligence</Text>
+          <MockBadge />
+        </View>
       </View>
       <Card style={styles.mapPlaceholder}>
         <Icon name="map" size={64} color={theme.textMuted} />

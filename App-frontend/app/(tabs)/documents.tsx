@@ -3,7 +3,7 @@ import { View, Text, FlatList, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/hooks/use-theme';
 import { useDocuments } from '@/hooks/useDocuments';
-import { Card, Badge, LoadingState, EmptyState, Icon } from '@/components/ui';
+import { Card, Badge, LoadingState, EmptyState, Icon, MockBadge } from '@/components/ui';
 import { BorderRadius, FontSize, Spacing } from '@/constants/theme';
 import { formatDate } from '@/utils/date';
 import type { Document } from '@/types';
@@ -32,7 +32,10 @@ export default function DocumentsScreen() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
       <View style={styles.header}>
-        <Text style={[styles.title, { color: theme.text }]}>Documents</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <Text style={[styles.title, { color: theme.text }]}>Documents</Text>
+          <MockBadge />
+        </View>
         <Text style={[styles.subtitle, { color: theme.textSecondary }]}>{data?.meta.total || 0} files</Text>
       </View>
       <FlatList

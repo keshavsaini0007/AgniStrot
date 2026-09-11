@@ -15,7 +15,11 @@ export default function MoreScreen() {
   const roleConfig = user ? getRoleConfig(user.role) : null;
 
   const menuItems = [
-    { icon: 'siren', title: 'Corrective Actions', screen: '/(tabs)/corrective-actions' as const },
+    { icon: 'refresh-cw', title: 'Sync & Offline', screen: '/capture/sync' as const },
+    { icon: 'clipboard-list', title: 'New Inspection', screen: '/capture/inspection' as const },
+    { icon: 'siren', title: 'Report Incident', screen: '/capture/incident' as const },
+    { icon: 'users', title: 'Attendance', screen: '/capture/attendance' as const },
+    { icon: 'notebook-pen', title: 'Corrective Actions', screen: '/(tabs)/corrective-actions' as const },
     { icon: 'clipboard-list', title: 'Compliance', screen: '/(tabs)/compliance' as const },
     { icon: 'bell', title: 'Notifications', screen: '/(tabs)/notifications' as const },
     { icon: 'file-text', title: 'Documents', screen: '/(tabs)/documents' as const },

@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useTheme } from '@/hooks/use-theme';
 import { useMines } from '@/hooks/useMines';
-import { Card, Badge, LoadingState, EmptyState, TextInput, Icon } from '@/components/ui';
+import { Card, Badge, LoadingState, EmptyState, TextInput, Icon, MockBadge } from '@/components/ui';
 import { BorderRadius, FontSize, Spacing } from '@/constants/theme';
 import { getStatusConfig } from '@/utils/status';
 import type { Mine } from '@/types';
@@ -83,7 +83,10 @@ export default function MinesScreen() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
       <View style={styles.header}>
-        <Text style={[styles.title, { color: theme.text }]}>Mines</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <Text style={[styles.title, { color: theme.text }]}>Mines</Text>
+          <MockBadge />
+        </View>
         <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
           {data?.meta.total || 0} mines
         </Text>

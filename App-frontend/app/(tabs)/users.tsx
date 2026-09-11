@@ -3,7 +3,7 @@ import { View, Text, FlatList, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/hooks/use-theme';
 import { useUsers } from '@/hooks/useUsers';
-import { Card, Badge, LoadingState, EmptyState } from '@/components/ui';
+import { Card, Badge, LoadingState, EmptyState, MockBadge } from '@/components/ui';
 import { BorderRadius, FontSize, Spacing } from '@/constants/theme';
 import { getRoleConfig } from '@/utils/roles';
 import type { User, UserRole } from '@/types';
@@ -40,7 +40,10 @@ export default function UsersScreen() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
       <View style={styles.header}>
-        <Text style={[styles.title, { color: theme.text }]}>Users</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <Text style={[styles.title, { color: theme.text }]}>Users</Text>
+          <MockBadge />
+        </View>
         <Text style={[styles.subtitle, { color: theme.textSecondary }]}>{data?.meta.total || 0} users</Text>
       </View>
       <FlatList

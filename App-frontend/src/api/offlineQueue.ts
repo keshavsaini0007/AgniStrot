@@ -56,3 +56,41 @@ export const removeQueued = async (
 export const clearQueue = async (kind: QueueKind): Promise<void> => {
   await AsyncStorage.removeItem(keyFor(kind));
 };
+
+const lastSyncKeyFor = (kind: QueueKind): string => `agnistrot.lastSync.${kind}`;
+
+export const getLastSyncedAt = async (kind: QueueKind): Promise<string | undefined> => {
+  const raw = await AsyncStorage.getItem(lastSyncKeyFor(kind));
+  return raw ?? undefined;
+};
+
+export const setLastSyncedAt = async (kind: QueueKind, iso: string): Promise<void> => {
+  await AsyncStorage.setItem(lastSyncKeyFor(kind), iso);
+};
+
+export interface QueueStatusEntry {
+  pending: number;
+  lastSyncedAt?: string;
+}
+
+export type QueueStatus = Record<QueueKind, QueueStatusEntry>;
+
+export const queueKinds: QueueKind[] = ['inspection', 'incident', 'attendance'];
+
+export const queueStatus = async (): Promise<QueueStatus> => {
+  const entries = await Promise.all(
+    queueKinds.map(async (kind) => {
+      const [pending, lastSyncedAt] = await Promise.all([
+        queueCount(kind),
+        getLastSyncedAt(kind),
+      ]);
+      return [kind, { pending, lastSyncedAt }] as const;
+    })
+  );
+  return Object.fromEntries(entries) as QueueStatus;
+};
+
+export const totalPendingCount = async (): Promise<number> => {
+  const status = await queueStatus();
+  return queueKinds.reduce((sum, kind) => sum + status[kind].pending, 0);
+};

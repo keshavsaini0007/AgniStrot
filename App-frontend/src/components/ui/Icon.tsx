@@ -5,6 +5,7 @@ import {
   BarChart3,
   Bell,
   Calendar,
+  Camera,
   Check,
   CheckCircle2,
   ChevronLeft,
@@ -21,6 +22,7 @@ import {
   NotebookPen,
   Pencil,
   Pickaxe,
+  Plus,
   RefreshCw,
   Search,
   Settings,
@@ -37,6 +39,7 @@ export type IconName =
   | 'bar-chart-3'
   | 'bell'
   | 'calendar'
+  | 'camera'
   | 'check'
   | 'check-circle-2'
   | 'chevron-left'
@@ -53,6 +56,7 @@ export type IconName =
   | 'notebook-pen'
   | 'pencil'
   | 'pickaxe'
+  | 'plus'
   | 'refresh-cw'
   | 'search'
   | 'settings'
@@ -67,6 +71,7 @@ const ICONS: Record<IconName, React.ComponentType<{ size?: number; color?: strin
   'bar-chart-3': BarChart3,
   bell: Bell,
   calendar: Calendar,
+  camera: Camera,
   check: Check,
   'check-circle-2': CheckCircle2,
   'chevron-left': ChevronLeft,
@@ -83,6 +88,7 @@ const ICONS: Record<IconName, React.ComponentType<{ size?: number; color?: strin
   'notebook-pen': NotebookPen,
   pencil: Pencil,
   pickaxe: Pickaxe,
+  plus: Plus,
   'refresh-cw': RefreshCw,
   search: Search,
   settings: Settings,

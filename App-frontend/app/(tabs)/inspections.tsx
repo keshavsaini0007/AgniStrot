@@ -5,7 +5,7 @@ import { useRouter } from 'expo-router';
 import { useTheme } from '@/hooks/use-theme';
 import { useInspections } from '@/hooks/useInspections';
 import { useMines } from '@/hooks/useMines';
-import { Badge, LoadingState, EmptyState, TextInput, Icon } from '@/components/ui';
+import { Badge, LoadingState, EmptyState, TextInput, Icon, Button } from '@/components/ui';
 import { BorderRadius, FontSize, Spacing } from '@/constants/theme';
 import { getStatusConfig } from '@/utils/status';
 import { formatDate } from '@/utils/date';
@@ -75,10 +75,18 @@ export default function InspectionsScreen() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
       <View style={styles.header}>
-        <Text style={[styles.title, { color: theme.text }]}>Inspections</Text>
-        <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
-          {data?.meta.total || 0} inspections
-        </Text>
+        <View style={{ flex: 1, gap: Spacing.one }}>
+          <Text style={[styles.title, { color: theme.text }]}>Inspections</Text>
+          <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
+            {data?.meta.total || 0} inspections
+          </Text>
+        </View>
+        <Button
+          title="New"
+          size="sm"
+          icon={<Icon name="plus" size={16} color="#FFFFFF" />}
+          onPress={() => router.push('/capture/inspection')}
+        />
       </View>
 
       <View style={styles.filters}>
@@ -121,9 +129,11 @@ export default function InspectionsScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.three,
     paddingHorizontal: Spacing.four,
     paddingTop: Spacing.four,
-    gap: Spacing.one,
   },
   title: { fontSize: FontSize.xxl, fontWeight: '700' },
   subtitle: { fontSize: FontSize.sm },

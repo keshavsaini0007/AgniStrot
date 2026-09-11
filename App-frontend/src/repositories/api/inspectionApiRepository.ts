@@ -68,6 +68,7 @@ export const inspectionApiRepository = {
     ];
 
     const record = {
+      clientUuid: (data as { clientUuid?: string }).clientUuid,
       siteId,
       type: data.type,
       checklist,
