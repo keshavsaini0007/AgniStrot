@@ -3,7 +3,6 @@ import { useUIStore } from '@/store/uiStore';
 import { useAuth } from '@/hooks/useAuth';
 import { useAlerts } from '@/hooks/useAlerts';
 import { useSocket } from '@/contexts/SocketContext';
-import { Button } from '@/components/ui/Button';
 import { useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 
@@ -32,7 +31,7 @@ export const Topbar = () => {
   };
 
   return (
-    <header className="sticky top-0 z-30 h-16 bg-[#0B0D0E]/80 backdrop-blur-md border-b border-[#252A2D]">
+    <header className="sticky top-0 z-30 h-16 bg-[#0b0d0e00]/80 backdrop-blur-md border-b border-[#252A2D]">
       <div className="flex items-center justify-between h-full px-4 lg:px-6">
         <div className="flex items-center gap-4">
           <button
@@ -69,15 +68,19 @@ export const Topbar = () => {
             )}
           </button>
 
-          <Button
-            variant="ghost"
-            size="sm"
+          <button
             onClick={handleLogout}
-            leftIcon={<LogOut className="w-4 h-4" />}
-            className="hidden sm:flex"
+            title="Logout"
+            aria-label="Logout"
+            className="group relative hidden h-9 w-9 items-center justify-start overflow-hidden rounded-md border border-[#315064]/60 bg-[#111F29]/80 shadow-[0_2px_10px_rgba(0,0,0,0.2)] transition-all duration-300 hover:w-[122px] hover:border-[#315064] hover:bg-[#172A36] active:translate-x-0.5 active:translate-y-0.5 sm:flex focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D88A32]/50"
           >
-            Logout
-          </Button>
+            <span className="flex w-9 shrink-0 items-center justify-center transition-all duration-300 group-hover:w-8 group-hover:pl-4">
+              <LogOut className="h-4 w-4 text-[#E8F0F3]" />
+            </span>
+            <span className="pointer-events-none absolute right-0 w-0 overflow-hidden whitespace-nowrap text-xs font-semibold text-[#E8F0F3] opacity-0 transition-all duration-300 group-hover:w-[82px] group-hover:opacity-100 group-hover:pr-3">
+              Logout
+            </span>
+          </button>
         </div>
       </div>
     </header>
