@@ -8,6 +8,7 @@ export { IncidentDetailPage } from './IncidentDetailPage';
 export { AlertsPage } from './AlertsPage';
 export { AttendancePage } from './AttendancePage';
 export { CorrectiveActionsPage } from './CorrectiveActionsPage';
+export { CorrectiveActionDetailPage } from './CorrectiveActionDetailPage';
 export { CompliancePage } from './CompliancePage';
 export { DocumentsPage } from './DocumentsPage';
 export { AnalyticsPage } from './AnalyticsPage';
