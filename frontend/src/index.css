@@ -44,6 +44,19 @@
   animation: slide-in-from-right 0.3s ease-out;
 }
 
+@keyframes bellRing {
+  15% { transform: rotate(10deg); }
+  30% { transform: rotate(-10deg); }
+  45% { transform: rotate(5deg); }
+  60% { transform: rotate(-5deg); }
+  75% { transform: rotate(2deg); }
+}
+
+.bell-btn:hover svg {
+  transform-origin: top;
+  animation: bellRing 0.9s both;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;

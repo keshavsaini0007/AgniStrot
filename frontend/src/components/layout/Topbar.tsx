@@ -8,8 +8,9 @@ import { useEffect, useState } from 'react';
 
 export const Topbar = () => {
   const { toggleSidebar } = useUIStore();
-  const { logout } = useAuth();
-  const { data: alerts } = useAlerts({ limit: 50 });
+  const { user, logout } = useAuth();
+  const canViewAlerts = user?.role !== 'field_officer';
+  const { data: alerts } = useAlerts({ limit: 50 }, { enabled: canViewAlerts });
   const { lastAlertEvent } = useSocket();
   const navigate = useNavigate();
   const [showBadgePulse, setShowBadgePulse] = useState(false);
@@ -52,21 +53,20 @@ export const Topbar = () => {
         </div>
 
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => navigate('/app/alerts')}
-            className="relative p-2 text-[#8D969B] hover:text-[#F4F5F5] transition-colors"
-          >
-            <Bell className={`w-5 h-5 ${showBadgePulse ? 'animate-pulse' : ''}`} />
-            {openCount > 0 && (
-              <span 
-                className={`absolute top-1 right-1 w-4 h-4 bg-[#FF4D4F] text-white text-xs rounded-full flex items-center justify-center ${
-                  showBadgePulse ? 'animate-bounce' : ''
-                }`}
-              >
-                {openCount > 9 ? '9+' : openCount}
-              </span>
-            )}
-          </button>
+          {canViewAlerts && (
+            <button
+              onClick={() => navigate('/app/alerts')}
+              title="Alerts"
+              className="bell-btn relative flex h-10 w-10 items-center justify-center rounded-full border-none bg-[#111F29]/80 text-[#E8F0F3] shadow-[2px_2px_10px_rgba(0,0,0,0.13)] transition-colors duration-300 hover:bg-[#172A36] active:scale-[0.8] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#159BFF]/50"
+            >
+              <Bell className={`h-[18px] w-[18px] ${showBadgePulse ? 'animate-pulse' : ''}`} />
+              {openCount > 0 && (
+                <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-[#FF3B4A] px-1 text-[10px] font-bold leading-none text-white shadow">
+                  {openCount > 99 ? '99+' : openCount}
+                </span>
+              )}
+            </button>
+          )}
 
           <button
             onClick={handleLogout}
