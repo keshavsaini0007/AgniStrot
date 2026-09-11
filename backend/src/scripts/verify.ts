@@ -390,7 +390,10 @@ async function attendanceBattery(
   const { SJ, SD } = sites;
 
   check("attendance without token → 401", (await api("/attendance")).status === 401);
-  check("field_officer blocked from attendance → 403", (await get(rahul, "/attendance")).status === 403);
+
+  const fo = (await get(rahul, "/attendance")).body as { data: { siteId: string; syncedAt?: string }[]; pagination: { total: number } };
+  check("field_officer sees own-site attendance → 200", fo.data.length > 0 && fo.pagination.total > 0);
+  check("field_officer rows all SJ (site-scoped)", fo.data.every((r) => r.siteId === SJ));
 
   const mo = (await get(priya, "/attendance")).body as { data: { siteId: string; syncedAt?: string }[]; pagination: { total: number } };
   check("mine_official sees attendance", Array.isArray(mo.data) && mo.pagination.total > 0);

@@ -18,10 +18,10 @@ export const SYNC_ROLES: readonly UserRole[] = [
 ];
 
 // ── Roles allowed to read attendance ────────────────────────────────────────
-// field_officer is capture-only per PRD §4 — reads are restricted to site
-// managers and oversight roles. buildScope("attendance") still fail-closes a
-// field_officer as defense-in-depth if authorization is ever bypassed.
+// field_officer is now allowed to read attendance too — scoped to their own
+// site via buildScope (capture on mobile + site-level view in the web app).
 export const ATTENDANCE_READ_ROLES: readonly UserRole[] = [
+  "field_officer",
   "mine_official",
   "corporate_manager",
   "regulator",
@@ -76,9 +76,13 @@ export function buildScope(
     case "field_officer":
       if (resource === "inspection") return { inspectorId: new Types.ObjectId(user.id) };
       if (resource === "incident") return { reportedBy: new Types.ObjectId(user.id) };
-      // attendance/workerRef is a free-text string (not a user ref) — fail closed
-      // on siteId so a bypassing field_officer can never read site data.
-      if (resource === "attendance") return { siteId: IMPOSSIBLE_ID };
+      // attendance/workerRef is a free-text string (not a user ref) — scope a
+      // field_officer to their bound site so they see records captured at their
+      // own operation; fail closed if the site is unbound.
+      if (resource === "attendance")
+        return user.siteId
+          ? { siteId: new Types.ObjectId(user.siteId) }
+          : { siteId: IMPOSSIBLE_ID };
       // alerts have no inspector concept — fail closed if ever granted
       return { inspectorId: IMPOSSIBLE_ID };
 
