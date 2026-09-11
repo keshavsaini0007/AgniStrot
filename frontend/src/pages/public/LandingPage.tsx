@@ -159,7 +159,7 @@ export const LandingPage = () => {
             <span className="h-px w-10 bg-[#D88A32]" /> AI-powered governance / 2026
           </motion.div>
 
-          <h1 className="max-w-[620px] text-[clamp(3.4rem,7vw,7rem)] font-semibold leading-[0.87] tracking-[-0.065em] text-[#E8ECEB]">
+          <h1 className="max-w-[620px] text-[clamp(3.4rem,7vw,7rem)] font-semibold leading-[1.05] tracking-[-0.065em] text-[#E8ECEB]">
             <LineReveal
               lines={['Safer ground.', 'Clearer action.']}
               as="span"

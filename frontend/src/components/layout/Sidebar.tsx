@@ -103,7 +103,7 @@ export const Sidebar = () => {
           {/* Logo */}
           <div className="flex items-center justify-between px-6 py-5 border-b border-[#252A2D]">
             <div className="flex items-center gap-3">
-              <img src={logoImg} alt="AgniStrot" className="h-10 w-[118px] object-contain" />
+              <img src={logoImg} alt="AgniStrot" className="h-14 w-[118px] object-contain" />
             </div>
             <button
               onClick={() => setSidebarOpen(false)}
@@ -114,7 +114,7 @@ export const Sidebar = () => {
           </div>
 
           {/* Navigation */}
-          <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+          <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto scrollbar-thin scrollbar-track-transparent scrollbar-thumb-[#252A2D] hover:scrollbar-thumb-[#3A4045]">
             {renderNav(filteredWorkspaceNav)}
 
             {user?.role === 'corporate_manager' && (

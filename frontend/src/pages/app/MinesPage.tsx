@@ -20,6 +20,7 @@ import mine002Img from '@/assets/images/Mine-002-clean.png';
 import mine003Img from '@/assets/images/Mine-003-clean.png';
 import talcherImg from '@/assets/images/Equipment Maintenance Overdue-clean.png';
 import raniganjImg from '@/assets/images/Pending Inspections-clean.png';
+import recentObservationsImg from '../../../assets/images/Recent Observations.png';
 import minesHeroImg from '../../../assets/images/Mines.png';
 import totalMinesImg from '../../../assets/images/Total Mines.png';
 import activeSiteImg from '../../../assets/images/Active site.png';
@@ -59,11 +60,11 @@ export const MinesPage = () => {
   const activeMines = mines.filter((mine) => mine.status === 'active').length;
   const maintenanceMines = mines.filter((mine) => mine.status === 'maintenance').length;
   const averageCompliance = mines.length ? (mines.reduce((sum, mine) => sum + mine.complianceRate, 0) / mines.length).toFixed(1) : '0.0';
-  const summaryMetrics: Array<[string, string | number, LucideIcon, string]> = [
-    ['Total mines', totalMines, MapPin, 'text-[#4DA3FF]'],
-    ['Active sites', activeMines, ShieldCheck, 'text-[#35C759]'],
-    ['Maintenance', maintenanceMines, Wrench, 'text-[#F5B942]'],
-    ['Avg. compliance', `${averageCompliance}%`, CircleAlert, 'text-[#D88A32]'],
+  const summaryMetrics: Array<[string, string | number, LucideIcon, string, string]> = [
+    ['Total mines', totalMines, MapPin, 'text-[#4DA3FF]', totalMinesImg],
+    ['Active sites', activeMines, ShieldCheck, 'text-[#35C759]', activeSiteImg],
+    ['Maintenance', maintenanceMines, Wrench, 'text-[#F5B942]', maintenanceImg],
+    ['Avg. compliance', `${averageCompliance}%`, CircleAlert, 'text-[#D88A32]', averageComplianceImg],
   ];
 
   return (
@@ -82,7 +83,21 @@ export const MinesPage = () => {
       </section>
 
       <section aria-label="Mine network summary" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        {summaryMetrics.map(([label, value, Icon, color]) => <article key={label} className="relative isolate overflow-hidden rounded-xl border border-[#21415A] bg-[#0C1A27] p-4"><div className="absolute inset-0 -z-10 bg-cover bg-center opacity-95" style={label === 'Total mines' ? { backgroundImage: `linear-gradient(90deg, rgba(12, 26, 39, 0.22), rgba(12, 26, 39, 0.3)), url(${totalMinesImg})` } : label === 'Active sites' ? { backgroundImage: `linear-gradient(90deg, rgba(12, 26, 39, 0.22), rgba(12, 26, 39, 0.3)), url(${activeSiteImg})` } : label === 'Maintenance' ? { backgroundImage: `linear-gradient(90deg, rgba(12, 26, 39, 0.22), rgba(12, 26, 39, 0.3)), url(${maintenanceImg})` } : label === 'Avg. compliance' ? { backgroundImage: `linear-gradient(90deg, rgba(12, 26, 39, 0.22), rgba(12, 26, 39, 0.3)), url(${averageComplianceImg})` } : undefined} /><div className="flex items-start justify-between gap-3"><div><p className="text-[10px] text-[#9FB3BE]">{label}</p><p className="mt-1 text-2xl font-semibold text-[#F4F7F8]">{value}</p></div><span className={`flex h-8 w-8 items-center justify-center rounded-lg bg-[#07121C] ${color}`}><Icon className="h-4 w-4" /></span></div></article>)}
+        {summaryMetrics.map(([label, value, Icon, color, image]) => (
+          <article key={label} className="relative isolate overflow-hidden rounded-xl border border-[#21415A] bg-[#0C1A27] p-4">
+            <img src={image} alt="" aria-hidden="true" className="absolute inset-0 -z-10 h-full w-full object-cover opacity-95" />
+            <div className="absolute inset-0 -z-10 bg-[linear-gradient(90deg,#07121C_4%,rgba(7,18,28,0.25)_43%,rgba(7,18,28,0.08)_100%)]" />
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-[12px] text-[#c8d3da]">{label}</p>
+                <p className="mt-1 text-2xl font-semibold text-[#F4F7F8]">{value}</p>
+              </div>
+              <span className={`flex h-8 w-8 items-center justify-center rounded-lg bg-[#07121C] ${color}`}>
+                <Icon className="h-4 w-4" />
+              </span>
+            </div>
+          </article>
+        ))}
       </section>
 
       <Card className="overflow-hidden border-[#21415A] bg-[#0a172245]">
@@ -99,6 +114,6 @@ export const MinesPage = () => {
   );
 };
 
-const MineRow = ({ mine, navigate }: { mine: Mine; navigate: (path: string) => void }) => <button type="button" onClick={() => navigate(`/app/mines/${mine.id}`)} className="group grid w-full grid-cols-[1.4fr_1.4fr_1.8fr_1fr_0.9fr_0.8fr_32px] items-center gap-4 border-b border-[#1E3545] px-5 py-3 text-left transition-colors hover:bg-[#102435]"><div className="flex min-w-0 items-center gap-3"><img src={mineImages[mine.id]} alt="" className="h-9 w-12 shrink-0 rounded object-cover" /><div className="min-w-0"><p className="truncate text-xs font-semibold text-[#E8F0F3]">{mine.name}</p><p className="mt-1 text-[10px] font-mono text-[#78919F]">{mine.code}</p></div></div><div className="flex min-w-0 items-center gap-2 text-[11px] text-[#A9BBC4]"><MapPin className="h-3.5 w-3.5 shrink-0 text-[#789CB0]" /><span className="truncate">{mine.location.address}</span></div><div><Badge status={mine.status} /></div><span className={`text-sm font-semibold ${complianceColor(mine.complianceRate)}`}>{mine.complianceRate}%</span><span className={`text-sm font-semibold ${riskColor(mine.riskScore)}`}>{mine.riskScore}</span><span className="text-sm text-[#A9BBC4]">{mine.openObservations}</span><ChevronRight className="h-4 w-4 text-[#527084] transition-transform group-hover:translate-x-1" /></button>;
+const MineRow = ({ mine, navigate }: { mine: Mine; navigate: (path: string) => void }) => <button type="button" onClick={() => navigate(`/app/mines/${mine.id}`)} className="group grid w-full grid-cols-[1.4fr_1.4fr_1.8fr_1fr_0.9fr_0.8fr_32px] items-center gap-4 border-b border-[#1E3545] px-5 py-3 text-left transition-colors hover:bg-[#102435]"><div className="flex min-w-0 items-center gap-3"><img src={recentObservationsImg} alt="" className="h-9 w-12 shrink-0 rounded object-cover" /><div className="min-w-0"><p className="truncate text-xs font-semibold text-[#E8F0F3]">{mine.name}</p><p className="mt-1 text-[10px] font-mono text-[#78919F]">{mine.code}</p></div></div><div className="flex min-w-0 items-center gap-2 text-[11px] text-[#A9BBC4]"><MapPin className="h-3.5 w-3.5 shrink-0 text-[#789CB0]" /><span className="truncate">{mine.location.address}</span></div><div><Badge status={mine.status} /></div><span className={`text-sm font-semibold ${complianceColor(mine.complianceRate)}`}>{mine.complianceRate}%</span><span className={`text-sm font-semibold ${riskColor(mine.riskScore)}`}>{mine.riskScore}</span><span className="text-sm text-[#A9BBC4]">{mine.openObservations}</span><ChevronRight className="h-4 w-4 text-[#527084] transition-transform group-hover:translate-x-1" /></button>;
 
 const MineMobileCard = ({ mine, navigate }: { mine: Mine; navigate: (path: string) => void }) => <button type="button" onClick={() => navigate(`/app/mines/${mine.id}`)} className="group w-full rounded-xl border border-[#21415A] bg-[#0D1C28] p-3 text-left transition-colors hover:bg-[#102435]"><div className="flex items-start gap-3"><img src={mineImages[mine.id]} alt="" className="h-14 w-16 shrink-0 rounded-lg object-cover" /><div className="min-w-0 flex-1"><div className="flex items-start justify-between gap-2"><div><p className="truncate text-sm font-semibold text-[#E8F0F3]">{mine.name}</p><p className="mt-1 text-[10px] font-mono text-[#78919F]">{mine.code}</p></div><Badge status={mine.status} /></div><p className="mt-3 flex items-center gap-1.5 truncate text-[10px] text-[#A9BBC4]"><MapPin className="h-3 w-3 text-[#789CB0]" />{mine.location.address}</p></div></div><div className="mt-4 grid grid-cols-3 gap-2 border-t border-[#21415A] pt-3"><div><p className="text-[9px] uppercase text-[#78919F]">Compliance</p><p className={`mt-1 text-sm font-semibold ${complianceColor(mine.complianceRate)}`}>{mine.complianceRate}%</p></div><div><p className="text-[9px] uppercase text-[#78919F]">Risk score</p><p className={`mt-1 text-sm font-semibold ${riskColor(mine.riskScore)}`}>{mine.riskScore}</p></div><div><p className="text-[9px] uppercase text-[#78919F]">Open issues</p><p className="mt-1 text-sm font-semibold text-[#A9BBC4]">{mine.openObservations}</p></div></div><div className="mt-3 flex items-center justify-end gap-1 text-[10px] uppercase tracking-[0.14em] text-[#5DB8FF]">View mine <ArrowUpRight className="h-3 w-3" /></div></button>;

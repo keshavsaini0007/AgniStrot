@@ -9,6 +9,11 @@ import { formatRelativeTime } from '@/utils/date';
 import type { LucideIcon } from 'lucide-react';
 
 import dashboardImg from '../../../assets/images/Dashboard.png';
+import incidentsImg from '@/assets/images/Damaged Safety Barricade-clean.png';
+import inspectionsImg from '@/assets/images/Pending Inspections-clean.png';
+import alertsImg from '@/assets/images/AI Risk Intelligence-clean.png';
+import attendanceImg from '@/assets/images/Mine-001-clean.png';
+import complianceImg from '@/assets/images/Overdue Actions-clean.png';
 
 type StatsKey =
   | 'inspections7d'
@@ -25,13 +30,14 @@ const kpiVisuals: Array<{
   label: string;
   icon: LucideIcon;
   color: string;
+  img: string;
   suffix?: string;
 }> = [
-  { key: 'openIncidents', label: 'Open Incidents', icon: CircleAlert, color: 'text-[#FF4D5F]' },
-  { key: 'inspections7d', label: 'Inspections (7d)', icon: ClipboardCheck, color: 'text-[#4DA3FF]' },
-  { key: 'alerts7d', label: 'Alerts (7d)', icon: AlarmClock, color: 'text-[#F5B942]' },
-  { key: 'attendance7d', label: 'Attendance (today)', icon: Users2, color: 'text-[#35C759]' },
-  { key: 'complianceRate', label: 'Compliance Rate', icon: ShieldCheck, color: 'text-[#35C759]', suffix: '%' },
+  { key: 'openIncidents', label: 'Open Incidents', icon: CircleAlert, color: 'text-[#FF4D5F]', img: incidentsImg },
+  { key: 'inspections7d', label: 'Inspections (7d)', icon: ClipboardCheck, color: 'text-[#4DA3FF]', img: inspectionsImg },
+  { key: 'alerts7d', label: 'Alerts (7d)', icon: AlarmClock, color: 'text-[#F5B942]', img: alertsImg },
+  { key: 'attendance7d', label: 'Attendance (today)', icon: Users2, color: 'text-[#35C759]', img: attendanceImg },
+  { key: 'complianceRate', label: 'Compliance Rate', icon: ShieldCheck, color: 'text-[#35C759]', img: complianceImg, suffix: '%' },
 ];
 
 export const DashboardPage = () => {
@@ -66,10 +72,10 @@ export const DashboardPage = () => {
       </section>
 
       <section aria-label="Key operational metrics" className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
-        {kpiVisuals.map(({ key, label, icon: Icon, color, suffix }) => (
+        {kpiVisuals.map(({ key, label, icon: Icon, color, img, suffix }) => (
           <article key={key} className="relative isolate min-h-[116px] overflow-hidden rounded-xl border border-[#21415A] bg-[#0C1A27] p-4">
-            <img src={dashboardImg} alt="" className="absolute inset-0 -z-10 h-full w-full object-cover opacity-40" />
-            <div className="absolute inset-0 -z-10 bg-gradient-to-r from-[#0C1A27] via-[#0C1A27]/90 to-transparent" />
+            <img src={img} alt="" className="absolute inset-0 -z-10 h-full w-full object-cover opacity-95" />
+            <div className="absolute inset-0 -z-10 bg-[linear-gradient(90deg,#07121C_4%,rgba(7,18,28,0.25)_43%,rgba(7,18,28,0.08)_100%)]" />
             <div className="flex items-start justify-between gap-2">
               <div>
                 <p className="text-[10px] text-[#A5BAC7]">{label}</p>

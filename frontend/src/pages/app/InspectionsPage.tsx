@@ -15,9 +15,10 @@ import type { Inspection, InspectionType } from '@/types';
 import type { LucideIcon } from 'lucide-react';
 
 import inspectionsHeroImg from '../../../assets/images/Inspections Header.png';
-import totalInspectionsImg from '../../../assets/images/total inspections.png';
-import completedImg from '../../../assets/images/Completed.png';
-import inProgressImg from '../../../assets/images/In progress.png';
+import totalInspectionsImg from '@/assets/images/Pending Inspections-clean.png';
+import failuresImg from '@/assets/images/Structural Weakness in Support Beam-clean.png';
+import thisWeekImg from '@/assets/images/Mine-002-clean.png';
+import avgFailedImg from '@/assets/images/Dust Emission Near Processing Plant-clean.png';
 
 const typeTone: Record<InspectionType, { icon: LucideIcon; color: string }> = {
   safety: { icon: Shield, color: 'text-[#D88A32]' },
@@ -55,9 +56,9 @@ export const InspectionsPage = () => {
   const inspections = data?.data || [];
   const summary: Array<[string, string | number, LucideIcon, string, string]> = [
     ['Total inspections', stats.total, ClipboardCheck, 'text-[#D88A32]', totalInspectionsImg],
-    ['Checklist failures', stats.failures, Eye, 'text-[#FF4D4F]', completedImg],
-    ['This week', stats.thisWeek, CalendarDays, 'text-[#35C759]', inProgressImg],
-    ['Avg failed items', stats.avgFailed, ClipboardCheck, 'text-[#4DA3FF]', completedImg],
+    ['Checklist failures', stats.failures, Eye, 'text-[#FF4D4F]', failuresImg],
+    ['This week', stats.thisWeek, CalendarDays, 'text-[#35C759]', thisWeekImg],
+    ['Avg failed items', stats.avgFailed, ClipboardCheck, 'text-[#4DA3FF]', avgFailedImg],
   ];
 
   return (
@@ -83,10 +84,10 @@ export const InspectionsPage = () => {
         {summary.map(([label, value, Icon, color, image]) => (
           <article key={String(label)} className="relative isolate overflow-hidden rounded-xl border border-[#21415A] bg-[#0c1a271f] p-4">
             <img src={image} alt="" aria-hidden="true" className="absolute inset-0 -z-10 h-full w-full object-cover opacity-95" />
-            <div className="absolute inset-0 -z-10 bg-[#0C1A271f]/45" />
+            <div className="absolute inset-0 -z-10 bg-[linear-gradient(90deg,#07121C_4%,rgba(7,18,28,0.25)_43%,rgba(7,18,28,0.08)_100%)]" />
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-[10px] text-[#9FB3BE]">{label}</p>
+                <p className="text-[12px] text-[#c8d3da]">{label}</p>
                 <p className="mt-1 text-2xl font-semibold text-[#F4F7F8]">{value}</p>
               </div>
               <span className={`flex h-8 w-8 items-center justify-center rounded-lg bg-[#07121C] ${color}`}>

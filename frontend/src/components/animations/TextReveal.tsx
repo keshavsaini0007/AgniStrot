@@ -25,7 +25,7 @@ export const TextReveal = ({
   return (
     <Tag ref={ref} className={className}>
       {words.map((word, i) => (
-        <span key={i} className="inline-block overflow-hidden mr-[0.3em]">
+        <span key={i} className="inline-block overflow-visible mr-[0.3em]">
           <motion.span
             className={`inline-block ${wordClassName}`}
             initial={{ y: '110%', opacity: 0 }}
@@ -67,7 +67,7 @@ export const LineReveal = ({
   return (
     <Tag ref={ref} className={className}>
       {lines.map((line, i) => (
-        <span key={i} className="block overflow-hidden">
+        <span key={i} className="block overflow-visible">
           <motion.span
             className={`block ${lineClassName}`}
             initial={{ y: '110%', opacity: 0 }}

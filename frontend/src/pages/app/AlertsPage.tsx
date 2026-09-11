@@ -16,6 +16,12 @@ import { ALERT_DEADLINE_MS } from '@/types';
 import type { Alert, AlertSeverity } from '@/types';
 import type { LucideIcon } from 'lucide-react';
 
+import alertsHeroImg from '../../../assets/images/Alerts.png';
+import totalAlertsImg from '../../../assets/images/Alerts.png';
+import openAlertsImg from '../../../assets/images/In progress.png';
+import escalatedImg from '../../../assets/images/Corrective Actions.png';
+import acknowledgedImg from '../../../assets/images/Completed.png';
+
 const severityIcon: Record<AlertSeverity, { icon: LucideIcon; color: string }> = {
   critical: { icon: Flame, color: 'text-[#FF4058]' },
   high: { icon: CircleAlert, color: 'text-[#FF4D4F]' },
@@ -73,16 +79,17 @@ export const AlertsPage = () => {
   const open = alerts.filter((a) => a.status === 'open').length;
   const escalated = alerts.filter((a) => a.status === 'escalated').length;
 
-  const summary: Array<[string, number, LucideIcon, string]> = [
-    ['Total alerts', total, AlarmClock, 'text-[#D88A32]'],
-    ['Open', open, ShieldAlert, 'text-[#F5B942]'],
-    ['Escalated', escalated, ArrowUp, 'text-[#FF4D4F]'],
-    ['Acknowledged', alerts.filter((a) => a.status === 'acknowledged').length, CheckCheck, 'text-[#35C759]'],
+  const summary: Array<[string, number, LucideIcon, string, string]> = [
+    ['Total alerts', total, AlarmClock, 'text-[#D88A32]', totalAlertsImg],
+    ['Open', open, ShieldAlert, 'text-[#F5B942]', openAlertsImg],
+    ['Escalated', escalated, ArrowUp, 'text-[#FF4D4F]', escalatedImg],
+    ['Acknowledged', alerts.filter((a) => a.status === 'acknowledged').length, CheckCheck, 'text-[#35C759]', acknowledgedImg],
   ];
 
   return (
     <div className="space-y-5 pb-8">
       <section className="relative isolate overflow-hidden rounded-2xl border border-[#25445B] bg-[#07121C] px-5 py-7 sm:px-8 sm:py-9">
+        <img src={alertsHeroImg} alt="Alert operations" className="absolute inset-0 -z-10 h-full w-full object-cover opacity-90" />
         <div className="absolute inset-0 -z-10 bg-[linear-gradient(90deg,#07121C_4%,rgba(7,18,28,0.25)_43%,rgba(7,18,28,0.08)_100%)]" />
         <div>
           <p className="mb-2 text-[10px] uppercase tracking-[0.24em] text-[#D88A32]">Rule engine / escalation control</p>
@@ -97,11 +104,13 @@ export const AlertsPage = () => {
       </section>
 
       <section aria-label="Alert summary" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        {summary.map(([label, value, Icon, color]) => (
+        {summary.map(([label, value, Icon, color, image]) => (
           <article key={String(label)} className="relative isolate overflow-hidden rounded-xl border border-[#21415A] bg-[#0c1a271f] p-4">
+            <img src={image} alt="" aria-hidden="true" className="absolute inset-0 -z-10 h-full w-full object-cover opacity-95" />
+            <div className="absolute inset-0 -z-10 bg-[linear-gradient(90deg,#07121C_4%,rgba(7,18,28,0.25)_43%,rgba(7,18,28,0.08)_100%)]" />
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-[10px] text-[#9FB3BE]">{label}</p>
+                <p className="text-[12px] text-[#c8d3da]">{label}</p>
                 <p className="mt-1 text-2xl font-semibold text-[#F4F7F8]">{value}</p>
               </div>
               <span className={`flex h-8 w-8 items-center justify-center rounded-lg bg-[#07121C] ${color}`}>
