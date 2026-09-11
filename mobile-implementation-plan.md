@@ -237,7 +237,7 @@ Per-type fields:
 
 Deviations / findings (documented deliberately):
 - **One backend change** (deviation from "no backend changes"): `backend/src/controllers/media.controller.ts` gained a `CLOUDINARY_ENABLED=false` branch mirroring `document.controller.ts` — media upload returned HTTP 500 in demo mode because the controller always called Cloudinary. Now returns a schema-valid placeholder URL (`https://local.invalid/agnistrot/...`). Required for the photo-upload leg of the loop.
-- **Deployment sanity (task 5) DEFERRED**: no deploy config exists in the repo (no render.yaml/railway.toml/Dockerfile/Procfile) and no hosting accounts are provisioned. `EXPO_PUBLIC_API_URL` stays pointed at the dev tunnel `https://actual-february-parish-sound.trycloudflare.com/api/v1`. Deploy steps documented below.
+- **Deployment sanity (task 5) DEFERRED**: no deploy config exists in the repo (no render.yaml/railway.toml/Dockerfile/Procfile) and no hosting accounts are provisioned. `EXPO_PUBLIC_API_URL` stays pointed at the dev tunnel `https://distributions-stereo-trim-chosen.trycloudflare.com/api/v1`. Deploy steps documented below.
 - **Pre-existing e2e failures (unrelated)**: `documents.spec.ts` (waits for a `/api/v1/documents` GET that never fires in real-API mode) and `reports.spec.ts` (45s PDF-generation download timeout). Pre-date Phase 6; left untouched.
 - **e2e helper fix**: `frontend/e2e/helpers.ts:18` and `auth.spec.ts:39` now scope the "Sign in" click to the login form — the login header also renders a "Sign in" toggle button (strict-mode violation otherwise).
 

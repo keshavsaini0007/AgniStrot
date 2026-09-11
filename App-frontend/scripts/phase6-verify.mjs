@@ -18,9 +18,11 @@
 
 import { randomUUID } from "node:crypto";
 
-const BASE = process.env.PHASE6_LOCAL
-  ? "http://localhost:5000/api/v1"
-  : "https://actual-february-parish-sound.trycloudflare.com/api/v1";
+const BASE =
+  process.env.PHASE6_API_URL ??
+  (process.env.PHASE6_LOCAL
+    ? "http://localhost:5000/api/v1"
+    : "https://distributions-stereo-trim-chosen.trycloudflare.com/api/v1");
 
 const SITE_NAME = "Jharia Underground Mine";
 const KNOWN_JHARIA_ID = "6aa2e3ba05d3ddeb8fb636ec";
