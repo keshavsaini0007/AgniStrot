@@ -3,6 +3,7 @@ import { endpoints } from '@/api/endpoints';
 import { backendErrorToMessage } from '@/api/adapter';
 import { queueAdd, getPending, removeQueued } from '@/api/offlineQueue';
 import { handleApiError } from '@/api/errors';
+import { toSyncLocation } from './typeMappers';
 
 export interface SyncResult {
   accepted: string[];
@@ -11,7 +12,11 @@ export interface SyncResult {
 
 export const incidentApiRepository = {
   queueIncident: async (record: Record<string, unknown>): Promise<void> => {
-    await queueAdd('incident', record);
+    const safe = {
+      ...record,
+      location: toSyncLocation(record.location as Record<string, unknown> | null),
+    };
+    await queueAdd('incident', safe);
   },
 
   syncPending: async (): Promise<SyncResult> => {

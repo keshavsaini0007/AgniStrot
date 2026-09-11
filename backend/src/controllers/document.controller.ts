@@ -168,9 +168,10 @@ export const ingestDocument = async (
         ? "Low OCR confidence detected. Manual review recommended."
         : undefined,
     });
-  } catch (err) {
-    console.error("Document ingestion error:", err);
-    res.status(500).json({ error: "Internal server error." });
+  } catch (err: unknown) {
+    const errorDetails = err instanceof Error ? err.message : String(err);
+    console.error("Document ingestion error:", errorDetails);
+    res.status(500).json({ error: "Document ingestion failed.", details: errorDetails });
   }
 };
 

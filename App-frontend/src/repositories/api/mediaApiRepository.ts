@@ -23,7 +23,10 @@ export const mediaApiRepository = {
       } as unknown as Blob);
 
       const res = await apiClient.post<UploadResult>(endpoints.media.upload, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+        transformRequest: (data) => data,
       });
       return res.data.url;
     } catch (error) {

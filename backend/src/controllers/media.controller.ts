@@ -43,7 +43,12 @@ export const uploadMedia = async (req: Request, res: Response): Promise<void> =>
 
     const result = await new Promise<CloudinaryUploadResult>((resolve, reject) => {
       const stream = cloudinary.uploader.upload_stream(
-        { folder: "agnistrot" },
+        {
+          folder: "agnistrot/media",
+          resource_type: "image",
+          quality: "auto",
+          fetch_format: "auto",
+        },
         (error, result) => {
           if (error) return reject(error);
           resolve(result as CloudinaryUploadResult);
@@ -53,9 +58,10 @@ export const uploadMedia = async (req: Request, res: Response): Promise<void> =>
     });
 
     res.json({ url: result.secure_url });
-  } catch (err) {
-    console.error("Media upload error:", err);
-    res.status(500).json({ error: "Internal server error." });
+  } catch (err: unknown) {
+    const errorDetails = err instanceof Error ? err.message : String(err);
+    console.error("Media upload error:", errorDetails);
+    res.status(500).json({ error: "Media upload failed.", details: errorDetails });
   }
 };
 

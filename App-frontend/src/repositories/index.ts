@@ -26,6 +26,7 @@ export const mineRepository = useMockApi ? mineMockRepository : mineMockReposito
 export const inspectionRepository = useMockApi
   ? inspectionMockRepository
   : inspectionApiRepository;
+export const attendanceRepository = attendanceApiRepository; // Always use API repository
 export const observationRepository = useMockApi
   ? observationMockRepository
   : observationMockRepository;

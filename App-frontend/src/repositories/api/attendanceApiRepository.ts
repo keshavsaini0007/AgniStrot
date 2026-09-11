@@ -2,6 +2,7 @@ import { apiClient } from '@/api/client';
 import { endpoints } from '@/api/endpoints';
 import { queueAdd, getPending, removeQueued } from '@/api/offlineQueue';
 import { handleApiError } from '@/api/errors';
+import { toSyncLocation } from './typeMappers';
 
 export interface SyncResult {
   accepted: string[];
@@ -10,7 +11,11 @@ export interface SyncResult {
 
 export const attendanceApiRepository = {
   queueAttendance: async (record: Record<string, unknown>): Promise<void> => {
-    await queueAdd('attendance', record);
+    const safe = {
+      ...record,
+      location: toSyncLocation(record.location as Record<string, unknown> | null),
+    };
+    await queueAdd('attendance', safe);
   },
 
   syncPending: async (): Promise<SyncResult> => {
