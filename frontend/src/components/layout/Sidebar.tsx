@@ -21,6 +21,8 @@ import {
 } from 'lucide-react';
 import { useUIStore } from '@/store/uiStore';
 import { useAuth } from '@/hooks/useAuth';
+import { useAlerts } from '@/hooks/useAlerts';
+import { useSocket } from '@/contexts/SocketContext';
 import logoImg from '../../../assets/images/logo.png';
 
 // Navigation items with required permissions. Mines/corrective-actions/compliance/
@@ -50,6 +52,10 @@ const corporateNav = [{ name: 'Users', href: '/app/users', icon: Users, permissi
 export const Sidebar = () => {
   const { sidebarOpen, setSidebarOpen } = useUIStore();
   const { user, hasPermission } = useAuth();
+  const { data: alerts } = useAlerts({ limit: 50 });
+  const { isConnected } = useSocket();
+
+  const openAlertsCount = (alerts?.data ?? []).filter((a) => a.status === 'open').length;
 
   // Filter navigation items based on user permissions
   const filteredWorkspaceNav = workspaceNav.filter((item) => 
@@ -57,27 +63,40 @@ export const Sidebar = () => {
   );
 
   const renderNav = (items: typeof workspaceNav) =>
-    items.map((item) => (
-      <NavLink
-        key={item.name}
-        to={item.href}
-        className={({ isActive }) =>
-          `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-            isActive
-              ? 'bg-[#D88A32]/10 text-[#D88A32]'
-              : 'text-[#A4ADB2] hover:text-[#F4F5F5] hover:bg-[#171A1D]'
-          }`
-        }
-        onClick={() => {
-          if (window.innerWidth < 1024) {
-            setSidebarOpen(false);
+    items.map((item) => {
+      const isNotifications = item.href === '/app/notifications';
+      const showBadge = isNotifications && openAlertsCount > 0;
+      
+      return (
+        <NavLink
+          key={item.name}
+          to={item.href}
+          className={({ isActive }) =>
+            `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+              isActive
+                ? 'bg-[#D88A32]/10 text-[#D88A32]'
+                : 'text-[#A4ADB2] hover:text-[#F4F5F5] hover:bg-[#171A1D]'
+            }`
           }
-        }}
-      >
-        <item.icon className="w-5 h-5" />
-        {item.name}
-      </NavLink>
-    ));
+          onClick={() => {
+            if (window.innerWidth < 1024) {
+              setSidebarOpen(false);
+            }
+          }}
+        >
+          <item.icon className="w-5 h-5" />
+          <span className="flex-1">{item.name}</span>
+          {showBadge && (
+            <span className="flex items-center justify-center min-w-[20px] h-5 px-1.5 bg-[#FF4D4F] text-white text-xs rounded-full">
+              {openAlertsCount > 99 ? '99+' : openAlertsCount}
+            </span>
+          )}
+          {isNotifications && isConnected && (
+            <span className="w-1.5 h-1.5 rounded-full bg-[#35C759] shadow-[0_0_6px_#35C759]" title="Real-time connected" />
+          )}
+        </NavLink>
+      );
+    });
 
   return (
     <>

@@ -20,6 +20,17 @@
   to { transform: translateX(-50%); }
 }
 
+@keyframes slide-in-from-right {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
 .marquee-track {
   animation: marquee 36s linear infinite;
   will-change: transform;
@@ -27,6 +38,10 @@
 
 .marquee:hover .marquee-track {
   animation-play-state: paused;
+}
+
+.animate-slide-in-from-right {
+  animation: slide-in-from-right 0.3s ease-out;
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -267,7 +267,7 @@ export const LandingPage = () => {
             <ScrollReveal delay={0.1}>
               <h2 id="problem-title" className="max-w-[650px] text-4xl font-medium leading-none tracking-[-0.05em] text-[#E8ECEB] sm:text-6xl">
                 <LineReveal
-                  lines={['Coal mining runs on paper.', 'That costs lives.']}
+                  lines={['When safety waits for paperwork,', 'danger doesn\'t.']}
                   as="span"
                   delay={0.15}
                 />

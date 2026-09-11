@@ -1,5 +1,6 @@
-import { useState } from 'react';
-import { AlarmClock, CheckCheck, Search, SlidersHorizontal, ArrowUp, AlarmClockOff, ShieldAlert, Flame, CircleAlert, Info, ChevronRight, X } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { AlarmClock, CheckCheck, Search, SlidersHorizontal, ArrowUp, AlarmClockOff, ShieldAlert, Flame, CircleAlert, Info, ChevronRight, X, Radio } from 'lucide-react';
+import { useSocket } from '@/contexts/SocketContext';
 import { useAlerts, useAcknowledgeAlert, useResolveAlert, useEscalateAlert } from '@/hooks/useAlerts';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -50,6 +51,9 @@ export const AlertsPage = () => {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [severityFilter, setSeverityFilter] = useState('');
+  const { isConnected, lastAlertEvent } = useSocket();
+  const [newAlertNotification, setNewAlertNotification] = useState<string | null>(null);
+
   const { data, isLoading, error, refetch } = useAlerts({
     page,
     limit: 10,
@@ -64,6 +68,24 @@ export const AlertsPage = () => {
 
   const [resolveTarget, setResolveTarget] = useState<Alert | null>(null);
   const [resolveNote, setResolveNote] = useState('');
+
+  // Show notification when new alert arrives via Socket.io
+  useEffect(() => {
+    if (lastAlertEvent) {
+      const message = lastAlertEvent.type === 'new' 
+        ? `New ${lastAlertEvent.severity} alert: ${lastAlertEvent.ruleCode}`
+        : `Alert escalated: ${lastAlertEvent.ruleCode}`;
+      
+      setNewAlertNotification(message);
+      
+      // Auto-dismiss after 5 seconds
+      const timer = setTimeout(() => {
+        setNewAlertNotification(null);
+      }, 5000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [lastAlertEvent]);
 
   if (error) return <ErrorState onRetry={refetch} />;
 
@@ -88,6 +110,22 @@ export const AlertsPage = () => {
 
   return (
     <div className="space-y-5 pb-8">
+      {/* Real-time alert notification */}
+      {newAlertNotification && (
+        <div className="fixed top-4 right-4 z-50 animate-slide-in-from-right">
+          <div className="flex items-center gap-3 rounded-lg border border-[#D88A32] bg-[#0D1C28] px-4 py-3 shadow-lg">
+            <Radio className="h-5 w-5 animate-pulse text-[#D88A32]" />
+            <p className="text-sm font-medium text-[#F4F7F8]">{newAlertNotification}</p>
+            <button
+              onClick={() => setNewAlertNotification(null)}
+              className="ml-2 text-[#78919F] hover:text-[#F4F7F8]"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
       <section className="relative isolate overflow-hidden rounded-2xl border border-[#25445B] bg-[#07121C] px-5 py-7 sm:px-8 sm:py-9">
         <img src={alertsHeroImg} alt="Alert operations" className="absolute inset-0 -z-10 h-full w-full object-cover opacity-90" />
         <div className="absolute inset-0 -z-10 bg-[linear-gradient(90deg,#07121C_4%,rgba(7,18,28,0.25)_43%,rgba(7,18,28,0.08)_100%)]" />
@@ -97,7 +135,10 @@ export const AlertsPage = () => {
           <p className="mt-2 max-w-md text-sm text-[#B3C5D0]">Every detection routed to an owner with a deadline — acknowledge, resolve or escalate.</p>
         </div>
         <div className="mt-7 flex flex-wrap gap-5 text-[10px] uppercase tracking-[0.16em] text-[#B3C5D0]">
-          <span className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-[#35C759] shadow-[0_0_10px_#35C759]" />Rule engine live</span>
+          <span className="flex items-center gap-2">
+            <span className={`h-2 w-2 rounded-full ${isConnected ? 'bg-[#35C759] shadow-[0_0_10px_#35C759]' : 'bg-[#78919F]'}`} />
+            {isConnected ? 'Real-time connected' : 'Real-time disconnected'}
+          </span>
           <span>{open} open</span>
           <span>{escalated} escalated</span>
         </div>

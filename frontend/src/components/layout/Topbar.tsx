@@ -2,16 +2,29 @@ import { Menu, Bell, Search, LogOut } from 'lucide-react';
 import { useUIStore } from '@/store/uiStore';
 import { useAuth } from '@/hooks/useAuth';
 import { useAlerts } from '@/hooks/useAlerts';
+import { useSocket } from '@/contexts/SocketContext';
 import { Button } from '@/components/ui/Button';
 import { useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
 
 export const Topbar = () => {
   const { toggleSidebar } = useUIStore();
   const { logout } = useAuth();
   const { data: alerts } = useAlerts({ limit: 50 });
+  const { lastAlertEvent } = useSocket();
   const navigate = useNavigate();
+  const [showBadgePulse, setShowBadgePulse] = useState(false);
 
   const openCount = (alerts?.data ?? []).filter((a) => a.status === 'open').length;
+
+  // Pulse animation when new alert arrives
+  useEffect(() => {
+    if (lastAlertEvent) {
+      setShowBadgePulse(true);
+      const timer = setTimeout(() => setShowBadgePulse(false), 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [lastAlertEvent]);
 
   const handleLogout = async () => {
     await logout();
@@ -44,9 +57,13 @@ export const Topbar = () => {
             onClick={() => navigate('/app/alerts')}
             className="relative p-2 text-[#8D969B] hover:text-[#F4F5F5] transition-colors"
           >
-            <Bell className="w-5 h-5" />
+            <Bell className={`w-5 h-5 ${showBadgePulse ? 'animate-pulse' : ''}`} />
             {openCount > 0 && (
-              <span className="absolute top-1 right-1 w-4 h-4 bg-[#FF4D4F] text-white text-xs rounded-full flex items-center justify-center">
+              <span 
+                className={`absolute top-1 right-1 w-4 h-4 bg-[#FF4D4F] text-white text-xs rounded-full flex items-center justify-center ${
+                  showBadgePulse ? 'animate-bounce' : ''
+                }`}
+              >
                 {openCount > 9 ? '9+' : openCount}
               </span>
             )}
