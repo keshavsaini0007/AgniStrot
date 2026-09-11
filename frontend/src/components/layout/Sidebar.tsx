@@ -101,7 +101,7 @@ export const Sidebar = () => {
       >
         <div className="flex flex-col h-full">
           {/* Logo */}
-          <div className="flex items-center justify-between px-6 py-5 border-b border-[#252A2D]">
+          <div className="flex items-center justify-center px-6 py-5 border-b border-[#252A2D]">
             <div className="flex items-center gap-3">
               <img src={logoImg} alt="AgniStrot" className="h-14 w-[118px] object-contain" />
             </div>
