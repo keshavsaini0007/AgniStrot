@@ -4,6 +4,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { BorderRadius, FontSize, Spacing } from '@/constants/theme';
 import { getStatusConfig } from '@/utils/status';
 import { Badge } from './Badge';
+import { PngIcon, type PngIconName } from './PngIcon';
 import { formatDate } from '@/utils/date';
 
 interface ListItemProps {
@@ -13,11 +14,12 @@ interface ListItemProps {
   badge?: string;
   badgeColor?: string;
   date?: string;
+  icon?: PngIconName;
   onPress?: () => void;
   rightElement?: React.ReactNode;
 }
 
-export function ListItem({ title, subtitle, status, badge, badgeColor, date, onPress, rightElement }: ListItemProps) {
+export function ListItem({ title, subtitle, status, badge, badgeColor, date, icon, onPress, rightElement }: ListItemProps) {
   const theme = useTheme();
   const statusConfig = status ? getStatusConfig(status) : null;
 
@@ -31,6 +33,7 @@ export function ListItem({ title, subtitle, status, badge, badgeColor, date, onP
 
   const content = (
     <>
+      {icon && <PngIcon name={icon} size={20} />}
       <View style={styles.content}>
         <View style={styles.header}>
           <Text style={[styles.title, { color: theme.text }]} numberOfLines={1}>
