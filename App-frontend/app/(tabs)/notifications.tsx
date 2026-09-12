@@ -3,10 +3,26 @@ import { View, Text, FlatList, StyleSheet, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/hooks/use-theme';
 import { useNotifications } from '@/hooks/useNotifications';
-import { Badge, LoadingState, EmptyState, MockBadge } from '@/components/ui';
+import { Badge, LoadingState, EmptyState, MockBadge, PngIcon, type PngIconName } from '@/components/ui';
 import { BorderRadius, FontSize, Spacing } from '@/constants/theme';
 import { formatRelativeTime } from '@/utils/date';
 import type { Notification } from '@/types';
+
+const TYPE_ICONS: Record<string, PngIconName> = {
+  info: 'info',
+  warning: 'alert',
+  error: 'skull',
+  success: 'tick',
+};
+
+const ENTITY_ICONS: Record<string, PngIconName> = {
+  mine: 'mine',
+  inspection: 'hard-hat',
+  observation: 'zoom',
+  corrective_action: 'wrench',
+  compliance: 'scale',
+  report: 'chart',
+};
 
 export default function NotificationsScreen() {
   const theme = useTheme();
@@ -35,6 +51,7 @@ export default function NotificationsScreen() {
         ]}
       >
         <View style={styles.cardHeader}>
+          <PngIcon name={ENTITY_ICONS[item.entityType] ?? TYPE_ICONS[item.type] ?? 'bell'} size={20} />
           <Text style={[styles.cardTitle, { color: theme.text }]} numberOfLines={1}>
             {item.title}
           </Text>
@@ -45,9 +62,12 @@ export default function NotificationsScreen() {
             size="sm"
           />
         </View>
-        <Text style={[styles.message, { color: theme.textSecondary }]} numberOfLines={2}>
-          {item.message}
-        </Text>
+        <View style={styles.messageRow}>
+          <PngIcon name={TYPE_ICONS[item.type] ?? 'info'} size={14} />
+          <Text style={[styles.message, { color: theme.textSecondary }]} numberOfLines={2}>
+            {item.message}
+          </Text>
+        </View>
         <Text style={[styles.time, { color: theme.textMuted }]}>
           {formatRelativeTime(item.createdAt)}
         </Text>
@@ -107,6 +127,11 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     gap: Spacing.two,
+  },
+  messageRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.one,
   },
   cardTitle: { fontSize: FontSize.md, fontWeight: '600', flex: 1 },
   message: { fontSize: FontSize.sm, lineHeight: 18 },
