@@ -5,17 +5,17 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTheme } from '@/hooks/use-theme';
 import { useObservation } from '@/hooks/useObservations';
 import { useMines } from '@/hooks/useMines';
-import { Card, Badge, LoadingState, EmptyState, Button, Icon } from '@/components/ui';
-import { BorderRadius, FontSize, Spacing } from '@/constants/theme';
+import { Card, Badge, LoadingState, EmptyState, Button, PngIcon, type PngIconName } from '@/components/ui';
+import { FontSize, Spacing } from '@/constants/theme';
 import { getStatusConfig } from '@/utils/status';
 import { formatDate } from '@/utils/date';
 
-const CATEGORY_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
-  safety: { label: 'Safety', color: '#FF4D4F', bg: 'rgba(255,77,79,0.15)' },
-  environmental: { label: 'Environmental', color: '#35C759', bg: 'rgba(53,199,89,0.15)' },
-  operational: { label: 'Operational', color: '#4DA3FF', bg: 'rgba(77,163,255,0.15)' },
-  compliance: { label: 'Compliance', color: '#F5B942', bg: 'rgba(245,185,66,0.15)' },
-  health: { label: 'Health', color: '#A78BFA', bg: 'rgba(167,139,250,0.15)' },
+const CATEGORY_CONFIG: Record<string, { label: string; color: string; bg: string; icon: PngIconName }> = {
+  safety: { label: 'Safety', color: '#FF4D4F', bg: 'rgba(255,77,79,0.15)', icon: 'shield' },
+  environmental: { label: 'Environmental', color: '#35C759', bg: 'rgba(53,199,89,0.15)', icon: 'leaf' },
+  operational: { label: 'Operational', color: '#4DA3FF', bg: 'rgba(77,163,255,0.15)', icon: 'tools' },
+  compliance: { label: 'Compliance', color: '#F5B942', bg: 'rgba(245,185,66,0.15)', icon: 'scale' },
+  health: { label: 'Health', color: '#A78BFA', bg: 'rgba(167,139,250,0.15)', icon: 'heart' },
 };
 
 export default function ObservationDetailScreen() {
@@ -26,7 +26,7 @@ export default function ObservationDetailScreen() {
   const { data: minesData } = useMines();
 
   if (isLoading) return <LoadingState message="Loading observation..." />;
-  if (error || !observation) return <EmptyState title="Observation not found" icon="eye" />;
+  if (error || !observation) return <EmptyState title="Observation not found" icon="zoom" />;
 
   const statusCfg = getStatusConfig(observation.status);
   const severityCfg = getStatusConfig(observation.severity);
@@ -37,13 +37,14 @@ export default function ObservationDetailScreen() {
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.headerRow}>
-          <Button icon={<Icon name="chevron-left" size={16} color={theme.primary} />} title="Back" variant="ghost" onPress={() => router.back()} size="sm" />
+          <Button icon={<PngIcon name="right" size={16} flip />} title="Back" variant="ghost" onPress={() => router.back()} size="sm" />
         </View>
 
         <View style={styles.titleSection}>
           <View style={styles.badgeRow}>
             <Badge label={statusCfg.label} color={statusCfg.color} backgroundColor={statusCfg.bg} size="sm" />
             <Badge label={severityCfg.label} color={severityCfg.color} backgroundColor={severityCfg.bg} size="sm" />
+            <PngIcon name={categoryCfg.icon} size={16} />
             <Badge label={categoryCfg.label} color={categoryCfg.color} backgroundColor={categoryCfg.bg} size="sm" />
           </View>
           <Text style={[styles.title, { color: theme.text }]}>{observation.title}</Text>
