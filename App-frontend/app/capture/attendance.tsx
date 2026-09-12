@@ -5,7 +5,7 @@ import { useRouter } from 'expo-router';
 import { useTheme } from '@/hooks/use-theme';
 import { useAuth } from '@/hooks/useAuth';
 import { useQueueAttendance } from '@/hooks/useAttendance';
-import { ChoiceChips, ChoiceOption, Button, Card, TextInput } from '@/components/ui';
+import { ChoiceChips, ChoiceOption, Button, Card, TextInput, PngIcon } from '@/components/ui';
 import { LocationCapture } from '@/components/LocationCapture';
 import { newClientUuid } from '@/api/offlineQueue';
 import { type CaptureLocation } from '@/hooks/useLocation';
@@ -66,7 +66,10 @@ export default function AttendanceScreen() {
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['bottom']}>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Card style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.text }]}>Check Type</Text>
+          <View style={styles.sectionHeader}>
+            <PngIcon name="time" size={16} />
+            <Text style={[styles.sectionTitle, { color: theme.text }]}>Check Type</Text>
+          </View>
           <ChoiceChips options={CHECK_TYPES} value={checkType} onChange={setCheckType} />
         </Card>
 
@@ -86,7 +89,10 @@ export default function AttendanceScreen() {
         </Card>
 
         <Card style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.text }]}>Location</Text>
+          <View style={styles.sectionHeader}>
+            <PngIcon name="map-pin" size={16} />
+            <Text style={[styles.sectionTitle, { color: theme.text }]}>Location</Text>
+          </View>
           <LocationCapture value={location} onChange={setLocation} />
         </Card>
 
@@ -112,6 +118,11 @@ const styles = StyleSheet.create({
   },
   section: {
     gap: Spacing.three,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
   },
   sectionTitle: {
     fontSize: FontSize.lg,
