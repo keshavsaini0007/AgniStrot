@@ -4,15 +4,15 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNetInfo } from '@react-native-community/netinfo';
 import { useTheme } from '@/hooks/use-theme';
 import { useSyncStatus, useSyncNow } from '@/hooks/useSync';
-import { Card, Button, Badge, Icon, type IconName } from '@/components/ui';
+import { Card, Button, Badge, Icon, PngIcon, type PngIconName } from '@/components/ui';
 import { getPending, type QueueKind, type QueuedRecord } from '@/api/offlineQueue';
 import { formatDateTime } from '@/utils/date';
-import { BorderRadius, FontSize, Spacing } from '@/constants/theme';
+import { FontSize, Spacing } from '@/constants/theme';
 
-const KINDS: { kind: QueueKind; icon: IconName; label: string }[] = [
-  { kind: 'inspection', icon: 'clipboard-list', label: 'Inspections' },
-  { kind: 'incident', icon: 'siren', label: 'Incidents' },
-  { kind: 'attendance', icon: 'users', label: 'Attendance' },
+const KINDS: { kind: QueueKind; icon: PngIconName; label: string }[] = [
+  { kind: 'inspection', icon: 'hard-hat', label: 'Inspections' },
+  { kind: 'incident', icon: 'flag', label: 'Incidents' },
+  { kind: 'attendance', icon: 'time', label: 'Attendance' },
 ];
 
 const describeRecord = (record: QueuedRecord): string => {
@@ -136,7 +136,7 @@ export default function SyncScreen() {
             return (
               <Card key={config.kind} style={styles.kindCard}>
                 <Pressable onPress={() => toggleKind(config.kind)} style={styles.kindRow}>
-                  <Icon name={config.icon} size={20} color={theme.textSecondary} />
+                  <PngIcon name={config.icon} size={20} />
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.kindLabel, { color: theme.text }]}>{config.label}</Text>
                     <Text style={[styles.kindMeta, { color: theme.textMuted }]}>
@@ -147,7 +147,7 @@ export default function SyncScreen() {
                     </Text>
                   </View>
                   <View style={isOpen && styles.chevronOpen}>
-                    <Icon name="chevron-right" size={18} color={theme.textMuted} />
+                    <PngIcon name="right" size={18} />
                   </View>
                 </Pressable>
 
