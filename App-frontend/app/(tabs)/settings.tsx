@@ -3,8 +3,8 @@ import { View, Text, ScrollView, StyleSheet, Switch } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/hooks/use-theme';
 import { useAuth } from '@/hooks/useAuth';
-import { Card, Badge, TextInput, Button } from '@/components/ui';
-import { BorderRadius, FontSize, Spacing } from '@/constants/theme';
+import { Card, Badge, TextInput, Button, PngIcon } from '@/components/ui';
+import { FontSize, Spacing } from '@/constants/theme';
 import { getRoleConfig } from '@/utils/roles';
 import { applyApiUrl, getApiBaseUrl, defaultApiBaseUrl } from '@/api/client';
 import {
@@ -53,29 +53,47 @@ export default function SettingsScreen() {
         <Text style={[styles.title, { color: theme.text }]}>Settings</Text>
 
         <Card style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.textSecondary }]}>Account</Text>
+          <View style={styles.sectionHeader}>
+            <PngIcon name="user-check" size={16} />
+            <Text style={[styles.sectionTitle, { color: theme.textSecondary }]}>Account</Text>
+          </View>
           <View style={[styles.settingRow, { borderBottomColor: theme.border, borderBottomWidth: 1 }]}>
-            <Text style={[styles.settingLabel, { color: theme.text }]}>Name</Text>
+            <View style={styles.settingLabelRow}>
+              <PngIcon name="user-check" size={16} />
+              <Text style={[styles.settingLabel, { color: theme.text }]}>Name</Text>
+            </View>
             <Text style={[styles.settingValue, { color: theme.textSecondary }]}>{user?.name || 'User'}</Text>
           </View>
           <View style={[styles.settingRow, { borderBottomColor: theme.border, borderBottomWidth: 1 }]}>
-            <Text style={[styles.settingLabel, { color: theme.text }]}>Email</Text>
+            <View style={styles.settingLabelRow}>
+              <PngIcon name="mail" size={16} />
+              <Text style={[styles.settingLabel, { color: theme.text }]}>Email</Text>
+            </View>
             <Text style={[styles.settingValue, { color: theme.textSecondary }]}>{user?.email}</Text>
           </View>
           <View style={[styles.settingRow, { borderBottomColor: theme.border, borderBottomWidth: 1 }]}>
-            <Text style={[styles.settingLabel, { color: theme.text }]}>Role</Text>
+            <View style={styles.settingLabelRow}>
+              <PngIcon name="star" size={16} />
+              <Text style={[styles.settingLabel, { color: theme.text }]}>Role</Text>
+            </View>
             {roleConfig && (
               <Badge label={roleConfig.label} color={theme.primary} backgroundColor={theme.primary + '20'} size="sm" />
             )}
           </View>
           <View style={styles.settingRow}>
-            <Text style={[styles.settingLabel, { color: theme.text }]}>Department</Text>
+            <View style={styles.settingLabelRow}>
+              <PngIcon name="briefcase" size={16} />
+              <Text style={[styles.settingLabel, { color: theme.text }]}>Department</Text>
+            </View>
             <Text style={[styles.settingValue, { color: theme.textSecondary }]}>{user?.department || 'N/A'}</Text>
           </View>
         </Card>
 
         <Card style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.textSecondary }]}>Server</Text>
+          <View style={styles.sectionHeader}>
+            <PngIcon name="rocket" size={16} />
+            <Text style={[styles.sectionTitle, { color: theme.textSecondary }]}>Server</Text>
+          </View>
           <View style={styles.apiRow}>
             <TextInput
               label="API Base URL"
@@ -100,9 +118,15 @@ export default function SettingsScreen() {
         </Card>
 
         <Card style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.textSecondary }]}>Preferences</Text>
+          <View style={styles.sectionHeader}>
+            <PngIcon name="setting" size={16} />
+            <Text style={[styles.sectionTitle, { color: theme.textSecondary }]}>Preferences</Text>
+          </View>
           <View style={[styles.settingRow, { borderBottomColor: theme.border, borderBottomWidth: 1 }]}>
-            <Text style={[styles.settingLabel, { color: theme.text }]}>Push Notifications</Text>
+            <View style={styles.settingLabelRow}>
+              <PngIcon name="bell" size={16} />
+              <Text style={[styles.settingLabel, { color: theme.text }]}>Push Notifications</Text>
+            </View>
             <Switch
               value={pushNotifications}
               onValueChange={setPushNotifications}
@@ -111,7 +135,10 @@ export default function SettingsScreen() {
             />
           </View>
           <View style={[styles.settingRow, { borderBottomColor: theme.border, borderBottomWidth: 1 }]}>
-            <Text style={[styles.settingLabel, { color: theme.text }]}>Email Notifications</Text>
+            <View style={styles.settingLabelRow}>
+              <PngIcon name="mail" size={16} />
+              <Text style={[styles.settingLabel, { color: theme.text }]}>Email Notifications</Text>
+            </View>
             <Switch
               value={emailNotifications}
               onValueChange={setEmailNotifications}
@@ -120,7 +147,10 @@ export default function SettingsScreen() {
             />
           </View>
           <View style={styles.settingRow}>
-            <Text style={[styles.settingLabel, { color: theme.text }]}>Dark Mode</Text>
+            <View style={styles.settingLabelRow}>
+              <PngIcon name="ghost" size={16} />
+              <Text style={[styles.settingLabel, { color: theme.text }]}>Dark Mode</Text>
+            </View>
             <Switch
               value={darkMode}
               onValueChange={setDarkMode}
@@ -131,13 +161,22 @@ export default function SettingsScreen() {
         </Card>
 
         <Card style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.textSecondary }]}>About</Text>
+          <View style={styles.sectionHeader}>
+            <PngIcon name="info" size={16} />
+            <Text style={[styles.sectionTitle, { color: theme.textSecondary }]}>About</Text>
+          </View>
           <View style={[styles.settingRow, { borderBottomColor: theme.border, borderBottomWidth: 1 }]}>
-            <Text style={[styles.settingLabel, { color: theme.text }]}>Version</Text>
+            <View style={styles.settingLabelRow}>
+              <PngIcon name="help" size={16} />
+              <Text style={[styles.settingLabel, { color: theme.text }]}>Version</Text>
+            </View>
             <Text style={[styles.settingValue, { color: theme.textSecondary }]}>1.0.0</Text>
           </View>
           <View style={styles.settingRow}>
-            <Text style={[styles.settingLabel, { color: theme.text }]}>Build</Text>
+            <View style={styles.settingLabelRow}>
+              <PngIcon name="rocket" size={16} />
+              <Text style={[styles.settingLabel, { color: theme.text }]}>Build</Text>
+            </View>
             <Text style={[styles.settingValue, { color: theme.textSecondary }]}>2026.09</Text>
           </View>
         </Card>
@@ -151,8 +190,10 @@ const styles = StyleSheet.create({
   content: { padding: Spacing.four, gap: Spacing.four, paddingBottom: Spacing.twelve },
   title: { fontSize: FontSize.xxl, fontWeight: '700' },
   section: { gap: Spacing.one },
-  sectionTitle: { fontSize: FontSize.xs, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 1, marginBottom: Spacing.one },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  sectionTitle: { fontSize: FontSize.xs, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 1 },
   settingRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: Spacing.three },
+  settingLabelRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   settingLabel: { fontSize: FontSize.md, fontWeight: '500' },
   settingValue: { fontSize: FontSize.md },
   apiRow: { paddingVertical: Spacing.two },
