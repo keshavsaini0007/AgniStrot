@@ -3,10 +3,19 @@ import { View, Text, FlatList, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/hooks/use-theme';
 import { useDocuments } from '@/hooks/useDocuments';
-import { Card, Badge, LoadingState, EmptyState, Icon, MockBadge } from '@/components/ui';
-import { BorderRadius, FontSize, Spacing } from '@/constants/theme';
+import { Card, Badge, LoadingState, EmptyState, PngIcon, MockBadge, type PngIconName } from '@/components/ui';
+import { FontSize, Spacing } from '@/constants/theme';
 import { formatDate } from '@/utils/date';
 import type { Document } from '@/types';
+
+const getFileIcon = (fileType: string): PngIconName => {
+  const t = fileType.toLowerCase();
+  if (t.includes('pdf')) return 'file-pdf';
+  if (t.includes('image') || t.includes('png') || t.includes('jpg') || t.includes('jpeg')) return 'file-image';
+  if (t.includes('zip') || t.includes('archive') || t.includes('rar')) return 'file-archive';
+  if (t.includes('sheet') || t.includes('excel') || t.includes('xls') || t.includes('chart') || t.includes('csv')) return 'file-pie-chart';
+  return 'file-text';
+};
 
 export default function DocumentsScreen() {
   const theme = useTheme();
@@ -16,7 +25,7 @@ export default function DocumentsScreen() {
     <Card style={styles.card}>
       <View style={styles.cardHeader}>
         <View style={styles.docNameRow}>
-          <Icon name="file-text" size={16} color={theme.text} />
+          <PngIcon name={getFileIcon(item.fileType)} size={18} />
           <Text style={[styles.docName, { color: theme.text }]} numberOfLines={1}>{item.name}</Text>
         </View>
         <Badge label={item.category} color={theme.info} backgroundColor={theme.info + '20'} size="sm" />
