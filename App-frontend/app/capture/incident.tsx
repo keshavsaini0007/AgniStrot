@@ -5,7 +5,7 @@ import { useRouter } from 'expo-router';
 import { useTheme } from '@/hooks/use-theme';
 import { useAuth } from '@/hooks/useAuth';
 import { useQueueIncident } from '@/hooks/useIncidents';
-import { ChoiceChips, ChoiceOption, Button, Card, PhotoAttachment } from '@/components/ui';
+import { ChoiceChips, ChoiceOption, Button, Card, PhotoAttachment, PngIcon } from '@/components/ui';
 import { LocationCapture } from '@/components/LocationCapture';
 import { newClientUuid } from '@/api/offlineQueue';
 import { type CaptureLocation } from '@/hooks/useLocation';
@@ -76,17 +76,26 @@ export default function NewIncidentScreen() {
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['bottom']}>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Card style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.text }]}>Severity</Text>
+          <View style={styles.sectionHeader}>
+            <PngIcon name="skull" size={16} />
+            <Text style={[styles.sectionTitle, { color: theme.text }]}>Severity</Text>
+          </View>
           <ChoiceChips options={SEVERITY_OPTIONS} value={severity} onChange={setSeverity} />
         </Card>
 
         <Card style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.text }]}>Category</Text>
+          <View style={styles.sectionHeader}>
+            <PngIcon name="flag" size={16} />
+            <Text style={[styles.sectionTitle, { color: theme.text }]}>Category</Text>
+          </View>
           <ChoiceChips options={CATEGORY_OPTIONS} value={category} onChange={setCategory} />
         </Card>
 
         <Card style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.text }]}>Description</Text>
+          <View style={styles.sectionHeader}>
+            <PngIcon name="file-text" size={16} />
+            <Text style={[styles.sectionTitle, { color: theme.text }]}>Description</Text>
+          </View>
           <RNTextInput
             value={description}
             onChangeText={(text) => {
@@ -113,12 +122,18 @@ export default function NewIncidentScreen() {
         </Card>
 
         <Card style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.text }]}>Location</Text>
+          <View style={styles.sectionHeader}>
+            <PngIcon name="map-pin" size={16} />
+            <Text style={[styles.sectionTitle, { color: theme.text }]}>Location</Text>
+          </View>
           <LocationCapture value={location} onChange={setLocation} />
         </Card>
 
         <Card style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.text }]}>Photos</Text>
+          <View style={styles.sectionHeader}>
+            <PngIcon name="camera" size={18} />
+            <Text style={[styles.sectionTitle, { color: theme.text }]}>Photos</Text>
+          </View>
           <PhotoAttachment value={photos} onChange={setPhotos} max={5} />
         </Card>
 
@@ -144,6 +159,11 @@ const styles = StyleSheet.create({
   },
   section: {
     gap: Spacing.three,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
   },
   sectionTitle: {
     fontSize: FontSize.lg,
