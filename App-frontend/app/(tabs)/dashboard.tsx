@@ -4,17 +4,24 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useTheme } from '@/hooks/use-theme';
 import { useDashboard } from '@/hooks/useAnalytics';
-import { Card, KPICard, Badge, ListItem, Icon, type IconName } from '@/components/ui';
+import { Card, KPICard, ListItem, PngIcon, type PngIconName } from '@/components/ui';
 import { BorderRadius, FontSize, Spacing } from '@/constants/theme';
-import { formatRelativeTime } from '@/utils/date';
 import { getStatusConfig } from '@/utils/status';
 
-const FIELD_ACTIONS: { title: string; icon: IconName; screen: string }[] = [
-  { title: 'New Inspection', icon: 'clipboard-list', screen: '/capture/inspection' },
-  { title: 'Report Incident', icon: 'siren', screen: '/capture/incident' },
-  { title: 'Attendance', icon: 'users', screen: '/capture/attendance' },
-  { title: 'Sync & Offline', icon: 'refresh-cw', screen: '/capture/sync' },
+const FIELD_ACTIONS: { title: string; icon: PngIconName; screen: string }[] = [
+  { title: 'New Inspection', icon: 'hard-hat', screen: '/capture/inspection' },
+  { title: 'Report Incident', icon: 'flag', screen: '/capture/incident' },
+  { title: 'Attendance', icon: 'time', screen: '/capture/attendance' },
+  { title: 'Sync & Offline', icon: 'rocket', screen: '/capture/sync' },
 ];
+
+const OBS_CATEGORY_ICONS: Record<string, PngIconName> = {
+  safety: 'shield',
+  environmental: 'leaf',
+  operational: 'tools',
+  compliance: 'scale',
+  health: 'heart',
+};
 
 export default function DashboardScreen() {
   const theme = useTheme();
@@ -38,11 +45,11 @@ export default function DashboardScreen() {
         </View>
 
         <View style={styles.kpiGrid}>
-          <KPICard title="Total Mines" value={kpis?.totalMines ?? 0} icon="pickaxe" color={theme.primary} />
-          <KPICard title="Compliance" value={`${kpis?.complianceRate ?? 0}%`} icon="check-circle-2" color={theme.success} />
-          <KPICard title="High Risk" value={kpis?.highRiskMines ?? 0} icon="circle" color={theme.danger} />
-          <KPICard title="Pending" value={kpis?.pendingInspections ?? 0} icon="clipboard-list" color={theme.info} />
-          <KPICard title="Overdue" value={kpis?.overdueActions ?? 0} icon="alarm-clock" color={theme.warning} />
+          <KPICard title="Total Mines" value={kpis?.totalMines ?? 0} icon="mine" color={theme.primary} />
+          <KPICard title="Compliance" value={`${kpis?.complianceRate ?? 0}%`} icon="tick" color={theme.success} />
+          <KPICard title="High Risk" value={kpis?.highRiskMines ?? 0} icon="skull" color={theme.danger} />
+          <KPICard title="Pending" value={kpis?.pendingInspections ?? 0} icon="calendar" color={theme.info} />
+          <KPICard title="Overdue" value={kpis?.overdueActions ?? 0} icon="alert" color={theme.warning} />
         </View>
 
         <Card style={styles.section}>
@@ -58,7 +65,7 @@ export default function DashboardScreen() {
                   pressed && { opacity: 0.7 },
                 ]}
               >
-                <Icon name={action.icon} size={20} color={theme.primary} />
+                <PngIcon name={action.icon} size={20} />
                 <Text style={[styles.actionTitle, { color: theme.text }]} numberOfLines={2}>
                   {action.title}
                 </Text>
@@ -77,6 +84,7 @@ export default function DashboardScreen() {
                 subtitle={alert.message}
                 status={alert.severity}
                 date={alert.createdAt}
+                icon="alert"
               />
             ))
           ) : (
@@ -98,6 +106,7 @@ export default function DashboardScreen() {
                   badge={statusCfg.label}
                   badgeColor={statusCfg.color}
                   date={obs.createdAt}
+                  icon={OBS_CATEGORY_ICONS[obs.category] ?? 'zoom'}
                 />
               );
             })
