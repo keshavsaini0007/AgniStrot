@@ -122,7 +122,7 @@ export const DashboardPage = () => {
                 className={`group flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-[#102435] sm:px-5 ${incident.id === newRowId ? 'animate-row-slide-in' : ''}`}
               >
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-xs font-semibold text-[#E8F0F3]">{incident.id}</p>
+                  <p className="truncate text-xs font-semibold text-[#E8F0F3]">{incident.siteName ?? incident.id}</p>
                   <p className="mt-1 truncate text-[10px] text-[#8299A7]">{incident.description}</p>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">

@@ -118,6 +118,7 @@ export interface Incident {
   id: string;
   clientUuid?: string;
   siteId: string;
+  siteName?: string;
   reportedBy: string;
   severity: IncidentSeverity;
   category: IncidentCategory;

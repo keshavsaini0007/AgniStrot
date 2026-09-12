@@ -8,6 +8,34 @@ import type { Alert, DashboardSummary, Incident, UserRole } from '@/types';
  * unified contract without inventing data — unavailable KPIs stay 0.
  */
 
+/** Shared DTO shape emitted by backend `fetchRecentIncidents`. */
+export interface RecentIncidentRaw {
+  id: string;
+  siteId: string;
+  siteName: string;
+  severity: Incident['severity'];
+  category: Incident['category'];
+  status: Incident['status'];
+  description: string;
+  reportedByName: string;
+  capturedAt: string;
+}
+
+function toIncident(raw: RecentIncidentRaw): Incident {
+  return {
+    id: raw.id,
+    siteId: raw.siteId,
+    siteName: raw.siteName,
+    reportedBy: raw.reportedByName,
+    severity: raw.severity,
+    category: raw.category,
+    description: raw.description,
+    photoUrls: [],
+    capturedAt: raw.capturedAt,
+    status: raw.status,
+  };
+}
+
 export interface MineOfficialDashboardRaw {
   site?: { id: string; name: string; subsidiary: string; expectedWorkers: number } | null;
   openAlerts?: Array<{ id: string; ruleCode: string; severity: Alert['severity']; assignedToName: string; createdAt: string }>;
@@ -16,6 +44,7 @@ export interface MineOfficialDashboardRaw {
   alerts7d?: number;
   attendanceToday?: { present: number; absent: number };
   pendingWorkflows?: Array<{ alertId: string; state: string; deadline: string; overdue: boolean }>;
+  recentIncidents?: RecentIncidentRaw[];
 }
 
 export interface CorporateDashboardRaw {
@@ -24,11 +53,13 @@ export interface CorporateDashboardRaw {
   trend7Day?: { daily: Array<{ date: string; count: number }>; totals: { alerts: number; sites: number } };
   inspections7d?: number;
   incidents7d?: number;
+  recentIncidents?: RecentIncidentRaw[];
 }
 
 export interface RegulatorDashboardRaw {
   sites?: Array<{ id: string; name: string; subsidiary: string; openCriticalCount: number; lastInspectionDate: string | null }>;
   overdueItems?: Array<{ siteId: string; siteName: string; type: string; since: string }>;
+  recentIncidents?: RecentIncidentRaw[];
 }
 
 export interface FieldOfficerDashboardRaw {
@@ -67,7 +98,7 @@ const mineOfficial = (raw: MineOfficialDashboardRaw): DashboardSummary => {
       overdueInspections: pending.filter((w) => w.overdue).length,
       upcomingDeadlines: pending.filter((w) => !w.overdue).length,
     },
-    recentIncidents: [],
+    recentIncidents: (raw.recentIncidents ?? []).map(toIncident),
     sites: raw.site
       ? [{ siteId: raw.site.id, name: raw.site.name, openAlerts: (raw.openAlerts ?? []).length }]
       : [],
@@ -90,12 +121,12 @@ const corporate = (raw: CorporateDashboardRaw): DashboardSummary => ({
     overdueInspections: 0,
     upcomingDeadlines: 0,
   },
-  recentIncidents: [],
-  sites: (raw.sites ?? []).map((s) => ({
-    siteId: s.id,
-    name: s.name,
-    openAlerts: s.openAlertsCount,
-  })),
+    recentIncidents: (raw.recentIncidents ?? []).map(toIncident),
+    sites: (raw.sites ?? []).map((s) => ({
+      siteId: s.id,
+      name: s.name,
+      openAlerts: s.openAlertsCount,
+    })),
   trend7Day: (raw.trend7Day?.daily ?? []).map((d) => ({ date: d.date, alerts: d.count })),
 });
 
@@ -115,12 +146,12 @@ const regulator = (raw: RegulatorDashboardRaw): DashboardSummary => ({
     overdueInspections: (raw.overdueItems ?? []).length,
     upcomingDeadlines: 0,
   },
-  recentIncidents: [],
-  sites: (raw.sites ?? []).map((s) => ({
-    siteId: s.id,
-    name: s.name,
-    openAlerts: s.openCriticalCount,
-  })),
+    recentIncidents: (raw.recentIncidents ?? []).map(toIncident),
+    sites: (raw.sites ?? []).map((s) => ({
+      siteId: s.id,
+      name: s.name,
+      openAlerts: s.openCriticalCount,
+    })),
 });
 
 // ── Field officer ────────────────────────────────────────────────────────────
@@ -142,7 +173,7 @@ const fieldOfficer = (raw: FieldOfficerDashboardRaw): DashboardSummary => {
       overdueInspections: 0,
       upcomingDeadlines: 0,
     },
-    recentIncidents: incidents.map((i): Incident => ({
+    recentIncidents: incidents.slice(0, 5).map((i): Incident => ({
       id: i.id,
       siteId: i.siteId,
       reportedBy: '',

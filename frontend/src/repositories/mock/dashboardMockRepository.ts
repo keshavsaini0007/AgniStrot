@@ -20,7 +20,7 @@ export const dashboardMockRepository = {
         overdueInspections: 0,
         upcomingDeadlines: 0,
       },
-      recentIncidents: mockIncidents.slice(0, 4),
+      recentIncidents: mockIncidents.slice(0, 5),
       recentAlerts: mockAlerts.slice(0, 4),
       sites: mockSites.map((s) => ({
         siteId: s.id,
