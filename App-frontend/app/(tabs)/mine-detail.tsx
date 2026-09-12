@@ -4,8 +4,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTheme } from '@/hooks/use-theme';
 import { useMine } from '@/hooks/useMines';
-import { Card, Badge, LoadingState, EmptyState, Button, Icon } from '@/components/ui';
-import { BorderRadius, FontSize, Spacing } from '@/constants/theme';
+import { Card, Badge, LoadingState, EmptyState, Button, PngIcon } from '@/components/ui';
+import { FontSize, Spacing } from '@/constants/theme';
 import { getStatusConfig } from '@/utils/status';
 import { formatDate } from '@/utils/date';
 
@@ -16,7 +16,7 @@ export default function MineDetailScreen() {
   const { data: mine, isLoading, error } = useMine(id || '');
 
   if (isLoading) return <LoadingState message="Loading mine details..." />;
-  if (error || !mine) return <EmptyState title="Mine not found" icon="pickaxe" />;
+  if (error || !mine) return <EmptyState title="Mine not found" icon="mine" />;
 
   const statusCfg = getStatusConfig(mine.status);
 
@@ -24,7 +24,7 @@ export default function MineDetailScreen() {
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.headerRow}>
-          <Button icon={<Icon name="chevron-left" size={16} color={theme.primary} />} title="Back" variant="ghost" onPress={() => router.back()} size="sm" />
+          <Button icon={<PngIcon name="right" size={16} flip />} title="Back" variant="ghost" onPress={() => router.back()} size="sm" />
         </View>
 
         <View style={styles.titleSection}>
@@ -34,7 +34,7 @@ export default function MineDetailScreen() {
           </View>
           <Text style={[styles.code, { color: theme.textMuted }]}>{mine.code}</Text>
           <View style={styles.addressRow}>
-            <Icon name="map-pin" size={14} color={theme.textSecondary} />
+            <PngIcon name="map-pin" size={14} />
             <Text style={[styles.address, { color: theme.textSecondary }]}>{mine.location.address}</Text>
           </View>
           {mine.subsidiary && (
