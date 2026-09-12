@@ -5,8 +5,8 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTheme } from '@/hooks/use-theme';
 import { useCompliance } from '@/hooks/useCompliance';
 import { useMines } from '@/hooks/useMines';
-import { Card, Badge, LoadingState, EmptyState, Button, Icon } from '@/components/ui';
-import { BorderRadius, FontSize, Spacing } from '@/constants/theme';
+import { Card, Badge, LoadingState, EmptyState, Button, PngIcon } from '@/components/ui';
+import { FontSize, Spacing } from '@/constants/theme';
 import { getStatusConfig } from '@/utils/status';
 import { formatDate } from '@/utils/date';
 
@@ -20,7 +20,7 @@ export default function ComplianceDetailScreen() {
   const compliance = complianceData?.data?.find((c) => c.id === id);
 
   if (isLoading) return <LoadingState message="Loading compliance..." />;
-  if (error || !compliance) return <EmptyState title="Compliance not found" icon="clipboard-list" />;
+  if (error || !compliance) return <EmptyState title="Compliance not found" icon="scale" />;
 
   const statusCfg = getStatusConfig(compliance.status);
   const mine = minesData?.data?.find((m) => m.id === compliance.mineId);
@@ -29,7 +29,7 @@ export default function ComplianceDetailScreen() {
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.headerRow}>
-          <Button icon={<Icon name="chevron-left" size={16} color={theme.primary} />} title="Back" variant="ghost" onPress={() => router.back()} size="sm" />
+          <Button icon={<PngIcon name="right" size={16} flip />} title="Back" variant="ghost" onPress={() => router.back()} size="sm" />
         </View>
 
         <View style={styles.titleSection}>
@@ -63,7 +63,7 @@ export default function ComplianceDetailScreen() {
             <Text style={[styles.sectionTitle, { color: theme.textSecondary }]}>DOCUMENTS</Text>
             {compliance.documents.map((doc, idx) => (
               <View key={idx} style={styles.docItemRow}>
-                <Icon name="file-text" size={14} color={theme.text} />
+                <PngIcon name="file-text" size={14} />
                 <Text style={[styles.docItem, { color: theme.text }]}>{doc}</Text>
               </View>
             ))}
