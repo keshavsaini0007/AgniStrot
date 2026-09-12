@@ -4,8 +4,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useTheme } from '@/hooks/use-theme';
 import { useAuth } from '@/hooks/useAuth';
-import { Card, Badge, Button, Icon, type IconName } from '@/components/ui';
-import { BorderRadius, FontSize, Spacing } from '@/constants/theme';
+import { Card, Badge, Button, PngIcon, type PngIconName } from '@/components/ui';
+import { FontSize, Spacing } from '@/constants/theme';
 import { getRoleConfig } from '@/utils/roles';
 
 export default function MoreScreen() {
@@ -15,19 +15,19 @@ export default function MoreScreen() {
   const roleConfig = user ? getRoleConfig(user.role) : null;
 
   const menuItems = [
-    { icon: 'refresh-cw', title: 'Sync & Offline', screen: '/capture/sync' as const },
-    { icon: 'clipboard-list', title: 'New Inspection', screen: '/capture/inspection' as const },
-    { icon: 'siren', title: 'Report Incident', screen: '/capture/incident' as const },
-    { icon: 'users', title: 'Attendance', screen: '/capture/attendance' as const },
-    { icon: 'notebook-pen', title: 'Corrective Actions', screen: '/(tabs)/corrective-actions' as const },
-    { icon: 'clipboard-list', title: 'Compliance', screen: '/(tabs)/compliance' as const },
+    { icon: 'rocket', title: 'Sync & Offline', screen: '/capture/sync' as const },
+    { icon: 'hard-hat', title: 'New Inspection', screen: '/capture/inspection' as const },
+    { icon: 'flag', title: 'Report Incident', screen: '/capture/incident' as const },
+    { icon: 'time', title: 'Attendance', screen: '/capture/attendance' as const },
+    { icon: 'wrench', title: 'Corrective Actions', screen: '/(tabs)/corrective-actions' as const },
+    { icon: 'scale', title: 'Compliance', screen: '/(tabs)/compliance' as const },
     { icon: 'bell', title: 'Notifications', screen: '/(tabs)/notifications' as const },
     { icon: 'file-text', title: 'Documents', screen: '/(tabs)/documents' as const },
-    { icon: 'bar-chart-3', title: 'Analytics', screen: '/(tabs)/analytics' as const },
-    { icon: 'map', title: 'GIS Map', screen: '/(tabs)/gis' as const },
-    { icon: 'trending-up', title: 'Reports', screen: '/(tabs)/reports' as const },
-    { icon: 'settings', title: 'Settings', screen: '/(tabs)/settings' as const },
-  ] satisfies { icon: IconName; title: string; screen: string }[];
+    { icon: 'chart', title: 'Analytics', screen: '/(tabs)/analytics' as const },
+    { icon: 'layers', title: 'GIS Map', screen: '/(tabs)/gis' as const },
+    { icon: 'pie-chart', title: 'Reports', screen: '/(tabs)/reports' as const },
+    { icon: 'setting', title: 'Settings', screen: '/(tabs)/settings' as const },
+  ] as const satisfies { icon: PngIconName; title: string; screen: string }[];
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
@@ -63,9 +63,9 @@ export default function MoreScreen() {
                 pressed && { backgroundColor: theme.surfaceElevated },
               ]}
             >
-              <Icon name={item.icon} size={20} color={theme.textMuted} />
+              <PngIcon name={item.icon} size={20} />
               <Text style={[styles.menuTitle, { color: theme.text }]}>{item.title}</Text>
-              <Icon name="chevron-right" size={18} color={theme.textMuted} />
+              <PngIcon name="right" size={16} />
             </Pressable>
           ))}
         </Card>
