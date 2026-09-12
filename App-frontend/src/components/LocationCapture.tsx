@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { useTheme } from '@/hooks/use-theme';
 import { useCurrentLocation, type CaptureLocation } from '@/hooks/useLocation';
-import { Icon, Button } from '@/components/ui';
+import { PngIcon, Button } from '@/components/ui';
 import { FontSize, Spacing } from '@/constants/theme';
 
 interface LocationCaptureProps {
@@ -32,7 +32,7 @@ export function LocationCapture({ value, onChange }: LocationCaptureProps) {
         variant="secondary"
         size="sm"
         loading={loading}
-        icon={<Icon name="map-pin" size={16} color={theme.textSecondary} />}
+        icon={<PngIcon name="map-pin" size={16} />}
         onPress={attach}
         style={styles.button}
       />
@@ -43,7 +43,7 @@ export function LocationCapture({ value, onChange }: LocationCaptureProps) {
             {captured.latitude.toFixed(5)}, {captured.longitude.toFixed(5)}
           </Text>
           <Pressable onPress={remove} hitSlop={8}>
-            <Icon name="x-circle" size={16} color={theme.textMuted} />
+            <PngIcon name="trash-can" size={16} />
           </Pressable>
         </View>
       )}
