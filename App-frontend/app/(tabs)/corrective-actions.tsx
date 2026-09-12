@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useTheme } from '@/hooks/use-theme';
 import { useCorrectiveActions } from '@/hooks/useCorrectiveActions';
-import { Badge, LoadingState, EmptyState, MockBadge } from '@/components/ui';
+import { Badge, LoadingState, EmptyState, MockBadge, PngIcon } from '@/components/ui';
 import { BorderRadius, FontSize, Spacing } from '@/constants/theme';
 import { getStatusConfig } from '@/utils/status';
 import { formatDate } from '@/utils/date';
@@ -37,9 +37,12 @@ export default function CorrectiveActionsScreen() {
         ]}
       >
         <View style={styles.cardHeader}>
-          <Text style={[styles.cardTitle, { color: theme.text }]} numberOfLines={2}>
-            {item.title}
-          </Text>
+          <View style={styles.titleRowIcon}>
+            <PngIcon name="wrench" size={22} />
+            <Text style={[styles.cardTitle, { color: theme.text }]} numberOfLines={2}>
+              {item.title}
+            </Text>
+          </View>
           <Badge label={priorityCfg.label} color={priorityCfg.color} backgroundColor={priorityCfg.bg} size="sm" />
         </View>
         <Text style={[styles.description, { color: theme.textSecondary }]} numberOfLines={2}>
@@ -100,7 +103,7 @@ export default function CorrectiveActionsScreen() {
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
-        ListEmptyComponent={<EmptyState title="No corrective actions found" />}
+        ListEmptyComponent={<EmptyState title="No corrective actions found" icon="wrench" />}
       />
     </SafeAreaView>
   );
@@ -143,6 +146,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
+    gap: Spacing.two,
+  },
+  titleRowIcon: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: Spacing.two,
   },
   cardTitle: { fontSize: FontSize.md, fontWeight: '600', flex: 1 },
