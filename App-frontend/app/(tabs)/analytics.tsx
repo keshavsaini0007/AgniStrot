@@ -3,8 +3,8 @@ import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/hooks/use-theme';
 import { useDashboard } from '@/hooks/useAnalytics';
-import { Card, KPICard, LoadingState, MockBadge } from '@/components/ui';
-import { BorderRadius, FontSize, Spacing } from '@/constants/theme';
+import { Card, KPICard, LoadingState, MockBadge, PngIcon } from '@/components/ui';
+import { FontSize, Spacing } from '@/constants/theme';
 
 export default function AnalyticsScreen() {
   const theme = useTheme();
@@ -18,18 +18,25 @@ export default function AnalyticsScreen() {
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <Text style={[styles.title, { color: theme.text }]}>AI Risk Intelligence</Text>
           <MockBadge />
+          <PngIcon name="bulb" size={18} />
         </View>
 
         <Card style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.text }]}>Risk Overview</Text>
+          <View style={styles.sectionHeader}>
+            <PngIcon name="cube" size={16} />
+            <Text style={[styles.sectionTitle, { color: theme.text }]}>Risk Overview</Text>
+          </View>
           <View style={styles.kpiRow}>
-            <KPICard title="High Risk" value={data?.kpis.highRiskMines ?? 0} icon="circle" color={theme.danger} />
-            <KPICard title="Overdue" value={data?.kpis.overdueActions ?? 0} icon="alarm-clock" color={theme.warning} />
+            <KPICard title="High Risk" value={data?.kpis.highRiskMines ?? 0} icon="skull" color={theme.danger} />
+            <KPICard title="Overdue" value={data?.kpis.overdueActions ?? 0} icon="alert" color={theme.warning} />
           </View>
         </Card>
 
         <Card style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.text }]}>Risk Factors</Text>
+          <View style={styles.sectionHeader}>
+            <PngIcon name="target" size={16} />
+            <Text style={[styles.sectionTitle, { color: theme.text }]}>Risk Factors</Text>
+          </View>
           {data?.riskIntelligence?.slice(0, 3).map((risk, idx) => (
             <View key={idx} style={[styles.factorRow, { borderBottomColor: theme.border }]}>
               <Text style={[styles.factorLabel, { color: theme.textSecondary }]}>
@@ -44,7 +51,10 @@ export default function AnalyticsScreen() {
         </Card>
 
         <Card style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.text }]}>Compliance Trend</Text>
+          <View style={styles.sectionHeader}>
+            <PngIcon name="calculator" size={16} />
+            <Text style={[styles.sectionTitle, { color: theme.text }]}>Compliance Trend</Text>
+          </View>
           <View style={styles.trendChart}>
             {data?.complianceTrend?.map((point, idx) => (
               <View key={idx} style={styles.trendBar}>
@@ -64,6 +74,7 @@ const styles = StyleSheet.create({
   content: { padding: Spacing.four, gap: Spacing.four, paddingBottom: Spacing.twelve },
   title: { fontSize: FontSize.xxl, fontWeight: '700' },
   section: { gap: Spacing.three },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   sectionTitle: { fontSize: FontSize.lg, fontWeight: '600' },
   kpiRow: { flexDirection: 'row', gap: Spacing.three },
   factorRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, paddingVertical: Spacing.two, borderBottomWidth: 1 },
