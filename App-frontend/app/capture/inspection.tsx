@@ -5,7 +5,7 @@ import { useRouter } from 'expo-router';
 import { useTheme } from '@/hooks/use-theme';
 import { useAuth } from '@/hooks/useAuth';
 import { useCreateInspection } from '@/hooks/useInspections';
-import { ChoiceChips, ChoiceOption, Button, Card, PhotoAttachment } from '@/components/ui';
+import { ChoiceChips, ChoiceOption, Button, Card, PhotoAttachment, PngIcon } from '@/components/ui';
 import { LocationCapture } from '@/components/LocationCapture';
 import { newClientUuid } from '@/api/offlineQueue';
 import { type CaptureLocation } from '@/hooks/useLocation';
@@ -86,12 +86,18 @@ export default function NewInspectionScreen() {
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['bottom']}>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Card style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.text }]}>Inspection Type</Text>
+          <View style={styles.sectionHeader}>
+            <PngIcon name="hard-hat" size={16} />
+            <Text style={[styles.sectionTitle, { color: theme.text }]}>Inspection Type</Text>
+          </View>
           <ChoiceChips options={INSPECTION_TYPES} value={type} onChange={setType} />
         </Card>
 
         <Card style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.text }]}>Checklist</Text>
+          <View style={styles.sectionHeader}>
+            <PngIcon name="notebook" size={16} />
+            <Text style={[styles.sectionTitle, { color: theme.text }]}>Checklist</Text>
+          </View>
           {CHECKLIST_ITEMS.map((item) => (
             <View key={item} style={styles.checkRow}>
               <Text style={[styles.checkText, { color: theme.text }]}>{item}</Text>
@@ -106,17 +112,26 @@ export default function NewInspectionScreen() {
         </Card>
 
         <Card style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.text }]}>Notes (optional)</Text>
+          <View style={styles.sectionHeader}>
+            <PngIcon name="file-text" size={16} />
+            <Text style={[styles.sectionTitle, { color: theme.text }]}>Notes (optional)</Text>
+          </View>
           <TextInputNotes value={notes} onChangeText={setNotes} />
         </Card>
 
         <Card style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.text }]}>Location</Text>
+          <View style={styles.sectionHeader}>
+            <PngIcon name="map-pin" size={16} />
+            <Text style={[styles.sectionTitle, { color: theme.text }]}>Location</Text>
+          </View>
           <LocationCapture value={location} onChange={setLocation} />
         </Card>
 
         <Card style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.text }]}>Photos</Text>
+          <View style={styles.sectionHeader}>
+            <PngIcon name="camera" size={18} />
+            <Text style={[styles.sectionTitle, { color: theme.text }]}>Photos</Text>
+          </View>
           <PhotoAttachment value={photos} onChange={setPhotos} max={5} />
         </Card>
 
@@ -171,6 +186,11 @@ const styles = StyleSheet.create({
   },
   section: {
     gap: Spacing.three,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
   },
   sectionTitle: {
     fontSize: FontSize.lg,
