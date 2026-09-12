@@ -5,16 +5,16 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTheme } from '@/hooks/use-theme';
 import { useInspection } from '@/hooks/useInspections';
 import { useMines } from '@/hooks/useMines';
-import { Card, Badge, LoadingState, EmptyState, Button, Icon } from '@/components/ui';
-import { BorderRadius, FontSize, Spacing } from '@/constants/theme';
+import { Card, Badge, LoadingState, EmptyState, Button, PngIcon, type PngIconName } from '@/components/ui';
+import { FontSize, Spacing } from '@/constants/theme';
 import { getStatusConfig } from '@/utils/status';
 import { formatDate, formatDateTime } from '@/utils/date';
 
-const TYPE_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
-  safety: { label: 'Safety', color: '#FF4D4F', bg: 'rgba(255,77,79,0.15)' },
-  environmental: { label: 'Environmental', color: '#35C759', bg: 'rgba(53,199,89,0.15)' },
-  operational: { label: 'Operational', color: '#4DA3FF', bg: 'rgba(77,163,255,0.15)' },
-  statutory: { label: 'Statutory', color: '#A78BFA', bg: 'rgba(167,139,250,0.15)' },
+const TYPE_CONFIG: Record<string, { label: string; color: string; bg: string; icon: PngIconName }> = {
+  safety: { label: 'Safety', color: '#FF4D4F', bg: 'rgba(255,77,79,0.15)', icon: 'shield' },
+  environmental: { label: 'Environmental', color: '#35C759', bg: 'rgba(53,199,89,0.15)', icon: 'leaf' },
+  operational: { label: 'Operational', color: '#4DA3FF', bg: 'rgba(77,163,255,0.15)', icon: 'tools' },
+  statutory: { label: 'Statutory', color: '#A78BFA', bg: 'rgba(167,139,250,0.15)', icon: 'scale' },
 };
 
 export default function InspectionDetailScreen() {
@@ -25,7 +25,7 @@ export default function InspectionDetailScreen() {
   const { data: minesData } = useMines();
 
   if (isLoading) return <LoadingState message="Loading inspection..." />;
-  if (error || !inspection) return <EmptyState title="Inspection not found" icon="clipboard-list" />;
+  if (error || !inspection) return <EmptyState title="Inspection not found" icon="hard-hat" />;
 
   const statusCfg = getStatusConfig(inspection.status);
   const typeCfg = TYPE_CONFIG[inspection.type] || TYPE_CONFIG.safety;
@@ -35,12 +35,13 @@ export default function InspectionDetailScreen() {
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.headerRow}>
-          <Button icon={<Icon name="chevron-left" size={16} color={theme.primary} />} title="Back" variant="ghost" onPress={() => router.back()} size="sm" />
+          <Button icon={<PngIcon name="right" size={16} flip />} title="Back" variant="ghost" onPress={() => router.back()} size="sm" />
         </View>
 
         <View style={styles.titleSection}>
           <View style={styles.badgeRow}>
             <Badge label={statusCfg.label} color={statusCfg.color} backgroundColor={statusCfg.bg} size="sm" />
+            <PngIcon name={typeCfg.icon} size={16} />
             <Badge label={typeCfg.label} color={typeCfg.color} backgroundColor={typeCfg.bg} size="sm" />
           </View>
           <Text style={[styles.title, { color: theme.text }]}>Inspection Details</Text>
