@@ -5,11 +5,18 @@ import { useRouter } from 'expo-router';
 import { useTheme } from '@/hooks/use-theme';
 import { useInspections } from '@/hooks/useInspections';
 import { useMines } from '@/hooks/useMines';
-import { Badge, LoadingState, EmptyState, TextInput, Icon, Button } from '@/components/ui';
+import { Badge, LoadingState, EmptyState, PngIcon, Button, type PngIconName } from '@/components/ui';
 import { BorderRadius, FontSize, Spacing } from '@/constants/theme';
 import { getStatusConfig } from '@/utils/status';
 import { formatDate } from '@/utils/date';
 import type { Inspection } from '@/types';
+
+const TYPE_ICONS: Record<string, PngIconName> = {
+  safety: 'shield',
+  environmental: 'leaf',
+  operational: 'tools',
+  statutory: 'scale',
+};
 
 export default function InspectionsScreen() {
   const theme = useTheme();
@@ -42,25 +49,28 @@ export default function InspectionsScreen() {
       >
         <View style={styles.cardHeader}>
           <View style={styles.cardTitleRow}>
-            <Badge label={item.type} color={theme.info} backgroundColor={theme.info + '20'} size="sm" />
+            <View style={styles.typeRow}>
+              <PngIcon name={TYPE_ICONS[item.type] ?? 'hard-hat'} size={16} />
+              <Badge label={item.type} color={theme.info} backgroundColor={theme.info + '20'} size="sm" />
+            </View>
             <Badge label={statusCfg.label} color={statusCfg.color} backgroundColor={statusCfg.bg} size="sm" />
           </View>
         </View>
         <View style={styles.metaRow}>
-          <Icon name="map-pin" size={14} color={theme.textSecondary} />
+          <PngIcon name="map-pin" size={14} />
           <Text style={[styles.mineName, { color: theme.textSecondary }]}>
             {getMineName(item.mineId)}
           </Text>
         </View>
         <View style={styles.metaRow}>
-          <Icon name="calendar" size={14} color={theme.textMuted} />
+          <PngIcon name="calendar" size={14} />
           <Text style={[styles.date, { color: theme.textMuted }]}>
             {formatDate(item.scheduledAt)}
           </Text>
         </View>
         {item.observationsCount > 0 && (
           <View style={styles.metaRow}>
-            <Icon name="pencil" size={14} color={theme.primary} />
+            <PngIcon name="notebook" size={14} />
             <Text style={[styles.obsCount, { color: theme.primary }]}>
               {item.observationsCount} observation{item.observationsCount > 1 ? 's' : ''}
             </Text>
@@ -84,7 +94,7 @@ export default function InspectionsScreen() {
         <Button
           title="New"
           size="sm"
-          icon={<Icon name="plus" size={16} color="#FFFFFF" />}
+          icon={<PngIcon name="plus" size={16} />}
           onPress={() => router.push('/capture/inspection')}
         />
       </View>
@@ -120,7 +130,7 @@ export default function InspectionsScreen() {
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
-        ListEmptyComponent={<EmptyState title="No inspections found" />}
+        ListEmptyComponent={<EmptyState title="No inspections found" icon="hard-hat" />}
       />
     </SafeAreaView>
   );
@@ -164,7 +174,14 @@ const styles = StyleSheet.create({
   cardHeader: {},
   cardTitleRow: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     gap: Spacing.two,
+  },
+  typeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.one,
   },
   mineName: { fontSize: FontSize.md, fontWeight: '500' },
   date: { fontSize: FontSize.sm },
