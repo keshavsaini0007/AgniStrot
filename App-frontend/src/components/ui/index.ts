@@ -10,3 +10,4 @@ export { LoadingState } from './LoadingState';
 export { KPICard } from './KPICard';
 export { ListItem } from './ListItem';
 export { Icon, type IconName } from './Icon';
+export { PngIcon, type PngIconName } from './PngIcon';
