@@ -4,11 +4,19 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useTheme } from '@/hooks/use-theme';
 import { useObservations } from '@/hooks/useObservations';
-import { Badge, LoadingState, EmptyState, MockBadge } from '@/components/ui';
+import { Badge, LoadingState, EmptyState, MockBadge, PngIcon, type PngIconName } from '@/components/ui';
 import { BorderRadius, FontSize, Spacing } from '@/constants/theme';
 import { getStatusConfig } from '@/utils/status';
 import { formatDate } from '@/utils/date';
 import type { Observation } from '@/types';
+
+const CATEGORY_ICONS: Record<string, PngIconName> = {
+  safety: 'shield',
+  environmental: 'leaf',
+  operational: 'tools',
+  compliance: 'scale',
+  health: 'heart',
+};
 
 export default function ObservationsScreen() {
   const theme = useTheme();
@@ -37,9 +45,12 @@ export default function ObservationsScreen() {
         ]}
       >
         <View style={styles.cardHeader}>
-          <Text style={[styles.cardTitle, { color: theme.text }]} numberOfLines={2}>
-            {item.title}
-          </Text>
+          <View style={styles.titleRowIcon}>
+            <PngIcon name={CATEGORY_ICONS[item.category] ?? 'zoom'} size={22} />
+            <Text style={[styles.cardTitle, { color: theme.text }]} numberOfLines={2}>
+              {item.title}
+            </Text>
+          </View>
           <View style={styles.badges}>
             <Badge label={severityCfg.label} color={severityCfg.color} backgroundColor={severityCfg.bg} size="sm" />
             <Badge label={statusCfg.label} color={statusCfg.color} backgroundColor={statusCfg.bg} size="sm" />
@@ -49,6 +60,7 @@ export default function ObservationsScreen() {
           {item.description}
         </Text>
         <View style={styles.meta}>
+          {item.severity === 'critical' && <PngIcon name="skull" size={14} />}
           <Badge label={item.category} color={theme.ai} backgroundColor={theme.ai + '20'} size="sm" />
           <Text style={[styles.date, { color: theme.textMuted }]}>{formatDate(item.createdAt)}</Text>
         </View>
@@ -101,7 +113,7 @@ export default function ObservationsScreen() {
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
-        ListEmptyComponent={<EmptyState title="No observations found" />}
+        ListEmptyComponent={<EmptyState title="No observations found" icon="zoom" />}
       />
     </SafeAreaView>
   );
@@ -144,6 +156,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
+    gap: Spacing.two,
+  },
+  titleRowIcon: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: Spacing.two,
   },
   badges: { flexDirection: 'row', gap: Spacing.one },
