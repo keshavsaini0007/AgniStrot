@@ -2,22 +2,22 @@ import React from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { useTheme } from '@/hooks/use-theme';
 import { BorderRadius, FontSize, Spacing } from '@/constants/theme';
-import { Icon, type IconName } from './Icon';
+import { PngIcon, type PngIconName } from './PngIcon';
 
 interface EmptyStateProps {
-  icon?: IconName;
+  icon?: PngIconName;
   title: string;
   description?: string;
   actionLabel?: string;
   onAction?: () => void;
 }
 
-export function EmptyState({ icon = 'clipboard-list', title, description, actionLabel, onAction }: EmptyStateProps) {
+export function EmptyState({ icon = 'file-text', title, description, actionLabel, onAction }: EmptyStateProps) {
   const theme = useTheme();
 
   return (
     <View style={styles.container}>
-      <Icon name={icon} size={48} color={theme.textMuted} />
+      <PngIcon name={icon} size={48} />
       <Text style={[styles.title, { color: theme.text }]}>{title}</Text>
       {description && (
         <Text style={[styles.description, { color: theme.textSecondary }]}>{description}</Text>
