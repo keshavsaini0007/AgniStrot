@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useTheme } from '@/hooks/use-theme';
 import { useMines } from '@/hooks/useMines';
-import { Card, Badge, LoadingState, EmptyState, TextInput, Icon, MockBadge } from '@/components/ui';
+import { Badge, LoadingState, EmptyState, TextInput, PngIcon, MockBadge } from '@/components/ui';
 import { BorderRadius, FontSize, Spacing } from '@/constants/theme';
 import { getStatusConfig } from '@/utils/status';
 import type { Mine } from '@/types';
@@ -37,7 +37,7 @@ export default function MinesScreen() {
         </View>
 
         <View style={styles.mineAddressRow}>
-          <Icon name="map-pin" size={14} color={theme.textSecondary} />
+          <PngIcon name="map-pin" size={14} />
           <Text style={[styles.mineAddress, { color: theme.textSecondary }]} numberOfLines={1}>
             {item.location.address}
           </Text>
@@ -48,27 +48,36 @@ export default function MinesScreen() {
             <Text style={[styles.statValue, { color: item.complianceRate >= 80 ? theme.success : theme.warning }]}>
               {item.complianceRate}%
             </Text>
-            <Text style={[styles.statLabel, { color: theme.textMuted }]}>Compliance</Text>
+            <View style={styles.statLabelRow}>
+              <PngIcon name="tick" size={12} />
+              <Text style={[styles.statLabel, { color: theme.textMuted }]}>Compliance</Text>
+            </View>
           </View>
           <View style={[styles.statDivider, { backgroundColor: theme.border }]} />
           <View style={styles.stat}>
             <Text style={[styles.statValue, { color: item.riskScore >= 70 ? theme.danger : item.riskScore >= 40 ? theme.warning : theme.success }]}>
               {item.riskScore}
             </Text>
-            <Text style={[styles.statLabel, { color: theme.textMuted }]}>Risk Score</Text>
+            <View style={styles.statLabelRow}>
+              <PngIcon name="skull" size={12} />
+              <Text style={[styles.statLabel, { color: theme.textMuted }]}>Risk Score</Text>
+            </View>
           </View>
           <View style={[styles.statDivider, { backgroundColor: theme.border }]} />
           <View style={styles.stat}>
             <Text style={[styles.statValue, { color: theme.text }]}>
               {item.openObservations}
             </Text>
-            <Text style={[styles.statLabel, { color: theme.textMuted }]}>Open Issues</Text>
+            <View style={styles.statLabelRow}>
+              <PngIcon name="zoom" size={12} />
+              <Text style={[styles.statLabel, { color: theme.textMuted }]}>Open Issues</Text>
+            </View>
           </View>
         </View>
 
         {item.overdueActions > 0 && (
           <View style={[styles.overdueBar, { backgroundColor: theme.danger + '15' }]}>
-            <Icon name="alert-triangle" size={14} color={theme.danger} />
+            <PngIcon name="alert" size={14} />
             <Text style={[styles.overdueText, { color: theme.danger }]}>
               {item.overdueActions} overdue action{item.overdueActions > 1 ? 's' : ''}
             </Text>
@@ -97,7 +106,7 @@ export default function MinesScreen() {
           value={search}
           onChangeText={setSearch}
           placeholder="Search mines..."
-          leftIcon={<Icon name="search" size={18} color={theme.textMuted} />}
+          leftIcon={<PngIcon name="search" size={18} />}
         />
       </View>
 
@@ -107,7 +116,7 @@ export default function MinesScreen() {
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
-        ListEmptyComponent={<EmptyState title="No mines found" description="Try adjusting your search" />}
+        ListEmptyComponent={<EmptyState title="No mines found" description="Try adjusting your search" icon="mine" />}
       />
     </SafeAreaView>
   );
@@ -182,6 +191,11 @@ const styles = StyleSheet.create({
   },
   statLabel: {
     fontSize: FontSize.xs,
+  },
+  statLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
   },
   statDivider: {
     width: 1,
