@@ -1,7 +1,7 @@
 import { Tabs } from 'expo-router';
 import { useColorScheme } from 'react-native';
 import { Colors } from '@/constants/theme';
-import { Icon } from '@/components/ui';
+import { PngIcon } from '@/components/ui';
 import { SyncMonitor } from '@/components/SyncMonitor';
 
 export default function TabLayout() {
@@ -34,35 +34,35 @@ export default function TabLayout() {
         name="dashboard"
         options={{
           title: 'Home',
-          tabBarIcon: ({ color }) => <Icon name="home" size={22} color={color as string} />,
+          tabBarIcon: () => <PngIcon name="explorer" size={22} />,
         }}
       />
       <Tabs.Screen
         name="mines"
         options={{
           title: 'Mines',
-          tabBarIcon: ({ color }) => <Icon name="pickaxe" size={22} color={color as string} />,
+          tabBarIcon: () => <PngIcon name="mine" size={22} />,
         }}
       />
       <Tabs.Screen
         name="inspections"
         options={{
           title: 'Inspect',
-          tabBarIcon: ({ color }) => <Icon name="clipboard-list" size={22} color={color as string} />,
+          tabBarIcon: () => <PngIcon name="hard-hat" size={22} />,
         }}
       />
       <Tabs.Screen
         name="observations"
         options={{
           title: 'Observe',
-          tabBarIcon: ({ color }) => <Icon name="eye" size={22} color={color as string} />,
+          tabBarIcon: () => <PngIcon name="zoom" size={22} />,
         }}
       />
       <Tabs.Screen
         name="more"
         options={{
           title: 'More',
-          tabBarIcon: ({ color }) => <Icon name="menu" size={22} color={color as string} />,
+          tabBarIcon: () => <PngIcon name="bag" size={22} />,
         }}
       />
       {/* Hidden screens - accessible from More */}
