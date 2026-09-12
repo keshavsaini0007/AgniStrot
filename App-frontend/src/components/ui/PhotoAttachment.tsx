@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, Pressable, StyleSheet, ActivityIndicator } from 'react-native';
 import { Image } from 'expo-image';
 import { useTheme } from '@/hooks/use-theme';
-import { Icon } from './Icon';
+import { PngIcon } from './PngIcon';
 import { BorderRadius, FontSize, Spacing } from '@/constants/theme';
 import { pickPhotos } from '@/utils/media';
 import { mediaService } from '@/services/mediaService';
@@ -52,7 +52,7 @@ export function PhotoAttachment({ value, onChange, max = 5 }: PhotoAttachmentPro
             <View key={url} style={styles.thumbWrap}>
               <Image source={{ uri: url }} style={styles.thumb} contentFit="cover" />
               <Pressable style={styles.remove} onPress={() => removePhoto(url)} hitSlop={8}>
-                <Icon name="x-circle" size={16} color="#FFFFFF" />
+                <PngIcon name="trash-can" size={16} />
               </Pressable>
             </View>
           ))}
@@ -71,7 +71,7 @@ export function PhotoAttachment({ value, onChange, max = 5 }: PhotoAttachmentPro
           <ActivityIndicator color={theme.primary} size="small" />
         ) : (
           <>
-            <Icon name="camera" size={18} color={theme.textSecondary} />
+            <PngIcon name="camera" size={18} />
             <Text style={[styles.addText, { color: theme.textSecondary }]}>
               {reachMax ? `Max ${max} photos` : `Add photo${value.length ? ` (${value.length}/${max})` : ''}`}
             </Text>
