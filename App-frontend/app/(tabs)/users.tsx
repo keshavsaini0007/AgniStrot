@@ -3,10 +3,21 @@ import { View, Text, FlatList, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/hooks/use-theme';
 import { useUsers } from '@/hooks/useUsers';
-import { Card, Badge, LoadingState, EmptyState, MockBadge } from '@/components/ui';
-import { BorderRadius, FontSize, Spacing } from '@/constants/theme';
+import { Card, Badge, LoadingState, EmptyState, MockBadge, PngIcon, type PngIconName } from '@/components/ui';
+import { FontSize, Spacing } from '@/constants/theme';
 import { getRoleConfig } from '@/utils/roles';
 import type { User, UserRole } from '@/types';
+
+const ROLE_ICONS: Record<string, PngIconName> = {
+  system_admin: 'key',
+  mine_officer: 'mine',
+  field_inspector: 'hard-hat',
+  department_officer: 'briefcase',
+  contractor: 'travel',
+  corporate_management: 'star',
+  regulatory_authority: 'landmark',
+  auditor: 'search',
+};
 
 export default function UsersScreen() {
   const theme = useTheme();
@@ -26,7 +37,10 @@ export default function UsersScreen() {
           </View>
         </View>
         <View style={styles.cardMeta}>
-          <Badge label={roleCfg.label} color={roleCfg.color} backgroundColor={roleCfg.bg} size="sm" />
+          <View style={styles.roleRow}>
+            <PngIcon name={ROLE_ICONS[item.role] ?? 'user-check'} size={16} />
+            <Badge label={roleCfg.label} color={roleCfg.color} backgroundColor={roleCfg.bg} size="sm" />
+          </View>
           {item.department && (
             <Badge label={item.department} color={theme.textSecondary} backgroundColor={theme.surfaceElevated} size="sm" />
           )}
@@ -52,7 +66,7 @@ export default function UsersScreen() {
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
-        ListEmptyComponent={<EmptyState title="No users found" icon="users" />}
+        ListEmptyComponent={<EmptyState title="No users found" icon="user-check" />}
       />
     </SafeAreaView>
   );
@@ -71,5 +85,6 @@ const styles = StyleSheet.create({
   userInfo: { flex: 1 },
   userName: { fontSize: FontSize.md, fontWeight: '600' },
   userEmail: { fontSize: FontSize.sm },
-  cardMeta: { flexDirection: 'row', gap: Spacing.two },
+  cardMeta: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  roleRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one },
 });
