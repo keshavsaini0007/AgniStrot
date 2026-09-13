@@ -14,7 +14,7 @@ const CATEGORY_CONFIG: Record<string, { label: string; color: string; bg: string
   safety: { label: 'Safety', color: '#FF4D4F', bg: 'rgba(255,77,79,0.15)', icon: 'shield' },
   environmental: { label: 'Environmental', color: '#35C759', bg: 'rgba(53,199,89,0.15)', icon: 'leaf' },
   operational: { label: 'Operational', color: '#4DA3FF', bg: 'rgba(77,163,255,0.15)', icon: 'tools' },
-  compliance: { label: 'Compliance', color: '#F5B942', bg: 'rgba(245,185,66,0.15)', icon: 'scale' },
+  compliance: { label: 'Compliance', color: '#F5B942', bg: 'rgba(245,185,66,0.15)', icon: 'compliance' },
   health: { label: 'Health', color: '#A78BFA', bg: 'rgba(167,139,250,0.15)', icon: 'heart' },
 };
 
@@ -26,7 +26,7 @@ export default function ObservationDetailScreen() {
   const { data: minesData } = useMines();
 
   if (isLoading) return <LoadingState message="Loading observation..." />;
-  if (error || !observation) return <EmptyState title="Observation not found" icon="zoom" />;
+  if (error || !observation) return <EmptyState title="Observation not found" icon="open" />;
 
   const statusCfg = getStatusConfig(observation.status);
   const severityCfg = getStatusConfig(observation.severity);
