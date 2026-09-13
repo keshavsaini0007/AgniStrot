@@ -14,7 +14,7 @@ const CATEGORY_ICONS: Record<string, PngIconName> = {
   safety: 'shield',
   environmental: 'leaf',
   operational: 'tools',
-  compliance: 'scale',
+  compliance: 'compliance',
   health: 'heart',
 };
 
@@ -46,7 +46,7 @@ export default function ObservationsScreen() {
       >
         <View style={styles.cardHeader}>
           <View style={styles.titleRowIcon}>
-            <PngIcon name={CATEGORY_ICONS[item.category] ?? 'zoom'} size={22} />
+            <PngIcon name={CATEGORY_ICONS[item.category] ?? 'open'} size={22} />
             <Text style={[styles.cardTitle, { color: theme.text }]} numberOfLines={2}>
               {item.title}
             </Text>
@@ -113,7 +113,7 @@ export default function ObservationsScreen() {
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
-        ListEmptyComponent={<EmptyState title="No observations found" icon="zoom" />}
+        ListEmptyComponent={<EmptyState title="No observations found" icon="open" />}
       />
     </SafeAreaView>
   );
