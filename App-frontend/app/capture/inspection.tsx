@@ -87,7 +87,7 @@ export default function NewInspectionScreen() {
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Card style={styles.section}>
           <View style={styles.sectionHeader}>
-            <PngIcon name="hard-hat" size={16} />
+            <PngIcon name="inspection" size={16} />
             <Text style={[styles.sectionTitle, { color: theme.text }]}>Inspection Type</Text>
           </View>
           <ChoiceChips options={INSPECTION_TYPES} value={type} onChange={setType} />
