@@ -28,7 +28,7 @@ export default function AnalyticsScreen() {
           </View>
           <View style={styles.kpiRow}>
             <KPICard title="High Risk" value={data?.kpis.highRiskMines ?? 0} icon="skull" color={theme.danger} />
-            <KPICard title="Overdue" value={data?.kpis.overdueActions ?? 0} icon="alert" color={theme.warning} />
+            <KPICard title="Overdue" value={data?.kpis.overdueActions ?? 0} icon="overdue" color={theme.warning} />
           </View>
         </Card>
 
