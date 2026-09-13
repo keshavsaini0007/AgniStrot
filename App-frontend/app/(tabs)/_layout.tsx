@@ -22,7 +22,7 @@ export default function TabLayout() {
           borderTopWidth: 1,
           height: 85,
           paddingTop: 8,
-          paddingBottom: 28,
+          paddingBottom: 18,
         },
         tabBarLabelStyle: {
           fontSize: 11,
@@ -34,7 +34,7 @@ export default function TabLayout() {
         name="dashboard"
         options={{
           title: 'Home',
-          tabBarIcon: () => <PngIcon name="explorer" size={22} />,
+          tabBarIcon: () => <PngIcon name="home" size={22} />,
         }}
       />
       <Tabs.Screen
@@ -48,21 +48,21 @@ export default function TabLayout() {
         name="inspections"
         options={{
           title: 'Inspect',
-          tabBarIcon: () => <PngIcon name="hard-hat" size={22} />,
+          tabBarIcon: () => <PngIcon name="inspection" size={22} />,
         }}
       />
       <Tabs.Screen
         name="observations"
         options={{
           title: 'Observe',
-          tabBarIcon: () => <PngIcon name="zoom" size={22} />,
+          tabBarIcon: () => <PngIcon name="open" size={22} />,
         }}
       />
       <Tabs.Screen
         name="more"
         options={{
           title: 'More',
-          tabBarIcon: () => <PngIcon name="bag" size={22} />,
+          tabBarIcon: () => <PngIcon name="more" size={22} />,
         }}
       />
       {/* Hidden screens - accessible from More */}
