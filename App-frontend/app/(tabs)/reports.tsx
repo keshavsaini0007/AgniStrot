@@ -34,10 +34,10 @@ export default function ReportsScreen() {
   };
 
   const reportTypes: { type: ReportType; icon: PngIconName; title: string; desc: string }[] = [
-    { type: 'compliance', icon: 'scale', title: 'Compliance Report', desc: 'Compliance status across all mines' },
-    { type: 'inspection', icon: 'zoom', title: 'Inspection Report', desc: 'Inspection summary and findings' },
+    { type: 'compliance', icon: 'compliance', title: 'Compliance Report', desc: 'Compliance status across all mines' },
+    { type: 'inspection', icon: 'open', title: 'Inspection Report', desc: 'Inspection summary and findings' },
     { type: 'violation', icon: 'alert', title: 'Violation Report', desc: 'All violations and corrective actions' },
-    { type: 'risk', icon: 'chart', title: 'Risk Assessment', desc: 'Risk analysis per mine' },
+    { type: 'risk', icon: 'analytics', title: 'Risk Assessment', desc: 'Risk analysis per mine' },
   ];
 
   const renderComplianceReport = () => {
@@ -47,7 +47,7 @@ export default function ReportsScreen() {
       <Card style={styles.reportContent}>
         <View style={styles.reportHeader}>
           <View style={styles.reportHeadingRow}>
-            <PngIcon name="scale" size={20} />
+            <PngIcon name="compliance" size={20} />
             <Text style={[styles.reportHeading, { color: theme.text }]}>Compliance Status Report</Text>
           </View>
           <Text style={[styles.reportDate, { color: theme.textMuted }]}>Generated: {formatDate(new Date().toISOString())}</Text>
@@ -55,9 +55,9 @@ export default function ReportsScreen() {
 
         <View style={styles.kpiRow}>
           <KPICard title="Total Mines" value={mines.length} icon="mine" color={theme.primary} />
-          <KPICard title="Compliant" value={compliance.filter((c) => c.status === 'compliant').length} icon="tick" color={theme.success} />
+          <KPICard title="Compliant" value={compliance.filter((c) => c.status === 'compliant').length} icon="compliance" color={theme.success} />
           <KPICard title="Non-Compliant" value={compliance.filter((c) => c.status === 'non_compliant').length} icon="alert" color={theme.danger} />
-          <KPICard title="Overdue" value={compliance.filter((c) => c.status === 'overdue').length} icon="alert" color={theme.warning} />
+          <KPICard title="Overdue" value={compliance.filter((c) => c.status === 'overdue').length} icon="overdue" color={theme.warning} />
         </View>
 
         <Text style={[styles.subHeading, { color: theme.text }]}>Mine Compliance Rates</Text>
@@ -97,17 +97,17 @@ export default function ReportsScreen() {
       <Card style={styles.reportContent}>
         <View style={styles.reportHeader}>
           <View style={styles.reportHeadingRow}>
-            <PngIcon name="zoom" size={20} />
+            <PngIcon name="open" size={20} />
             <Text style={[styles.reportHeading, { color: theme.text }]}>Inspection Report</Text>
           </View>
           <Text style={[styles.reportDate, { color: theme.textMuted }]}>Generated: {formatDate(new Date().toISOString())}</Text>
         </View>
 
         <View style={styles.kpiRow}>
-          <KPICard title="Total" value={inspections.length} icon="hard-hat" color={theme.info} />
-          <KPICard title="Completed" value={inspections.filter((i) => i.status === 'completed').length} icon="tick" color={theme.success} />
-          <KPICard title="Scheduled" value={inspections.filter((i) => i.status === 'scheduled').length} icon="calendar" color={theme.primary} />
-          <KPICard title="In Progress" value={inspections.filter((i) => i.status === 'in_progress').length} icon="time" color={theme.warning} />
+          <KPICard title="Total" value={inspections.length} icon="inspection" color={theme.info} />
+          <KPICard title="Completed" value={inspections.filter((i) => i.status === 'completed').length} icon="compliance" color={theme.success} />
+          <KPICard title="Scheduled" value={inspections.filter((i) => i.status === 'scheduled').length} icon="pending" color={theme.primary} />
+          <KPICard title="In Progress" value={inspections.filter((i) => i.status === 'in_progress').length} icon="attendance" color={theme.warning} />
         </View>
 
         <Text style={[styles.subHeading, { color: theme.text }]}>Inspection Details</Text>
@@ -185,7 +185,7 @@ export default function ReportsScreen() {
       <Card style={styles.reportContent}>
         <View style={styles.reportHeader}>
           <View style={styles.reportHeadingRow}>
-            <PngIcon name="chart" size={20} />
+            <PngIcon name="analytics" size={20} />
             <Text style={[styles.reportHeading, { color: theme.text }]}>Risk Assessment Report</Text>
           </View>
           <Text style={[styles.reportDate, { color: theme.textMuted }]}>Generated: {formatDate(new Date().toISOString())}</Text>
@@ -195,7 +195,7 @@ export default function ReportsScreen() {
           <KPICard title="Total Mines" value={mines.length} icon="mine" color={theme.primary} />
           <KPICard title="High Risk" value={mines.filter((m) => m.riskScore >= 70).length} icon="skull" color={theme.danger} />
           <KPICard title="Medium Risk" value={mines.filter((m) => m.riskScore >= 40 && m.riskScore < 70).length} icon="alert" color={theme.warning} />
-          <KPICard title="Low Risk" value={mines.filter((m) => m.riskScore < 40).length} icon="tick" color={theme.success} />
+          <KPICard title="Low Risk" value={mines.filter((m) => m.riskScore < 40).length} icon="compliance" color={theme.success} />
         </View>
 
         <Text style={[styles.subHeading, { color: theme.text }]}>Mine Risk Scores</Text>
