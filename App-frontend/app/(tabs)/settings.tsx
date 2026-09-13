@@ -124,7 +124,7 @@ export default function SettingsScreen() {
           </View>
           <View style={[styles.settingRow, { borderBottomColor: theme.border, borderBottomWidth: 1 }]}>
             <View style={styles.settingLabelRow}>
-              <PngIcon name="bell" size={16} />
+              <PngIcon name="notification" size={16} />
               <Text style={[styles.settingLabel, { color: theme.text }]}>Push Notifications</Text>
             </View>
             <Switch
