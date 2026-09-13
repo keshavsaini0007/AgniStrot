@@ -11,11 +11,14 @@ interface PngIconProps {
   flip?: boolean;
 }
 
+export const PNG_ICON_SCALE = 1.5;
+
 export function PngIcon({ name, size = 20, flip = false }: PngIconProps) {
+  const scaledSize = size * PNG_ICON_SCALE;
   return (
     <Image
       source={PNG_ICONS[name]}
-      style={[styles.icon, { width: size, height: size }, flip && styles.flip]}
+      style={[styles.icon, { width: scaledSize, height: scaledSize }, flip && styles.flip]}
       contentFit="contain"
     />
   );
