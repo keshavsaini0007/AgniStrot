@@ -49,7 +49,7 @@ export default function MinesScreen() {
               {item.complianceRate}%
             </Text>
             <View style={styles.statLabelRow}>
-              <PngIcon name="tick" size={12} />
+              <PngIcon name="compliance" size={12} />
               <Text style={[styles.statLabel, { color: theme.textMuted }]}>Compliance</Text>
             </View>
           </View>
@@ -69,7 +69,7 @@ export default function MinesScreen() {
               {item.openObservations}
             </Text>
             <View style={styles.statLabelRow}>
-              <PngIcon name="zoom" size={12} />
+              <PngIcon name="open" size={12} />
               <Text style={[styles.statLabel, { color: theme.textMuted }]}>Open Issues</Text>
             </View>
           </View>
