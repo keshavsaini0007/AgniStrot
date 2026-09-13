@@ -11,9 +11,9 @@ import { formatDate } from '@/utils/date';
 import type { ComplianceRequirement } from '@/types';
 
 const STATUS_ICONS: Record<string, PngIconName> = {
-  compliant: 'tick',
+  compliant: 'compliance',
   non_compliant: 'alert',
-  pending: 'time',
+  pending: 'attendance',
   overdue: 'skull',
 };
 
@@ -44,7 +44,7 @@ export default function ComplianceScreen() {
       >
         <View style={styles.cardHeader}>
           <View style={styles.titleRowIcon}>
-            <PngIcon name={STATUS_ICONS[item.status] ?? 'scale'} size={22} />
+            <PngIcon name={STATUS_ICONS[item.status] ?? 'compliance'} size={22} />
             <Text style={[styles.cardTitle, { color: theme.text }]} numberOfLines={2}>
               {item.requirement}
             </Text>
@@ -109,7 +109,7 @@ export default function ComplianceScreen() {
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
-        ListEmptyComponent={<EmptyState title="No compliance items found" icon="scale" />}
+        ListEmptyComponent={<EmptyState title="No compliance items found" icon="compliance" />}
       />
     </SafeAreaView>
   );
