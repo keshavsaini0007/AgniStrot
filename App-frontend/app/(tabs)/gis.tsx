@@ -22,7 +22,7 @@ export default function GISScreen() {
         </View>
       </View>
       <Card style={styles.mapPlaceholder}>
-        <PngIcon name="layers" size={64} />
+        <PngIcon name="map" size={64} />
         <Text style={[styles.mapText, { color: theme.textSecondary }]}>Mine Locations Map</Text>
         <Text style={[styles.mapSubtext, { color: theme.textMuted }]}>
           {data?.meta.total || 0} mines across Jharkhand
