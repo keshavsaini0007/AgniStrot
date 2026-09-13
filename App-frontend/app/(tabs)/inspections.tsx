@@ -15,7 +15,7 @@ const TYPE_ICONS: Record<string, PngIconName> = {
   safety: 'shield',
   environmental: 'leaf',
   operational: 'tools',
-  statutory: 'scale',
+  statutory: 'compliance',
 };
 
 export default function InspectionsScreen() {
@@ -50,7 +50,7 @@ export default function InspectionsScreen() {
         <View style={styles.cardHeader}>
           <View style={styles.cardTitleRow}>
             <View style={styles.typeRow}>
-              <PngIcon name={TYPE_ICONS[item.type] ?? 'hard-hat'} size={16} />
+              <PngIcon name={TYPE_ICONS[item.type] ?? 'inspection'} size={16} />
               <Badge label={item.type} color={theme.info} backgroundColor={theme.info + '20'} size="sm" />
             </View>
             <Badge label={statusCfg.label} color={statusCfg.color} backgroundColor={statusCfg.bg} size="sm" />
@@ -63,7 +63,7 @@ export default function InspectionsScreen() {
           </Text>
         </View>
         <View style={styles.metaRow}>
-          <PngIcon name="calendar" size={14} />
+          <PngIcon name="pending" size={14} />
           <Text style={[styles.date, { color: theme.textMuted }]}>
             {formatDate(item.scheduledAt)}
           </Text>
@@ -130,7 +130,7 @@ export default function InspectionsScreen() {
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
-        ListEmptyComponent={<EmptyState title="No inspections found" icon="hard-hat" />}
+        ListEmptyComponent={<EmptyState title="No inspections found" icon="inspection" />}
       />
     </SafeAreaView>
   );
