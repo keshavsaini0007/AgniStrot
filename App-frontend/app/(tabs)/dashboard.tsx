@@ -9,17 +9,17 @@ import { BorderRadius, FontSize, Spacing } from '@/constants/theme';
 import { getStatusConfig } from '@/utils/status';
 
 const FIELD_ACTIONS: { title: string; icon: PngIconName; screen: string }[] = [
-  { title: 'New Inspection', icon: 'hard-hat', screen: '/capture/inspection' },
-  { title: 'Report Incident', icon: 'flag', screen: '/capture/incident' },
-  { title: 'Attendance', icon: 'time', screen: '/capture/attendance' },
-  { title: 'Sync & Offline', icon: 'rocket', screen: '/capture/sync' },
+  { title: 'New Inspection', icon: 'inspection', screen: '/capture/inspection' },
+  { title: 'Report Incident', icon: 'report-incident', screen: '/capture/incident' },
+  { title: 'Attendance', icon: 'attendance', screen: '/capture/attendance' },
+  { title: 'Sync & Offline', icon: 'sync', screen: '/capture/sync' },
 ];
 
 const OBS_CATEGORY_ICONS: Record<string, PngIconName> = {
   safety: 'shield',
   environmental: 'leaf',
   operational: 'tools',
-  compliance: 'scale',
+  compliance: 'compliance',
   health: 'heart',
 };
 
@@ -46,10 +46,10 @@ export default function DashboardScreen() {
 
         <View style={styles.kpiGrid}>
           <KPICard title="Total Mines" value={kpis?.totalMines ?? 0} icon="mine" color={theme.primary} />
-          <KPICard title="Compliance" value={`${kpis?.complianceRate ?? 0}%`} icon="tick" color={theme.success} />
+          <KPICard title="Compliance" value={`${kpis?.complianceRate ?? 0}%`} icon="compliance" color={theme.success} />
           <KPICard title="High Risk" value={kpis?.highRiskMines ?? 0} icon="skull" color={theme.danger} />
-          <KPICard title="Pending" value={kpis?.pendingInspections ?? 0} icon="calendar" color={theme.info} />
-          <KPICard title="Overdue" value={kpis?.overdueActions ?? 0} icon="alert" color={theme.warning} />
+          <KPICard title="Pending" value={kpis?.pendingInspections ?? 0} icon="pending" color={theme.info} />
+          <KPICard title="Overdue" value={kpis?.overdueActions ?? 0} icon="overdue" color={theme.warning} />
         </View>
 
         <Card style={styles.section}>
@@ -106,7 +106,7 @@ export default function DashboardScreen() {
                   badge={statusCfg.label}
                   badgeColor={statusCfg.color}
                   date={obs.createdAt}
-                  icon={OBS_CATEGORY_ICONS[obs.category] ?? 'zoom'}
+                  icon={OBS_CATEGORY_ICONS[obs.category] ?? 'open'}
                 />
               );
             })
