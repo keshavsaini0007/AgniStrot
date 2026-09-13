@@ -10,9 +10,9 @@ import { formatDateTime } from '@/utils/date';
 import { FontSize, Spacing } from '@/constants/theme';
 
 const KINDS: { kind: QueueKind; icon: PngIconName; label: string }[] = [
-  { kind: 'inspection', icon: 'hard-hat', label: 'Inspections' },
+  { kind: 'inspection', icon: 'inspection', label: 'Inspections' },
   { kind: 'incident', icon: 'flag', label: 'Incidents' },
-  { kind: 'attendance', icon: 'time', label: 'Attendance' },
+  { kind: 'attendance', icon: 'attendance', label: 'Attendance' },
 ];
 
 const describeRecord = (record: QueuedRecord): string => {
