@@ -14,7 +14,7 @@ const TYPE_CONFIG: Record<string, { label: string; color: string; bg: string; ic
   safety: { label: 'Safety', color: '#FF4D4F', bg: 'rgba(255,77,79,0.15)', icon: 'shield' },
   environmental: { label: 'Environmental', color: '#35C759', bg: 'rgba(53,199,89,0.15)', icon: 'leaf' },
   operational: { label: 'Operational', color: '#4DA3FF', bg: 'rgba(77,163,255,0.15)', icon: 'tools' },
-  statutory: { label: 'Statutory', color: '#A78BFA', bg: 'rgba(167,139,250,0.15)', icon: 'scale' },
+  statutory: { label: 'Statutory', color: '#A78BFA', bg: 'rgba(167,139,250,0.15)', icon: 'compliance' },
 };
 
 export default function InspectionDetailScreen() {
@@ -25,7 +25,7 @@ export default function InspectionDetailScreen() {
   const { data: minesData } = useMines();
 
   if (isLoading) return <LoadingState message="Loading inspection..." />;
-  if (error || !inspection) return <EmptyState title="Inspection not found" icon="hard-hat" />;
+  if (error || !inspection) return <EmptyState title="Inspection not found" icon="inspection" />;
 
   const statusCfg = getStatusConfig(inspection.status);
   const typeCfg = TYPE_CONFIG[inspection.type] || TYPE_CONFIG.safety;
