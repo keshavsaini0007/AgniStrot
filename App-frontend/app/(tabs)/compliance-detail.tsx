@@ -20,7 +20,7 @@ export default function ComplianceDetailScreen() {
   const compliance = complianceData?.data?.find((c) => c.id === id);
 
   if (isLoading) return <LoadingState message="Loading compliance..." />;
-  if (error || !compliance) return <EmptyState title="Compliance not found" icon="scale" />;
+  if (error || !compliance) return <EmptyState title="Compliance not found" icon="compliance" />;
 
   const statusCfg = getStatusConfig(compliance.status);
   const mine = minesData?.data?.find((m) => m.id === compliance.mineId);
