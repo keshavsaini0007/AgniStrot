@@ -15,17 +15,17 @@ export default function MoreScreen() {
   const roleConfig = user ? getRoleConfig(user.role) : null;
 
   const menuItems = [
-    { icon: 'rocket', title: 'Sync & Offline', screen: '/capture/sync' as const },
-    { icon: 'hard-hat', title: 'New Inspection', screen: '/capture/inspection' as const },
-    { icon: 'flag', title: 'Report Incident', screen: '/capture/incident' as const },
-    { icon: 'time', title: 'Attendance', screen: '/capture/attendance' as const },
+    { icon: 'sync', title: 'Sync & Offline', screen: '/capture/sync' as const },
+    { icon: 'inspection', title: 'New Inspection', screen: '/capture/inspection' as const },
+    { icon: 'report-incident', title: 'Report Incident', screen: '/capture/incident' as const },
+    { icon: 'attendance', title: 'Attendance', screen: '/capture/attendance' as const },
     { icon: 'wrench', title: 'Corrective Actions', screen: '/(tabs)/corrective-actions' as const },
-    { icon: 'scale', title: 'Compliance', screen: '/(tabs)/compliance' as const },
-    { icon: 'bell', title: 'Notifications', screen: '/(tabs)/notifications' as const },
+    { icon: 'compliance', title: 'Compliance', screen: '/(tabs)/compliance' as const },
+    { icon: 'notification', title: 'Notifications', screen: '/(tabs)/notifications' as const },
     { icon: 'file-text', title: 'Documents', screen: '/(tabs)/documents' as const },
-    { icon: 'chart', title: 'Analytics', screen: '/(tabs)/analytics' as const },
-    { icon: 'layers', title: 'GIS Map', screen: '/(tabs)/gis' as const },
-    { icon: 'pie-chart', title: 'Reports', screen: '/(tabs)/reports' as const },
+    { icon: 'analytics', title: 'Analytics', screen: '/(tabs)/analytics' as const },
+    { icon: 'map', title: 'GIS Map', screen: '/(tabs)/gis' as const },
+    { icon: 'report', title: 'Reports', screen: '/(tabs)/reports' as const },
     { icon: 'setting', title: 'Settings', screen: '/(tabs)/settings' as const },
   ] as const satisfies { icon: PngIconName; title: string; screen: string }[];
 
