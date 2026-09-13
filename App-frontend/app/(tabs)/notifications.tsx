@@ -12,16 +12,16 @@ const TYPE_ICONS: Record<string, PngIconName> = {
   info: 'info',
   warning: 'alert',
   error: 'skull',
-  success: 'tick',
+  success: 'compliance',
 };
 
 const ENTITY_ICONS: Record<string, PngIconName> = {
   mine: 'mine',
-  inspection: 'hard-hat',
-  observation: 'zoom',
+  inspection: 'inspection',
+  observation: 'open',
   corrective_action: 'wrench',
-  compliance: 'scale',
-  report: 'chart',
+  compliance: 'compliance',
+  report: 'analytics',
 };
 
 export default function NotificationsScreen() {
@@ -51,7 +51,7 @@ export default function NotificationsScreen() {
         ]}
       >
         <View style={styles.cardHeader}>
-          <PngIcon name={ENTITY_ICONS[item.entityType] ?? TYPE_ICONS[item.type] ?? 'bell'} size={20} />
+          <PngIcon name={ENTITY_ICONS[item.entityType] ?? TYPE_ICONS[item.type] ?? 'notification'} size={20} />
           <Text style={[styles.cardTitle, { color: theme.text }]} numberOfLines={1}>
             {item.title}
           </Text>
@@ -95,7 +95,7 @@ export default function NotificationsScreen() {
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
-        ListEmptyComponent={<EmptyState title="No notifications" icon="bell" />}
+        ListEmptyComponent={<EmptyState title="No notifications" icon="notification" />}
       />
     </SafeAreaView>
   );
