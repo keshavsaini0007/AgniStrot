@@ -11,7 +11,7 @@ import type { User, UserRole } from '@/types';
 const ROLE_ICONS: Record<string, PngIconName> = {
   system_admin: 'key',
   mine_officer: 'mine',
-  field_inspector: 'hard-hat',
+  field_inspector: 'inspection',
   department_officer: 'briefcase',
   contractor: 'travel',
   corporate_management: 'star',
