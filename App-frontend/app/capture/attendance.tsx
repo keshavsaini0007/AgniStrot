@@ -67,7 +67,7 @@ export default function AttendanceScreen() {
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Card style={styles.section}>
           <View style={styles.sectionHeader}>
-            <PngIcon name="time" size={16} />
+            <PngIcon name="attendance" size={16} />
             <Text style={[styles.sectionTitle, { color: theme.text }]}>Check Type</Text>
           </View>
           <ChoiceChips options={CHECK_TYPES} value={checkType} onChange={setCheckType} />
