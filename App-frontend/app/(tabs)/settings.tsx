@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, ScrollView, StyleSheet, Switch } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useTheme } from '@/hooks/use-theme';
+import { useTheme, useThemeMode } from '@/hooks/use-theme';
+import { useThemeStore } from '@/store/themeStore';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, Badge, TextInput, Button, PngIcon } from '@/components/ui';
+import { AppNavbar } from '@/components/AppNavbar';
 import { FontSize, Spacing } from '@/constants/theme';
 import { getRoleConfig } from '@/utils/roles';
 import { applyApiUrl, getApiBaseUrl, defaultApiBaseUrl } from '@/api/client';
@@ -15,12 +17,15 @@ import {
 
 export default function SettingsScreen() {
   const theme = useTheme();
+  const resolvedMode = useThemeMode();
+  const setMode = useThemeStore((s) => s.setMode);
   const { user } = useAuth();
   const roleConfig = user ? getRoleConfig(user.role) : null;
 
+  const darkMode = resolvedMode === 'dark';
+
   const [pushNotifications, setPushNotifications] = useState(true);
   const [emailNotifications, setEmailNotifications] = useState(false);
-  const [darkMode, setDarkMode] = useState(true);
 
   const [apiUrl, setApiUrl] = useState('');
   const [apiSaved, setApiSaved] = useState(false);
@@ -49,6 +54,7 @@ export default function SettingsScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
+      <AppNavbar />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Text style={[styles.title, { color: theme.text }]}>Settings</Text>
 
@@ -153,7 +159,7 @@ export default function SettingsScreen() {
             </View>
             <Switch
               value={darkMode}
-              onValueChange={setDarkMode}
+              onValueChange={(v) => setMode(v ? 'dark' : 'light')}
               trackColor={{ false: theme.surfaceElevated, true: theme.primary + '80' }}
               thumbColor={darkMode ? theme.primary : theme.textMuted}
             />

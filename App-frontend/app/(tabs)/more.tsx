@@ -25,6 +25,7 @@ export default function MoreScreen() {
     { icon: 'file-text', title: 'Documents', screen: '/(tabs)/documents' as const },
     { icon: 'analytics', title: 'Analytics', screen: '/(tabs)/analytics' as const },
     { icon: 'map', title: 'GIS Map', screen: '/(tabs)/gis' as const },
+    { icon: 'map-pin', title: 'My Live Location', screen: '/(tabs)/live-location' as const },
     { icon: 'report', title: 'Reports', screen: '/(tabs)/reports' as const },
     { icon: 'setting', title: 'Settings', screen: '/(tabs)/settings' as const },
   ] as const satisfies { icon: PngIconName; title: string; screen: string }[];

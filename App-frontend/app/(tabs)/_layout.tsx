@@ -1,12 +1,11 @@
 import { Tabs } from 'expo-router';
-import { useColorScheme } from 'react-native';
 import { Colors } from '@/constants/theme';
+import { useThemeMode } from '@/hooks/use-theme';
 import { PngIcon } from '@/components/ui';
 import { SyncMonitor } from '@/components/SyncMonitor';
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme === 'dark' || colorScheme === 'unspecified' ? 'dark' : 'light'];
+  const colors = Colors[useThemeMode()];
 
   return (
     <>
@@ -72,6 +71,7 @@ export default function TabLayout() {
       <Tabs.Screen name="documents" options={{ href: null }} />
       <Tabs.Screen name="analytics" options={{ href: null }} />
       <Tabs.Screen name="gis" options={{ href: null }} />
+      <Tabs.Screen name="live-location" options={{ href: null }} />
       <Tabs.Screen name="reports" options={{ href: null }} />
       <Tabs.Screen name="users" options={{ href: null }} />
       <Tabs.Screen name="audit-logs" options={{ href: null }} />

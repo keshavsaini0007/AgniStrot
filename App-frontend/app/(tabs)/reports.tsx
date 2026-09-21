@@ -8,6 +8,7 @@ import { useObservations } from '@/hooks/useObservations';
 import { useCorrectiveActions } from '@/hooks/useCorrectiveActions';
 import { useCompliance } from '@/hooks/useCompliance';
 import { Card, Badge, KPICard, PngIcon, MockBadge, type PngIconName } from '@/components/ui';
+import { AppNavbar } from '@/components/AppNavbar';
 import { BorderRadius, FontSize, Spacing } from '@/constants/theme';
 import { getStatusConfig } from '@/utils/status';
 import { formatDate } from '@/utils/date';
@@ -250,6 +251,7 @@ export default function ReportsScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
+      <AppNavbar />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <Text style={[styles.title, { color: theme.text }]}>Reports</Text>

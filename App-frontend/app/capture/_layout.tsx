@@ -1,5 +1,6 @@
 import { Stack } from 'expo-router';
 import { useTheme } from '@/hooks/use-theme';
+import { ThemeToggleButton } from '@/components/ThemeToggleButton';
 
 export default function CaptureLayout() {
   const theme = useTheme();
@@ -12,6 +13,7 @@ export default function CaptureLayout() {
         headerTintColor: theme.text,
         headerTitleStyle: { fontWeight: '600' },
         headerShadowVisible: false,
+        headerRight: () => <ThemeToggleButton />,
       }}
     >
       <Stack.Screen name="inspection" options={{ title: 'New Inspection' }} />

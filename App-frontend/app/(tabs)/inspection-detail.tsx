@@ -6,6 +6,8 @@ import { useTheme } from '@/hooks/use-theme';
 import { useInspection } from '@/hooks/useInspections';
 import { useMines } from '@/hooks/useMines';
 import { Card, Badge, LoadingState, EmptyState, Button, PngIcon, type PngIconName } from '@/components/ui';
+import { LocationMap } from '@/components/LocationMap';
+import { AppNavbar } from '@/components/AppNavbar';
 import { FontSize, Spacing } from '@/constants/theme';
 import { getStatusConfig } from '@/utils/status';
 import { formatDate, formatDateTime } from '@/utils/date';
@@ -24,8 +26,22 @@ export default function InspectionDetailScreen() {
   const { data: inspection, isLoading, error } = useInspection(id || '');
   const { data: minesData } = useMines();
 
-  if (isLoading) return <LoadingState message="Loading inspection..." />;
-  if (error || !inspection) return <EmptyState title="Inspection not found" icon="inspection" />;
+  if (isLoading) {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
+        <AppNavbar />
+        <LoadingState message="Loading inspection..." />
+      </SafeAreaView>
+    );
+  }
+  if (error || !inspection) {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
+        <AppNavbar />
+        <EmptyState title="Inspection not found" icon="inspection" />
+      </SafeAreaView>
+    );
+  }
 
   const statusCfg = getStatusConfig(inspection.status);
   const typeCfg = TYPE_CONFIG[inspection.type] || TYPE_CONFIG.safety;
@@ -33,6 +49,7 @@ export default function InspectionDetailScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
+      <AppNavbar />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.headerRow}>
           <Button icon={<PngIcon name="right" size={16} flip />} title="Back" variant="ghost" onPress={() => router.back()} size="sm" />
@@ -65,6 +82,21 @@ export default function InspectionDetailScreen() {
           {inspection.notes && <InfoRow label="Notes" value={inspection.notes} theme={theme} />}
           <InfoRow label="Created" value={formatDate(inspection.createdAt)} theme={theme} />
         </Card>
+
+        {inspection.location && (
+          <Card style={styles.infoCard}>
+            <Text style={[styles.sectionTitle, { color: theme.textSecondary }]}>LOCATION</Text>
+            <LocationMap
+              points={[{
+                key: inspection.id,
+                latitude: inspection.location.latitude,
+                longitude: inspection.location.longitude,
+                title: 'Inspection point',
+              }]}
+              height={200}
+            />
+          </Card>
+        )}
       </ScrollView>
     </SafeAreaView>
   );

@@ -5,10 +5,15 @@
 
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useThemeStore } from '@/store/themeStore';
+import type { ThemeMode } from '@/store/themeStore';
+
+export function useThemeMode(): ThemeMode {
+  const mode = useThemeStore((s) => s.mode);
+  const scheme = useColorScheme();
+  return mode ?? (scheme === 'dark' ? 'dark' : 'light');
+}
 
 export function useTheme() {
-  const scheme = useColorScheme();
-  const theme = scheme === 'dark' ? 'dark' : 'light';
-
-  return Colors[theme];
+  return Colors[useThemeMode()];
 }

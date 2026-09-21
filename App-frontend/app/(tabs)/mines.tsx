@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router';
 import { useTheme } from '@/hooks/use-theme';
 import { useMines } from '@/hooks/useMines';
 import { Badge, LoadingState, EmptyState, TextInput, PngIcon, MockBadge } from '@/components/ui';
+import { AppNavbar } from '@/components/AppNavbar';
 import { BorderRadius, FontSize, Spacing } from '@/constants/theme';
 import { getStatusConfig } from '@/utils/status';
 import type { Mine } from '@/types';
@@ -91,6 +92,7 @@ export default function MinesScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
+      <AppNavbar />
       <View style={styles.header}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <Text style={[styles.title, { color: theme.text }]}>Mines</Text>

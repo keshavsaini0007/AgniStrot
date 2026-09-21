@@ -4,7 +4,9 @@ import { useAuthStore } from '@/store/authStore';
 import { applyApiUrl } from '@/api/client';
 import { getApiUrlOverride } from '@/api/apiUrl';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
-import { Colors } from '@/constants/theme';
+import { StatusBar } from 'expo-status-bar';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { useThemeMode } from '@/hooks/use-theme';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 const queryClient = new QueryClient({
@@ -20,6 +22,7 @@ function AuthGate() {
   const { isAuthenticated, isLoading, fetchCurrentUser } = useAuthStore();
   const segments = useSegments();
   const router = useRouter();
+  const themeMode = useThemeMode();
 
   useEffect(() => {
     (async () => {
@@ -41,19 +44,27 @@ function AuthGate() {
 
   if (isLoading) {
     return (
-      <View style={styles.loading}>
-        <ActivityIndicator size="large" color={Colors.dark.primary} />
+      <View style={[styles.loading, { backgroundColor: themeMode === 'dark' ? '#0B0D0E' : '#F8F9FA' }]}>
+        <StatusBar style="auto" />
+        <ActivityIndicator size="large" color="#D88A32" />
       </View>
     );
   }
 
-  return <Slot />;
+  return (
+    <>
+      <StatusBar style="auto" />
+      <Slot />
+    </>
+  );
 }
 
 const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+  },
   loading: {
     flex: 1,
-    backgroundColor: Colors.dark.background,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -61,8 +72,10 @@ const styles = StyleSheet.create({
 
 export default function RootLayout() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthGate />
-    </QueryClientProvider>
+    <GestureHandlerRootView style={styles.root}>
+      <QueryClientProvider client={queryClient}>
+        <AuthGate />
+      </QueryClientProvider>
+    </GestureHandlerRootView>
   );
 }

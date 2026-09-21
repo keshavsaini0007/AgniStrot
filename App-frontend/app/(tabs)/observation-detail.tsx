@@ -6,6 +6,8 @@ import { useTheme } from '@/hooks/use-theme';
 import { useObservation } from '@/hooks/useObservations';
 import { useMines } from '@/hooks/useMines';
 import { Card, Badge, LoadingState, EmptyState, Button, PngIcon, type PngIconName } from '@/components/ui';
+import { LocationMap } from '@/components/LocationMap';
+import { AppNavbar } from '@/components/AppNavbar';
 import { FontSize, Spacing } from '@/constants/theme';
 import { getStatusConfig } from '@/utils/status';
 import { formatDate } from '@/utils/date';
@@ -25,8 +27,22 @@ export default function ObservationDetailScreen() {
   const { data: observation, isLoading, error } = useObservation(id || '');
   const { data: minesData } = useMines();
 
-  if (isLoading) return <LoadingState message="Loading observation..." />;
-  if (error || !observation) return <EmptyState title="Observation not found" icon="open" />;
+  if (isLoading) {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
+        <AppNavbar />
+        <LoadingState message="Loading observation..." />
+      </SafeAreaView>
+    );
+  }
+  if (error || !observation) {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
+        <AppNavbar />
+        <EmptyState title="Observation not found" icon="open" />
+      </SafeAreaView>
+    );
+  }
 
   const statusCfg = getStatusConfig(observation.status);
   const severityCfg = getStatusConfig(observation.severity);
@@ -35,6 +51,7 @@ export default function ObservationDetailScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
+      <AppNavbar />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.headerRow}>
           <Button icon={<PngIcon name="right" size={16} flip />} title="Back" variant="ghost" onPress={() => router.back()} size="sm" />
@@ -77,6 +94,15 @@ export default function ObservationDetailScreen() {
         {observation.location && (
           <Card style={styles.infoCard}>
             <Text style={[styles.sectionTitle, { color: theme.textSecondary }]}>LOCATION</Text>
+            <LocationMap
+              points={[{
+                key: observation.id,
+                latitude: observation.location.latitude,
+                longitude: observation.location.longitude,
+                title: observation.title,
+              }]}
+              height={200}
+            />
             <InfoRow label="Latitude" value={`${observation.location.latitude}`} theme={theme} />
             <InfoRow label="Longitude" value={`${observation.location.longitude}`} theme={theme} />
           </Card>

@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/hooks/use-theme';
 import { useDocuments } from '@/hooks/useDocuments';
 import { Card, Badge, LoadingState, EmptyState, PngIcon, MockBadge, type PngIconName } from '@/components/ui';
+import { AppNavbar } from '@/components/AppNavbar';
 import { FontSize, Spacing } from '@/constants/theme';
 import { formatDate } from '@/utils/date';
 import type { Document } from '@/types';
@@ -40,6 +41,7 @@ export default function DocumentsScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
+      <AppNavbar />
       <View style={styles.header}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <Text style={[styles.title, { color: theme.text }]}>Documents</Text>

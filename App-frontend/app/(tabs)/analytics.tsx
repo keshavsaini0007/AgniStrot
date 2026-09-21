@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/hooks/use-theme';
 import { useDashboard } from '@/hooks/useAnalytics';
 import { Card, KPICard, LoadingState, MockBadge, PngIcon } from '@/components/ui';
+import { AppNavbar } from '@/components/AppNavbar';
 import { FontSize, Spacing } from '@/constants/theme';
 
 export default function AnalyticsScreen() {
@@ -14,6 +15,7 @@ export default function AnalyticsScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
+      <AppNavbar />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <Text style={[styles.title, { color: theme.text }]}>AI Risk Intelligence</Text>

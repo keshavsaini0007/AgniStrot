@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router';
 import { useTheme } from '@/hooks/use-theme';
 import { useCorrectiveActions } from '@/hooks/useCorrectiveActions';
 import { Badge, LoadingState, EmptyState, MockBadge, PngIcon } from '@/components/ui';
+import { AppNavbar } from '@/components/AppNavbar';
 import { BorderRadius, FontSize, Spacing } from '@/constants/theme';
 import { getStatusConfig } from '@/utils/status';
 import { formatDate } from '@/utils/date';
@@ -62,6 +63,7 @@ export default function CorrectiveActionsScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
+      <AppNavbar />
       <View style={styles.header}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <Text style={[styles.screenTitle, { color: theme.text }]}>Corrective Actions</Text>

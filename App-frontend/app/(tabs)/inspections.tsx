@@ -6,6 +6,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { useInspections } from '@/hooks/useInspections';
 import { useMines } from '@/hooks/useMines';
 import { Badge, LoadingState, EmptyState, PngIcon, Button, type PngIconName } from '@/components/ui';
+import { AppNavbar } from '@/components/AppNavbar';
 import { BorderRadius, FontSize, Spacing } from '@/constants/theme';
 import { getStatusConfig } from '@/utils/status';
 import { formatDate } from '@/utils/date';
@@ -84,6 +85,7 @@ export default function InspectionsScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
+      <AppNavbar />
       <View style={styles.header}>
         <View style={{ flex: 1, gap: Spacing.one }}>
           <Text style={[styles.title, { color: theme.text }]}>Inspections</Text>

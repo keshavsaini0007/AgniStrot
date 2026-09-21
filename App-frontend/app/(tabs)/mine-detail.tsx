@@ -5,6 +5,8 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTheme } from '@/hooks/use-theme';
 import { useMine } from '@/hooks/useMines';
 import { Card, Badge, LoadingState, EmptyState, Button, PngIcon } from '@/components/ui';
+import { LocationMap } from '@/components/LocationMap';
+import { AppNavbar } from '@/components/AppNavbar';
 import { FontSize, Spacing } from '@/constants/theme';
 import { getStatusConfig } from '@/utils/status';
 import { formatDate } from '@/utils/date';
@@ -15,13 +17,28 @@ export default function MineDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data: mine, isLoading, error } = useMine(id || '');
 
-  if (isLoading) return <LoadingState message="Loading mine details..." />;
-  if (error || !mine) return <EmptyState title="Mine not found" icon="mine" />;
+  if (isLoading) {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
+        <AppNavbar />
+        <LoadingState message="Loading mine details..." />
+      </SafeAreaView>
+    );
+  }
+  if (error || !mine) {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
+        <AppNavbar />
+        <EmptyState title="Mine not found" icon="mine" />
+      </SafeAreaView>
+    );
+  }
 
   const statusCfg = getStatusConfig(mine.status);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
+      <AppNavbar />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.headerRow}>
           <Button icon={<PngIcon name="right" size={16} flip />} title="Back" variant="ghost" onPress={() => router.back()} size="sm" />
@@ -81,6 +98,15 @@ export default function MineDetailScreen() {
 
         <Card style={styles.infoCard}>
           <Text style={[styles.sectionTitle, { color: theme.textSecondary }]}>COORDINATES</Text>
+          <LocationMap
+            points={[{
+              key: mine.id,
+              latitude: mine.location.latitude,
+              longitude: mine.location.longitude,
+              title: mine.name,
+            }]}
+            height={200}
+          />
           <InfoRow label="Latitude" value={`${mine.location.latitude}`} theme={theme} />
           <InfoRow label="Longitude" value={`${mine.location.longitude}`} theme={theme} />
         </Card>

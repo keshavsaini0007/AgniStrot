@@ -6,6 +6,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { useCompliance } from '@/hooks/useCompliance';
 import { useMines } from '@/hooks/useMines';
 import { Card, Badge, LoadingState, EmptyState, Button, PngIcon } from '@/components/ui';
+import { AppNavbar } from '@/components/AppNavbar';
 import { FontSize, Spacing } from '@/constants/theme';
 import { getStatusConfig } from '@/utils/status';
 import { formatDate } from '@/utils/date';
@@ -19,14 +20,29 @@ export default function ComplianceDetailScreen() {
 
   const compliance = complianceData?.data?.find((c) => c.id === id);
 
-  if (isLoading) return <LoadingState message="Loading compliance..." />;
-  if (error || !compliance) return <EmptyState title="Compliance not found" icon="compliance" />;
+  if (isLoading) {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
+        <AppNavbar />
+        <LoadingState message="Loading compliance..." />
+      </SafeAreaView>
+    );
+  }
+  if (error || !compliance) {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
+        <AppNavbar />
+        <EmptyState title="Compliance not found" icon="compliance" />
+      </SafeAreaView>
+    );
+  }
 
   const statusCfg = getStatusConfig(compliance.status);
   const mine = minesData?.data?.find((m) => m.id === compliance.mineId);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
+      <AppNavbar />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.headerRow}>
           <Button icon={<PngIcon name="right" size={16} flip />} title="Back" variant="ghost" onPress={() => router.back()} size="sm" />

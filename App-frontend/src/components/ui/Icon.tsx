@@ -1,36 +1,34 @@
 import React from 'react';
-import {
-  AlertTriangle,
-  AlarmClock,
-  BarChart3,
-  Bell,
-  Calendar,
-  Camera,
-  Check,
-  CheckCircle2,
-  ChevronLeft,
-  ChevronRight,
-  Circle,
-  ClipboardList,
-  Eye,
-  FileText,
-  Home,
-  Map,
-  MapPin,
-  Megaphone,
-  Menu,
-  NotebookPen,
-  Pencil,
-  Pickaxe,
-  Plus,
-  RefreshCw,
-  Search,
-  Settings,
-  Siren,
-  TrendingUp,
-  Users,
-  XCircle,
-} from 'lucide-react-native';
+import AlertTriangle from 'lucide-react-native/icons/triangle-alert';
+import AlarmClock from 'lucide-react-native/icons/alarm-clock';
+import BarChart3 from 'lucide-react-native/icons/chart-column';
+import Bell from 'lucide-react-native/icons/bell';
+import Calendar from 'lucide-react-native/icons/calendar';
+import Camera from 'lucide-react-native/icons/camera';
+import Check from 'lucide-react-native/icons/check';
+import CheckCircle2 from 'lucide-react-native/icons/circle-check';
+import ChevronLeft from 'lucide-react-native/icons/chevron-left';
+import ChevronRight from 'lucide-react-native/icons/chevron-right';
+import Circle from 'lucide-react-native/icons/circle';
+import ClipboardList from 'lucide-react-native/icons/clipboard-list';
+import Eye from 'lucide-react-native/icons/eye';
+import FileText from 'lucide-react-native/icons/file-text';
+import Home from 'lucide-react-native/icons/house';
+import Map from 'lucide-react-native/icons/map';
+import MapPin from 'lucide-react-native/icons/map-pin';
+import Megaphone from 'lucide-react-native/icons/megaphone';
+import Menu from 'lucide-react-native/icons/menu';
+import NotebookPen from 'lucide-react-native/icons/notebook-pen';
+import Pencil from 'lucide-react-native/icons/pencil';
+import Pickaxe from 'lucide-react-native/icons/pickaxe';
+import Plus from 'lucide-react-native/icons/plus';
+import RefreshCw from 'lucide-react-native/icons/refresh-cw';
+import Search from 'lucide-react-native/icons/search';
+import Settings from 'lucide-react-native/icons/settings';
+import Siren from 'lucide-react-native/icons/siren';
+import TrendingUp from 'lucide-react-native/icons/trending-up';
+import Users from 'lucide-react-native/icons/users';
+import XCircle from 'lucide-react-native/icons/circle-x';
 import { useTheme } from '@/hooks/use-theme';
 
 export type IconName =
