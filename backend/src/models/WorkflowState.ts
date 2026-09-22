@@ -19,8 +19,19 @@ const workflowStateSchema = new Schema<IWorkflowState>(
     deadline: {
       type: Date,
       required: [true, "deadline is required."],
-      // calculated from ALERT_DEADLINES in types/index.ts based on alert severity:
-      // critical = now + 2h, high = now + 24h, medium = now + 3d, low = now + 7d
+      // Due time for the rung this row represents. Level 1 is stamped at creation
+      // from the alert's slaSnapshot chain (feature 02) — falling back to the
+      // legacy ALERT_DEADLINES constants when a legacy alert has no snapshot.
+    },
+    level: {
+      type: Number,
+      required: [true, "level is required."],
+      default: 1,
+      min: 1,
+      // The alert.currentLevel this transition was written for. Lets per-level
+      // escalation rows coexist (reminded@1, escalated@2, escalated@3 …) so a
+      // multi-level climb is fully auditable and each rung dedupes on its own
+      // outbox eventKey. Legacy rows read back as 1.
     },
     changedAt: {
       type: Date,

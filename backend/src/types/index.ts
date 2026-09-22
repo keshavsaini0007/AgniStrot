@@ -14,6 +14,11 @@ export type UserRole =
   | "corporate_manager"
   | "regulator";
 
+// Responsibility area on a user — used for department-priority assignee
+// resolution (feature 02 edge H: pick the manager for the right department,
+// not a random one).
+export type Department = "safety" | "production" | "environmental" | "labour" | "operations";
+
 export type InspectionType = "safety" | "environmental" | "production" | "labour";
 
 export type ChecklistResult = "pass" | "fail" | "na";
@@ -126,6 +131,8 @@ export interface IUser {
   passwordHash: string;
   role: UserRole;
   siteId: Types.ObjectId | null; // null for corporate_manager and regulator
+  isActive?: boolean;            // false = deactivated — never assigned or escalated to (feature 02 edge B)
+  department?: Department;       // responsibility area — department-priority assignment (feature 02 edge H)
   createdAt: Date;
 }
 
@@ -194,7 +201,16 @@ export interface IAlert {
   ruleCode: RuleCode;
   severity: AlertSeverity;
   status: AlertStatus;
-  assignedTo: Types.ObjectId; // mine_official for that site
+  assignedTo: Types.ObjectId; // active user in the current rung's role for that site
+  // ── Configurable SLA / Escalation Matrix (feature 02) ────────────────────
+  slaSnapshot: ISlaSnapshot;       // policy stamped at creation (edge G) — the engine reads THIS, never the live policy
+  ackDeadline: Date | null;        // acknowledge-by time = createdAt + ackSla
+  resolutionDeadline: Date | null; // resolve-by time = createdAt + resolutionSla
+  currentLevel: number;            // 1-based rung the alert is on (1 = initial assignee)
+  escalationCount: number;         // number of re-assignments up the ladder (0 = never escalated)
+  lastEscalatedAt: Date | null;    // most recent escalation timestamp
+  acknowledgedAt: Date | null;     // when someone acknowledged (for ack-SLA compliance)
+  department?: Department;         // responsibility area captured at creation (edge H)
   createdAt: Date;
   resolvedAt?: Date;          // timestamp when alert was closed
 }
@@ -203,10 +219,46 @@ export interface IWorkflowState {
   _id: Types.ObjectId;
   alertId: Types.ObjectId;
   state: WorkflowState;
+  level: number;    // the alert's currentLevel when this transition was written (feature 02)
   deadline: Date;
   changedAt: Date;
   changedBy?: Types.ObjectId;
   note?: string | null; // free-text captured alongside the transition (e.g. resolutionNote on resolve)
+}
+
+// ── Configurable SLA / Escalation Matrix (feature 02) ─────────────────────────
+// Admin-managed per-severity deadline + escalation ladder stored in MongoDB
+// instead of the hardcoded ALERT_DEADLINES map below.
+
+// One rung of the escalation ladder. waitMinutes is the ABSOLUTE offset (minutes)
+// from alert creation at which this level's response is due. Levels are
+// validated to be contiguous, non-repeating (a repeat would be a cycle — edge D)
+// and strictly increasing in waitMinutes.
+export interface IEscalationLevel {
+  level: number;       // 1-based, contiguous from 1
+  role: UserRole;      // target role to escalate TO at this level (never field_officer)
+  waitMinutes: number; // absolute minutes from alert creation; strictly increasing
+}
+
+// SLA policy snapshot captured on an alert at creation time (edge G): the engine
+// reads the snapshot, never the live policy, so changing the policy later does
+// not retroactively move deadlines of already-created alerts.
+export interface ISlaSnapshot {
+  ackSla: number;                        // minutes within which the alert must be acknowledged
+  resolutionSla: number;                 // minutes within which the alert must be resolved
+  escalationChain: IEscalationLevel[];   // ordered ladder, captured at creation
+}
+
+export interface ISlaPolicy {
+  _id: Types.ObjectId;
+  severity: AlertSeverity;                     // unique — one policy per severity
+  ackSla: number;                              // minutes to acknowledge (breach if exceeded)
+  resolutionSla: number;                       // minutes to resolve (final deadline)
+  escalationChain: IEscalationLevel[];         // configured ladder (validated: no cycles, contiguous, increasing)
+  systemFallbackUserId: Types.ObjectId | null; // last-resort assignee when no chain role has an active user (edge C)
+  updatedBy?: Types.ObjectId;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface IAuditLog {

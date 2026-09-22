@@ -3,7 +3,8 @@ import Site from "../models/Site.js";
 import Alert from "../models/Alert.js";
 import Inspection from "../models/Inspection.js";
 import Attendance from "../models/Attendance.js";
-import { resolveAssignee } from "./ruleEngine.js";
+import { resolveAssignee, departmentForSource } from "./ruleEngine.js";
+import { getSlaSnapshot } from "./slaPolicyService.js";
 import { emitOutboxEvent } from "./outboxService.js";
 import { INSPECTION_INTERVALS, ALERT_DEADLINES } from "../types/index.js";
 import type {
@@ -11,6 +12,8 @@ import type {
   AlertSeverity,
   AlertStatus,
   WorkflowState as WorkflowStateType,
+  SourceType,
+  Department,
 } from "../types/index.js";
 import WorkflowState from "../models/WorkflowState.js";
 
@@ -54,6 +57,7 @@ async function checkOverdueInspections(): Promise<void> {
         ruleCode: "OVERDUE_INSPECTION",
         severity: "high",
         ruleKey: `overdue:${site._id.toString()}:${type}`,
+        department: departmentForSource("inspection", { type }),
       });
     }
   }
@@ -110,6 +114,7 @@ async function checkAttendanceAnomaly(): Promise<void> {
       ruleCode: "ATTENDANCE_ANOMALY",
       severity: "medium",
       ruleKey: `anomaly:${site._id.toString()}:${todayStart.toISOString().slice(0, 10)}`,
+      department: "operations",
     });
   }
 }
@@ -152,6 +157,12 @@ async function checkRepeatViolations(): Promise<void> {
       ruleCode: "REPEAT_VIOLATION",
       severity: "high",
       ruleKey: `repeat:${siteId.toString()}:${ruleCode}`,
+      // Department derived from the most-recent trigger source (falls back to
+      // operations when the source type carries no type/category).
+      department: departmentForSource(
+        (group.latestSourceType as SourceType) ?? "inspection",
+        {}
+      ),
     });
   }
 }
@@ -164,10 +175,11 @@ interface BatchAlertInput {
   ruleCode: "OVERDUE_INSPECTION" | "ATTENDANCE_ANOMALY" | "REPEAT_VIOLATION";
   severity: AlertSeverity;
   ruleKey: string;
+  department?: Department; // edge H — captured so escalations pick the right manager
 }
 
 async function createBatchAlert(input: BatchAlertInput): Promise<void> {
-  const assignedTo = await resolveAssignee(input.siteId);
+  const assignedTo = await resolveAssignee(input.siteId, "mine_official", input.department);
   if (!assignedTo) {
     console.warn(
       `[batchRules] No mine_official found for site ${input.siteId.toString()}. ` +
@@ -175,6 +187,10 @@ async function createBatchAlert(input: BatchAlertInput): Promise<void> {
     );
     return;
   }
+
+  // SLA snapshot at creation (edge G) — same policy footprint as sync alerts.
+  const snapshot = await getSlaSnapshot(input.severity);
+  const now = Date.now();
 
   const result = await Alert.findOneAndUpdate(
     { ruleKey: input.ruleKey },
@@ -187,6 +203,13 @@ async function createBatchAlert(input: BatchAlertInput): Promise<void> {
         severity: input.severity,
         status: "open" as AlertStatus,
         assignedTo,
+        slaSnapshot: snapshot,
+        ackDeadline: new Date(now + snapshot.ackSla * 60 * 1000),
+        resolutionDeadline: new Date(now + snapshot.resolutionSla * 60 * 1000),
+        currentLevel: 1,
+        escalationCount: 0,
+        lastEscalatedAt: null,
+        department: input.department ?? "operations",
       },
     },
     { upsert: true, returnDocument: "after", includeResultMetadata: true }
@@ -197,11 +220,13 @@ async function createBatchAlert(input: BatchAlertInput): Promise<void> {
   const alertId = result.value?._id as Types.ObjectId | undefined;
   if (!alertId) return;
 
-  const deadlineMs = ALERT_DEADLINES[input.severity];
+  const chain0 = snapshot.escalationChain[0];
+  const waitMinutes = chain0?.waitMinutes ?? ALERT_DEADLINES[input.severity] / 60000;
   await WorkflowState.create({
     alertId,
     state: "assigned" as WorkflowStateType,
-    deadline: new Date(Date.now() + deadlineMs),
+    level: 1,
+    deadline: new Date(now + waitMinutes * 60 * 1000),
   });
 
   // Publish the durable ALERT_CREATED event — the consumer owns the socket

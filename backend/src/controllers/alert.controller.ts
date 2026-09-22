@@ -89,7 +89,9 @@ async function latestDeadline(alertId: string): Promise<Date | null> {
 // ── POST /api/v1/alerts/:id/acknowledge ──────────────────────────────────────
 // Halts further auto-escalation. Appends an acknowledged workflow entry so the
 // escalation aggregate (latest state per alert) naturally drops it from the
-// assigned/reminded working set.
+// assigned/reminded/escalated working set. The conditional `status: "open"`
+// write makes ack-vs-cron atomic (edge F): if the engine escalated in the
+// window between the read and write, the modifiedCount mismatch aborts the ack.
 
 export const acknowledgeAlert = async (
   req: Request,
@@ -102,7 +104,7 @@ export const acknowledgeAlert = async (
       return;
     }
 
-    const alert = await Alert.findById(alertId).select("siteId severity status");
+    const alert = await Alert.findById(alertId).select("siteId severity status currentLevel");
     if (!alert) {
       res.status(404).json({ error: "Alert not found." });
       return;
@@ -116,16 +118,26 @@ export const acknowledgeAlert = async (
       return;
     }
 
+    const now = new Date();
+    const statusRes = await Alert.updateOne(
+      { _id: alertId, status: "open" },
+      { $set: { status: "acknowledged", acknowledgedAt: now } }
+    );
+    if (statusRes.modifiedCount !== 1) {
+      res.status(409).json({ error: "Alert changed concurrently; acknowledging is not allowed." });
+      return;
+    }
+
     const deadline = (await latestDeadline(alertId)) ?? new Date(Date.now() + ALERT_DEADLINES[alert.severity]);
     const { note } = req.body as { note?: string };
     await WorkflowState.create({
       alertId,
       state: "acknowledged",
+      level: alert.currentLevel ?? 1,
       deadline,
       changedBy: new Types.ObjectId(req.user!.id),
       note: note ?? null,
     });
-    await Alert.updateOne({ _id: alertId }, { status: "acknowledged" });
     await logAction({
       entityType: "alert",
       entityId: new Types.ObjectId(alertId),
@@ -143,7 +155,8 @@ export const acknowledgeAlert = async (
 
 // ── POST /api/v1/alerts/:id/resolve ──────────────────────────────────────────
 // Closes the alert lifecycle. Allowed from open/acknowledged/escalated —
-// this is the only path that ends an escalated alert.
+// this is the only path that ends an escalated alert. Conditional status write
+// makes resolve-vs-cron atomic (edge F), same as acknowledge above.
 
 export const resolveAlert = async (
   req: Request,
@@ -156,7 +169,7 @@ export const resolveAlert = async (
       return;
     }
 
-    const alert = await Alert.findById(alertId).select("siteId severity status");
+    const alert = await Alert.findById(alertId).select("siteId severity status currentLevel");
     if (!alert) {
       res.status(404).json({ error: "Alert not found." });
       return;
@@ -170,20 +183,25 @@ export const resolveAlert = async (
       return;
     }
 
+    const statusRes = await Alert.updateOne(
+      { _id: alertId, status: { $in: ["open", "acknowledged", "escalated"] } },
+      { $set: { status: "closed", resolvedAt: new Date() } }
+    );
+    if (statusRes.modifiedCount !== 1) {
+      res.status(409).json({ error: "Alert changed concurrently; resolving is not allowed." });
+      return;
+    }
+
     const deadline = (await latestDeadline(alertId)) ?? new Date(Date.now() + ALERT_DEADLINES[alert.severity]);
     const { resolutionNote } = req.body as { resolutionNote?: string };
     await WorkflowState.create({
       alertId,
       state: "resolved",
+      level: alert.currentLevel ?? 1,
       deadline,
       changedBy: new Types.ObjectId(req.user!.id),
       note: resolutionNote ?? null,
     });
-    // BUG FIX #2: Set resolvedAt when closing alert
-    await Alert.updateOne(
-      { _id: alertId },
-      { status: "closed", resolvedAt: new Date() }
-    );
     await logAction({
       entityType: "alert",
       entityId: new Types.ObjectId(alertId),
@@ -200,9 +218,12 @@ export const resolveAlert = async (
 };
 
 // ── POST /api/v1/alerts/:id/escalate ─────────────────────────────────────────
-// Manual escalation — jumps an open/acknowledged alert straight to escalated
-// (48-hour reset deadline) ahead of the cron engine. The cron only acts on
-// assigned/reminded states, so an escalated alert is never re-touched here.
+// Manual escalation — jumps an open/acknowledged alert straight to the
+// terminal escalated status (48-hour reset deadline) ahead of the cron engine.
+// The cron only acts on assigned/reminded/escalated open alerts, so an
+// escalated alert is never re-touched here (its status excludes it from the
+// working set). The jump lands on the chain's top rung (feature 02) so the
+// alert never climbs further.
 
 const MANUAL_ESCALATION_DEADLINE_MS = 48 * 60 * 60 * 1000;
 
@@ -217,7 +238,7 @@ export const escalateAlert = async (
       return;
     }
 
-    const alert = await Alert.findById(alertId).select("siteId severity status ruleCode");
+    const alert = await Alert.findById(alertId).select("siteId severity status ruleCode currentLevel escalationCount slaSnapshot");
     if (!alert) {
       res.status(404).json({ error: "Alert not found." });
       return;
@@ -235,14 +256,35 @@ export const escalateAlert = async (
       return;
     }
 
+    // Jump to the chain top (feature 02) — a manually escalated alert is at the
+    // terminal rung and the engine won't climb it further.
+    const chain = alert.slaSnapshot?.escalationChain ?? [];
+    const topLevel = Math.max(1, chain.length);
+
+    const statusRes = await Alert.updateOne(
+      { _id: alertId, status: { $in: ["open", "acknowledged"] } },
+      {
+        $set: {
+          status: "escalated",
+          currentLevel: topLevel,
+          escalationCount: (alert.escalationCount ?? 0) + 1,
+          lastEscalatedAt: new Date(),
+        },
+      }
+    );
+    if (statusRes.modifiedCount !== 1) {
+      res.status(409).json({ error: "Alert changed concurrently; escalating is not allowed." });
+      return;
+    }
+
     const deadline = new Date(Date.now() + MANUAL_ESCALATION_DEADLINE_MS);
     await WorkflowState.create({
       alertId,
       state: "escalated",
+      level: topLevel,
       deadline,
       changedBy: new Types.ObjectId(req.user!.id),
     });
-    await Alert.updateOne({ _id: alertId }, { status: "escalated" });
 
     const { note } = req.body as EscalateAlertInput;
     await logAction({

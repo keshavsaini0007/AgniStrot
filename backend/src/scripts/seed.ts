@@ -17,6 +17,7 @@ import { runBatchRules } from "../services/batchRules.js";
 import { runEscalations } from "../services/workflowEngine.js";
 import { processOutboxEvents } from "../services/outboxService.js";
 import { ensureAlertIndexes } from "../config/db.js";
+import { resetSlaPoliciesToDefaults, SYSTEM_ADMIN_EMAIL } from "../services/slaPolicyService.js";
 import type { InspectionType } from "../types/index.js";
 
 // ── Seed Data ────────────────────────────────────────────────────────────────
@@ -49,6 +50,8 @@ const USERS = [
     password: "password123",
     role: "field_officer" as const,
     siteIndex: 0, // Jharia
+    department: "safety" as const,
+    isActive: true,
   },
   {
     name: "Priya Singh",
@@ -56,6 +59,8 @@ const USERS = [
     password: "password123",
     role: "mine_official" as const,
     siteIndex: 0, // Jharia
+    department: "safety" as const,
+    isActive: true,
   },
   {
     name: "Amit Sharma",
@@ -63,6 +68,8 @@ const USERS = [
     password: "password123",
     role: "corporate_manager" as const,
     siteIndex: null, // cross-site
+    department: "operations" as const,
+    isActive: true,
   },
   {
     name: "Dr. Meena Reddy",
@@ -70,6 +77,8 @@ const USERS = [
     password: "password123",
     role: "regulator" as const,
     siteIndex: null, // read-only
+    department: "operations" as const,
+    isActive: true,
   },
   {
     name: "Kavita Verma",
@@ -77,6 +86,8 @@ const USERS = [
     password: "password123",
     role: "mine_official" as const,
     siteIndex: 1, // Rajpur — needed so batch alerts get a site-level assignee
+    department: "production" as const,
+    isActive: true,
   },
   {
     name: "Ramesh Nair",
@@ -84,8 +95,26 @@ const USERS = [
     password: "password123",
     role: "mine_official" as const,
     siteIndex: 2, // Dhanbad
+    department: "environmental" as const,
+    isActive: true,
+  },
+  {
+    name: "System Administrator",
+    email: SYSTEM_ADMIN_EMAIL,
+    password: "password123",
+    role: "corporate_manager" as const,
+    siteIndex: null,
+    department: "operations" as const,
+    isActive: true,
+    // Feature 02 escalation fallback (edge C): the last-resort assignee when no
+    // rung of an escalation ladder has an active user. Held under the
+    // corporate_manager role — no new RBAC entry needed.
   },
 ];
+
+// Departments are responsibility areas — the escalation engine (feature 02
+// edge H) uses them to pick the right manager when a level has several
+// candidates (safety incident → safety manager before production manager).
 
 // ── Helper: random date within last N days ──────────────────────────────────
 
@@ -133,6 +162,8 @@ const seed = async (): Promise<void> => {
   await AuditLog.deleteMany({});
   await OutboxEvent.deleteMany({});
   await FailedJob.deleteMany({});
+  // SlaPolicy rows are wiped by resetSlaPoliciesToDefaults() after users are
+  // created (it stamps the fallback user id) — no need to deleteMany here.
   console.log("Cleared existing data (including alerts, workflows, audit ledger & outbox).");
 
   // The {sourceId, ruleCode} unique index was originally shipped WITHOUT sparse;
@@ -158,10 +189,20 @@ const seed = async (): Promise<void> => {
         // ?._id returns ObjectId | undefined; ?? null converts undefined → null
         // satisfying exactOptionalPropertyTypes (undefined ≠ null in strict TS)
         siteId: u.siteIndex !== null ? (sites[u.siteIndex]?._id ?? null) : null,
+        department: u.department,
+        isActive: u.isActive,
       })
     )
   );
   console.log(`Created ${users.length} users.`);
+
+  // ── Create SlaPolicy rows (feature 02 Escalation Matrix) ─────────────────
+  // Default per-severity SLA ladder (ack/resolution deadlines + the
+  // mine_official → corporate_manager → regulator chain). Seeded AFTER users
+  // so the System Administrator fallback user id can be stamped on every
+  // policy (edge C). resetSlaPoliciesToDefaults() also backs POST /reset.
+  const policyCount = await resetSlaPoliciesToDefaults();
+  console.log(`Created ${policyCount} SLA policies (severity → ladder + SLAs).`);
 
   // ── Create Inspections ───────────────────────────────────────────────────
   // DETERMINISTIC: explicit site + capturedAt per inspection so the batch
@@ -474,6 +515,7 @@ const seed = async (): Promise<void> => {
   console.log(`Incidents:   ${incidents.length}`);
   console.log(`Attendance:  ${attendance.length}`);
   console.log(`Alerts:      ${finalAlerts} (${finalAlerts - syncAlertCount} from batch rules)`);
+  console.log(`SLA Policies: ${policyCount}`);
   console.log("──────────────────────────────────────────────────────");
   console.log("\nDemo accounts:");
   console.log("  Field Officer:  rahul@agnistrot.com / password123");
@@ -482,6 +524,7 @@ const seed = async (): Promise<void> => {
   console.log("  Mine Official:  ramesh@agnistrot.com / password123");
   console.log("  Corporate:      amit@agnistrot.com / password123");
   console.log("  Regulator:      meena@agnistrot.com / password123");
+  console.log("  System Admin:   sysadmin@agnistrot.com / password123");
 };
 
 seed()

@@ -13,8 +13,11 @@ import type {
   AlertStatus,
   WorkflowState as WorkflowStateType,
   RuleCode,
+  UserRole,
+  Department,
 } from "../types/index.js";
 import { ALERT_DEADLINES } from "../types/index.js";
+import { getSlaSnapshot } from "./slaPolicyService.js";
 
 // ── Rule Engine ─────────────────────────────────────────────────────────────
 // Called synchronously after each sync insert.
@@ -88,22 +91,68 @@ function evaluateAttendanceRules(_record: Record<string, unknown>): RuleResult[]
 }
 
 // ── Assignee resolution ──────────────────────────────────────────────────────
-// Three-level fallback to find a valid mine_official to assign the alert to.
-// Returns null only if no mine_official exists anywhere in the system.
+// Feature 02 — the escalation matrix climbs through ROLES, not just the
+// mine_official for a site. The ladder is:
+
+//   1. active user matching role + site + department (edge H: multi-manager sites)
+//   2. active user matching role + site (any department)
+//   3. active user matching role anywhere in the system
+//   4. null — no one is assignable (edge A); the workflow engine routes the
+//      alert to the policy's systemFallbackUserId (edge C) instead.
+
+// Inactive users are never assignable (edge B). Deterministic lowest-_id
+// tiebreak keeps resolution stable across runs.
 
 export async function resolveAssignee(
-  siteId: Types.ObjectId
+  siteId: Types.ObjectId,
+  role: UserRole = "mine_official",
+  department?: Department
 ): Promise<Types.ObjectId | null> {
-  // Level 1: mine_official for this specific site
-  const siteAssignee = await User.findOne({ siteId, role: "mine_official" }).select("_id");
-  if (siteAssignee) return siteAssignee._id;
+  const base: Record<string, unknown> = { role, isActive: { $ne: false } };
 
-  // Level 2: any mine_official in the system (different site)
-  const anyAssignee = await User.findOne({ role: "mine_official" }).select("_id");
-  if (anyAssignee) return anyAssignee._id;
+  if (department) {
+    const deptMatch = await User.findOne({ ...base, siteId, department })
+      .sort({ _id: 1 })
+      .select("_id");
+    if (deptMatch) return deptMatch._id;
+  }
 
-  // Level 3: no mine_official exists — caller must handle this
-  return null;
+  const siteMatch = await User.findOne({ ...base, siteId })
+    .sort({ _id: 1 })
+    .select("_id");
+  if (siteMatch) return siteMatch._id;
+
+  const anyMatch = await User.findOne(base).sort({ _id: 1 }).select("_id");
+  return anyMatch?._id ?? null;
+}
+
+// ── Department derivation ────────────────────────────────────────────────────
+// Captured on the alert at creation (edge H) so escalations pick the right
+// manager when a site has several people in the escalation role. Derived from
+// the source record's type/category (inspection type / incident category);
+// attendance anomalies and anything untyped default to operations.
+
+export function departmentForSource(
+  sourceType: SourceType,
+  record: Record<string, unknown>
+): Department {
+  const kind = record.type as string | undefined;
+  const category = record.category as string | undefined;
+  switch (sourceType) {
+    case "inspection":
+      if (kind === "safety") return "safety";
+      if (kind === "environmental") return "environmental";
+      if (kind === "production") return "production";
+      if (kind === "labour") return "labour";
+      return "operations";
+    case "incident":
+      if (category === "safety") return "safety";
+      if (category === "environmental") return "environmental";
+      if (category === "equipment") return "production";
+      return "operations";
+    default:
+      return "operations";
+  }
 }
 
 // ── Main entry point ─────────────────────────────────────────────────────────
@@ -147,12 +196,14 @@ export async function evaluateRules(
       break;
   }
 
+  const department = departmentForSource(sourceType, record);
+
   for (const rule of ruleResults) {
     if (!rule.triggered || !rule.ruleCode || !rule.severity) continue;
 
     // ── Resolve assignee BEFORE attempting alert creation ──────────────────
     // Fix Issue 5: never store a dangling reference (sourceId as assignedTo)
-    const assignedTo = await resolveAssignee(siteId);
+    const assignedTo = await resolveAssignee(siteId, "mine_official", department);
     if (!assignedTo) {
       console.warn(
         `[ruleEngine] No mine_official found for site ${siteId.toString()}. ` +
@@ -160,6 +211,13 @@ export async function evaluateRules(
       );
       continue;
     }
+
+    // ── SLA snapshot at creation (edge G) ──────────────────────────────────
+    // The engine reads THIS snapshot (never the live policy), so later policy
+    // edits do not retroactively move this alert's deadlines. ackDeadline /
+    // resolutionDeadline come from the same snapshot.
+    const snapshot = await getSlaSnapshot(rule.severity);
+    const now = Date.now();
 
     // ── Atomic upsert — one request wins, the rest see ─────────────────────
     // lastErrorObject.upserted = undefined and skip workflow creation.
@@ -177,6 +235,13 @@ export async function evaluateRules(
           severity: rule.severity,
           status: "open" as AlertStatus,
           assignedTo,
+          slaSnapshot: snapshot,
+          ackDeadline: new Date(now + snapshot.ackSla * 60 * 1000),
+          resolutionDeadline: new Date(now + snapshot.resolutionSla * 60 * 1000),
+          currentLevel: 1,
+          escalationCount: 0,
+          lastEscalatedAt: null,
+          department,
         },
       },
       { upsert: true, returnDocument: "after", includeResultMetadata: true }
@@ -188,12 +253,16 @@ export async function evaluateRules(
     const alertId = alertResult.value?._id as Types.ObjectId;
     if (!alertId) continue;
 
-    const deadlineMs = ALERT_DEADLINES[rule.severity];
-    const deadline = new Date(Date.now() + deadlineMs);
+    // Level-1 rung deadline = first chain rung (mirrors legacy ALERT_DEADLINES
+    // when the chain is at its default).
+    const chain0 = snapshot.escalationChain[0];
+    const waitMinutes = chain0?.waitMinutes ?? ALERT_DEADLINES[rule.severity] / 60000;
+    const deadline = new Date(now + waitMinutes * 60 * 1000);
 
     await WorkflowState.create({
       alertId,
       state: "assigned" as WorkflowStateType,
+      level: 1,
       deadline,
     });
 

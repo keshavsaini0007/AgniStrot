@@ -23,6 +23,7 @@ import sitesRoutes from "./routes/sites.js";
 import correctiveActionsRoutes from "./routes/correctiveActions.js";
 import complianceRoutes from "./routes/compliance.js";
 import systemRoutes from "./routes/system.js";
+import slaPolicyRoutes from "./routes/slaPolicies.js";
 import { authenticate } from "./middleware/auth.js";
 import { runBatchRules } from "./services/batchRules.js";
 import { runEscalations } from "./services/workflowEngine.js";
@@ -72,6 +73,7 @@ app.use(["/api/v1/sites", "/sites"], authenticate, sitesRoutes);
 app.use(["/api/v1/corrective-actions", "/corrective-actions"], authenticate, correctiveActionsRoutes);
 app.use(["/api/v1/compliance", "/compliance"], authenticate, complianceRoutes);
 app.use(["/api/v1/system", "/system"], authenticate, systemRoutes);
+app.use(["/api/v1/sla-policies", "/sla-policies"], authenticate, slaPolicyRoutes);
 
 // ── Start server ───────────────────────────────────────────
 const start = async (): Promise<void> => {

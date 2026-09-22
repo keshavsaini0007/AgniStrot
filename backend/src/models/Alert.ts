@@ -1,5 +1,42 @@
 import { Schema, model } from "mongoose";
-import type { IAlert } from "../types/index.js";
+import type { IAlert, ISlaSnapshot, IEscalationLevel } from "../types/index.js";
+
+// ── Feature 02: SLA / escalation snapshot sub-schemas ───────────────────────
+// Captured on the alert at creation time (edge G) so the engine reads the
+// policies as they were when the alert was raised — policy edits never
+// retroactively move existing alerts' deadlines.
+
+const escalationLevelSchema = new Schema<IEscalationLevel>(
+  {
+    level: { type: Number, required: [true, "level is required."], min: 1 },
+    role: {
+      type: String,
+      required: [true, "role is required."],
+      enum: {
+        values: ["mine_official", "corporate_manager", "regulator"],
+        message: "{VALUE} is not a valid escalation role.",
+      },
+    },
+    waitMinutes: {
+      type: Number,
+      required: [true, "waitMinutes is required."],
+      min: [1, "waitMinutes must be positive."],
+    },
+  },
+  { _id: false }
+);
+
+const slaSnapshotSchema = new Schema<ISlaSnapshot>(
+  {
+    ackSla: { type: Number, required: [true, "ackSla is required."], min: 1 },
+    resolutionSla: { type: Number, required: [true, "resolutionSla is required."], min: 1 },
+    escalationChain: {
+      type: [escalationLevelSchema],
+      required: [true, "escalationChain is required."],
+    },
+  },
+  { _id: false }
+);
 
 const alertSchema = new Schema<IAlert>(
   {
@@ -71,6 +108,24 @@ const alertSchema = new Schema<IAlert>(
     resolvedAt: {
       type: Date,
       // Set when status changes to "closed"
+    },
+    slaSnapshot: {
+      type: slaSnapshotSchema,
+      required: [true, "slaSnapshot is required."],
+    },
+    ackDeadline: { type: Date, default: null },
+    resolutionDeadline: { type: Date, default: null },
+    currentLevel: { type: Number, default: 1, min: 1 },
+    escalationCount: { type: Number, default: 0, min: 0 },
+    lastEscalatedAt: { type: Date, default: null },
+    acknowledgedAt: { type: Date, default: null },
+    department: {
+      type: String,
+      default: "operations",
+      enum: {
+        values: ["safety", "production", "environmental", "labour", "operations"],
+        message: "{VALUE} is not a valid department.",
+      },
     },
   },
   {

@@ -41,6 +41,22 @@ const userSchema = new Schema<IUser, UserModel, IUserMethods>(
       ref: "Site",
       default: null, // null for corporate_manager and regulator — they aren't tied to one site
     },
+    isActive: {
+      type: Boolean,
+      default: true,
+      // false = deactivated (resigned/offboarded) — assignee resolution and the
+      // escalation engine never target inactive users (feature 02 edge B).
+    },
+    department: {
+      type: String,
+      default: "operations",
+      enum: {
+        values: ["safety", "production", "environmental", "labour", "operations"],
+        message: "{VALUE} is not a valid department.",
+      },
+      // responsibility area — lets the engine pick the right manager when a
+      // level has several candidates (feature 02 edge H).
+    },
   },
   {
     timestamps: { createdAt: true, updatedAt: false },

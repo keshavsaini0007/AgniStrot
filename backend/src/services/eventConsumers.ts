@@ -211,11 +211,17 @@ async function handleAlertCreated(event: IOutboxEvent): Promise<void> {
 async function handleAlertReminded(event: IOutboxEvent): Promise<void> {
   if (!(await ensureEntityExists(Alert, event.aggregateId, "alert"))) return;
 
+  const payload = (event.payload ?? {}) as Record<string, unknown>;
+
   await logAction({
     entityType: "alert",
     entityId: event.aggregateId,
     action: "reminded",
-    payload: { fromState: "assigned", toState: "reminded" },
+    payload: {
+      fromState: "assigned",
+      toState: "reminded",
+      level: payload.level ?? 1,
+    },
     dedupeKey: event.eventKey,
   });
 }
@@ -229,17 +235,32 @@ async function handleAlertEscalated(event: IOutboxEvent): Promise<void> {
   if (!alert) return;
 
   const siteId = (event.siteId ?? alert.siteId).toString();
+  const payload = (event.payload ?? {}) as Record<string, unknown>;
+  const fromLevel = (payload.fromLevel as number) ?? 1;
+  const toLevel = (payload.toLevel as number) ?? fromLevel;
+  const toRole = (payload.toRole as string) ?? null;
+  const terminal = payload.terminal === true;
 
   emitAlertEvent("alert:escalated", siteId, {
     alertId: event.aggregateId.toString(),
     state: "escalated",
+    fromLevel,
+    toLevel,
+    toRole,
+    terminal,
   });
 
   await logAction({
     entityType: "alert",
     entityId: event.aggregateId,
     action: "escalated",
-    payload: { fromState: "reminded", toState: "escalated" },
+    payload: {
+      fromLevel,
+      toLevel,
+      toRole,
+      terminal,
+      fallback: payload.fallback === true,
+    },
     dedupeKey: event.eventKey,
   });
 }
