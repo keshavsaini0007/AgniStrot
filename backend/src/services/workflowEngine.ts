@@ -1,8 +1,7 @@
 import { Types } from "mongoose";
 import WorkflowState from "../models/WorkflowState.js";
 import Alert from "../models/Alert.js";
-import { emitAlertEvent } from "../sockets/index.js";
-import { logAction } from "./auditLogger.js";
+import { emitOutboxEvent } from "./outboxService.js";
 import { ALERT_DEADLINES } from "../types/index.js";
 import type {
   WorkflowState as WorkflowStateType,
@@ -107,19 +106,24 @@ async function escalateWorkflow(
     deadline: current.deadline,
   });
 
-  await logAction({
-    entityType: "alert",
-    entityId: alertId,
-    action: newState === "escalated" ? "escalated" : "reminded",
-    payload: { fromState: current.state, toState: newState },
+  // Publish the durable transition event — the consumer owns the socket
+  // fan-out (escalated) + audit entry, deduped on the event key. State
+  // transitions themselves are already applied above; the event is the
+  // platform's durable record of the change.
+  await emitOutboxEvent({
+    type: newState === "escalated" ? "ALERT_ESCALATED" : "ALERT_REMINDED",
+    aggregateType: "alert",
+    aggregateId: alertId,
+    siteId: (alert.siteId as Types.ObjectId) ?? undefined,
+    payload: {
+      alertId: alertId.toString(),
+      fromState: current.state,
+      toState: newState,
+    },
   });
 
   if (newState === "escalated") {
     await Alert.updateOne({ _id: alertId }, { status: "escalated" });
-    emitAlertEvent("alert:escalated", (alert.siteId as Types.ObjectId).toString(), {
-      alertId: alertId.toString(),
-      state: "escalated",
-    });
     console.warn(
       `[workflowEngine] Alert ${alertId.toString()} ESCALATED — deadline passed and no action taken.`
     );

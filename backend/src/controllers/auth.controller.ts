@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
+import { logAction } from "../services/auditLogger.js";
 import type { JwtPayload } from "../types/index.js";
 import type { LoginInput, RegisterInput } from "../validators/auth.validator.js";
 
@@ -38,6 +39,20 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     };
 
     const token = jwt.sign(payload, secret, { expiresIn } as jwt.SignOptions);
+
+    // Best-effort login audit for the tamper-evident trail — NOT routed through
+    // the outbox: a login has no business-data transaction to share it with, so
+    // an inline write is the honest upstream. It never blocks or fails the
+    // login response, so it is fire-and-forget with a caught error.
+    void logAction({
+      entityType: "user",
+      entityId: user._id,
+      action: "logged_in",
+      actorId: user._id,
+      payload: { role: user.role, siteId: user.siteId ? user.siteId.toString() : null },
+    }).catch((err) => {
+      console.error("[audit] login entry failed:", err);
+    });
 
     res.json({
       token,

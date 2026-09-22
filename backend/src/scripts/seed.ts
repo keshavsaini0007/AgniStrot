@@ -9,9 +9,13 @@ import Incident from "../models/Incident.js";
 import Attendance from "../models/Attendance.js";
 import Alert from "../models/Alert.js";
 import WorkflowState from "../models/WorkflowState.js";
+import AuditLog from "../models/AuditLog.js";
+import OutboxEvent from "../models/OutboxEvent.js";
+import FailedJob from "../models/FailedJob.js";
 import { evaluateRules } from "../services/ruleEngine.js";
 import { runBatchRules } from "../services/batchRules.js";
 import { runEscalations } from "../services/workflowEngine.js";
+import { processOutboxEvents } from "../services/outboxService.js";
 import { ensureAlertIndexes } from "../config/db.js";
 import type { InspectionType } from "../types/index.js";
 
@@ -123,7 +127,13 @@ const seed = async (): Promise<void> => {
   await Attendance.deleteMany({});
   await Alert.deleteMany({});
   await WorkflowState.deleteMany({});
-  console.log("Cleared existing data (including alerts & workflows).");
+  // The audit ledger and event pipeline are derived from the domain data — a
+  // canonical reseed rebuilds them from scratch (the hash chain starts at
+  // genesis again, and no stale outbox/DLQ rows reference wiped entities).
+  await AuditLog.deleteMany({});
+  await OutboxEvent.deleteMany({});
+  await FailedJob.deleteMany({});
+  console.log("Cleared existing data (including alerts, workflows, audit ledger & outbox).");
 
   // The {sourceId, ruleCode} unique index was originally shipped WITHOUT sparse;
   // a previous seed's collisions were caused by that stale copy. Self-heal it.
@@ -444,9 +454,17 @@ const seed = async (): Promise<void> => {
   // future) but proves the cron pipeline works end-to-end.
   await runBatchRules();
   await runEscalations();
+  // Drain the events the engines just emitted (batch ALERT_CREATED). Consumers
+  // audit them deduped-on-eventKey right here, so the freshly seeded ledger
+  // already contains the full alert baseline, and the outbox is left COMPLETED
+  // (a clean deterministic state for whatever boots next).
+  const drained = await processOutboxEvents();
   const finalAlerts = await Alert.countDocuments();
   const finalWorkflows = await WorkflowState.countDocuments();
   console.log(`After batch rules: ${finalAlerts} alerts, ${finalWorkflows} workflow states.`);
+  if (drained.completed > 0) {
+    console.log(`[outbox] seed drained ${drained.completed} event(s), dead-letters: ${drained.deadLettered}.`);
+  }
 
   // ── Summary ──────────────────────────────────────────────────────────────
   console.log("\n── Seed Complete ──────────────────────────────────────");

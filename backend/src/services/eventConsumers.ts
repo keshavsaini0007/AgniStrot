@@ -3,9 +3,11 @@ import type { IOutboxEvent } from "../types/index.js";
 import Incident from "../models/Incident.js";
 import Inspection from "../models/Inspection.js";
 import Attendance from "../models/Attendance.js";
+import Alert from "../models/Alert.js";
+import Document from "../models/Document.js";
 import { evaluateRules } from "./ruleEngine.js";
 import { logAction } from "./auditLogger.js";
-import { emitRecordEvent } from "../sockets/index.js";
+import { emitAlertEvent, emitRecordEvent } from "../sockets/index.js";
 
 // ── Event Consumers ───────────────────────────────────────────────────────────
 // Each handler MUST be idempotent — the outbox worker may re-deliver an event
@@ -147,6 +149,10 @@ async function handleAttendanceSynced(event: IOutboxEvent): Promise<void> {
 // ── DOCUMENT_UPLOADED ────────────────────────────────────────────────────────
 
 async function handleDocumentUploaded(event: IOutboxEvent): Promise<void> {
+  // Edge E guard, consistent with every other consumer: a document may have
+  // been deleted before its event was consumed — never audit a phantom.
+  if (!(await ensureEntityExists(Document, event.aggregateId, "document"))) return;
+
   // Documents are audit-logged at ingest already; this consumer exists so
   // document events flow through the same durable pipeline (future consumers:
   // OCR re-run on low confidence, evidence-hash verification, notifications).
@@ -162,6 +168,89 @@ async function handleDocumentUploaded(event: IOutboxEvent): Promise<void> {
   });
 }
 
+// ── ALERT_CREATED ────────────────────────────────────────────────────────────
+// Emitted by the batch rule engine after an alert is durably created. The
+// consumer owns the fan-out (socket) + audit, so the producer stays a pure
+// "create alert + emit event" step. Replays are safe: socket is last-write-wins
+// and the audit entry is deduped on the event key.
+
+async function handleAlertCreated(event: IOutboxEvent): Promise<void> {
+  if (!(await ensureEntityExists(Alert, event.aggregateId, "alert"))) return;
+
+  const alert = await Alert.findById(event.aggregateId).lean();
+  if (!alert) return;
+
+  const payload = (event.payload ?? {}) as Record<string, unknown>;
+  const ruleCode = (payload.ruleCode ?? alert.ruleCode) as string;
+  const severity = (payload.severity ?? alert.severity) as string;
+  const siteId = (event.siteId ?? alert.siteId).toString();
+
+  emitAlertEvent("alert:new", siteId, {
+    alertId: event.aggregateId.toString(),
+    ruleCode,
+    severity,
+    siteId,
+  });
+
+  await logAction({
+    entityType: "alert",
+    entityId: event.aggregateId,
+    action: "created",
+    payload: {
+      ruleCode,
+      severity,
+      siteId,
+      derived: payload.derived ?? false,
+    },
+    dedupeKey: event.eventKey,
+  });
+}
+
+// ── ALERT_REMINDED ───────────────────────────────────────────────────────────
+
+async function handleAlertReminded(event: IOutboxEvent): Promise<void> {
+  if (!(await ensureEntityExists(Alert, event.aggregateId, "alert"))) return;
+
+  await logAction({
+    entityType: "alert",
+    entityId: event.aggregateId,
+    action: "reminded",
+    payload: { fromState: "assigned", toState: "reminded" },
+    dedupeKey: event.eventKey,
+  });
+}
+
+// ── ALERT_ESCALATED ──────────────────────────────────────────────────────────
+
+async function handleAlertEscalated(event: IOutboxEvent): Promise<void> {
+  if (!(await ensureEntityExists(Alert, event.aggregateId, "alert"))) return;
+
+  const alert = await Alert.findById(event.aggregateId).lean();
+  if (!alert) return;
+
+  const siteId = (event.siteId ?? alert.siteId).toString();
+
+  emitAlertEvent("alert:escalated", siteId, {
+    alertId: event.aggregateId.toString(),
+    state: "escalated",
+  });
+
+  await logAction({
+    entityType: "alert",
+    entityId: event.aggregateId,
+    action: "escalated",
+    payload: { fromState: "reminded", toState: "escalated" },
+    dedupeKey: event.eventKey,
+  });
+}
+
+// ── USER_LOGIN ───────────────────────────────────────────────────────────────
+// Reserved outbox event type. Login audits are written INLINE (best-effort) in
+// the auth controller — a login has no business-data transaction to share with
+// an outbox event, so an inline ledger entry is the honest upstream. If an
+// event of this type is ever emitted, the consumer here would handle it; until
+// then the dispatch switch treats it as unknown → retry → DLQ (fail loud).
+
 // ── Dispatch ─────────────────────────────────────────────────────────────────
 // Unknown event type → throw → the worker retries → DLQ. Misconfigured events
 // surface visibly instead of vanishing silently.
@@ -176,6 +265,12 @@ export async function dispatchEvent(event: IOutboxEvent): Promise<void> {
       return handleAttendanceSynced(event);
     case "DOCUMENT_UPLOADED":
       return handleDocumentUploaded(event);
+    case "ALERT_CREATED":
+      return handleAlertCreated(event);
+    case "ALERT_REMINDED":
+      return handleAlertReminded(event);
+    case "ALERT_ESCALATED":
+      return handleAlertEscalated(event);
     default:
       throw new Error(`No consumer registered for event type "${event.type}"`);
   }

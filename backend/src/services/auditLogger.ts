@@ -39,9 +39,26 @@ export function computeThisHash(parts: HashParts): string {
 }
 
 // ── Append an entry ───────────────────────────────────────────────────────────
-// Reads the tail entry for prevHash, then appends. Sequential by nature in the
-// current flows (cron + per-request). For production-grade concurrency safety,
-// gate the insert on the tail still existing (exists({ thisHash: prevHash })).
+// Reads the tail entry for prevHash, then appends. The hash chain is an
+// insert-only immutable ledger: if two callers raced read-latest-then-insert,
+// both would link to the SAME prevHash and fork the chain. All writers (request
+// handlers, batch/escalation crons, outbox worker) live in this one process, so
+// a process-level append lock fully serializes appends and keeps the chain
+// linear. A multi-process deployment would additionally need the tail-exists
+// gate (exists({ thisHash: prevHash }) + retry) — out of scope here.
+
+let appendTail: Promise<void> = Promise.resolve();
+
+function withAppendLock<T>(fn: () => Promise<T>): Promise<T> {
+  const run = appendTail.then(fn, fn);
+  // Keep the queue alive even when a writer rejects — the caller still sees
+  // its own error; the chain simply continues with the next writer.
+  appendTail = run.then(
+    () => undefined,
+    () => undefined
+  );
+  return run;
+}
 
 export interface AuditEntry {
   entityType: string;
@@ -57,36 +74,38 @@ export interface AuditEntry {
 }
 
 export async function logAction(entry: AuditEntry): Promise<void> {
-  const last = await AuditLog.findOne()
-    .sort({ createdAt: -1 })
-    .select("thisHash")
-    .lean();
-  const prevHash = last?.thisHash ?? GENESIS_HASH;
-  const createdAt = new Date();
+  return withAppendLock(async () => {
+    const last = await AuditLog.findOne()
+      .sort({ createdAt: -1 })
+      .select("thisHash")
+      .lean();
+    const prevHash = last?.thisHash ?? GENESIS_HASH;
+    const createdAt = new Date();
 
-  try {
-    await AuditLog.create({
-      entityType: entry.entityType,
-      entityId: entry.entityId,
-      action: entry.action,
-      ...(entry.actorId ? { actorId: entry.actorId } : {}),
-      payload: entry.payload ?? null,
-      ...(entry.dedupeKey ? { dedupeKey: entry.dedupeKey } : {}),
-      prevHash,
-      thisHash: computeThisHash({
+    try {
+      await AuditLog.create({
         entityType: entry.entityType,
         entityId: entry.entityId,
         action: entry.action,
         ...(entry.actorId ? { actorId: entry.actorId } : {}),
-        payload: entry.payload,
+        payload: entry.payload ?? null,
+        ...(entry.dedupeKey ? { dedupeKey: entry.dedupeKey } : {}),
         prevHash,
+        thisHash: computeThisHash({
+          entityType: entry.entityType,
+          entityId: entry.entityId,
+          action: entry.action,
+          ...(entry.actorId ? { actorId: entry.actorId } : {}),
+          payload: entry.payload,
+          prevHash,
+          createdAt,
+        }),
         createdAt,
-      }),
-      createdAt,
-    });
-  } catch (err) {
-    // Duplicate dedupeKey → already logged for this event → idempotent skip.
-    if ((err as { code?: number })?.code === 11000 && entry.dedupeKey) return;
-    throw err;
-  }
+      });
+    } catch (err) {
+      // Duplicate dedupeKey → already logged for this event → idempotent skip.
+      if ((err as { code?: number })?.code === 11000 && entry.dedupeKey) return;
+      throw err;
+    }
+  });
 }

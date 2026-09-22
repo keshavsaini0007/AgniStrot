@@ -187,6 +187,41 @@ const main = async (): Promise<void> => {
   });
   ok("remaining events stay pending for the next cycle", remaining >= 1);
 
+  // ── H. New consumers (alert lifecycle) — edge E ───────────────────────────
+  console.log("H. Alert-lifecycle consumers (edge E: deleted entities)");
+  const aggHAlert = new Types.ObjectId(); // alert does not exist
+  await emitOutboxEvent({
+    type: "ALERT_CREATED",
+    aggregateType: "alert",
+    aggregateId: aggHAlert,
+    payload: TAG,
+  });
+  await emitOutboxEvent({
+    type: "ALERT_REMINDED",
+    aggregateType: "alert",
+    aggregateId: aggHAlert,
+    payload: TAG,
+  });
+  await emitOutboxEvent({
+    type: "ALERT_ESCALATED",
+    aggregateType: "alert",
+    aggregateId: aggHAlert,
+    payload: TAG,
+  });
+
+  // Processing here also drains leftover DOCUMENT_UPLOADED test events from
+  // earlier sections — they now carry the same edge-E guard, so nothing with a
+  // fake aggregate can write audit rows.
+  await processOutboxEvents({ batchSize: 50 });
+  const alertEvents = await OutboxEvent.find({
+    "payload.test": true,
+    aggregateId: aggHAlert,
+  }).lean();
+  ok(
+    "ALERT_CREATED/REMINDED/ESCALATED dropped cleanly for missing alert",
+    alertEvents.length === 3 && alertEvents.every((e) => e.status === "completed")
+  );
+
   // ── Summary ───────────────────────────────────────────────────────────────
   const stats = await getOutboxStats();
   console.log(`\nOutbox state: ${JSON.stringify(stats, null, 2)}`);

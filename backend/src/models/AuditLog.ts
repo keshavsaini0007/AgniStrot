@@ -20,10 +20,10 @@ const auditLogSchema = new Schema<IAuditLog>(
     },
     dedupeKey: {
       type: String,
-      default: null,
       // unique per (logical) event — used by event-driven consumers so a
-      // re-delivered outbox event cannot double-log. Null for legacy/not-
-      // event-driven entries, which the sparse unique index allows to repeat.
+      // re-delivered outbox event cannot double-log. Deliberately NO default:
+      // a document that omits the field is what makes the sparse unique index
+      // skip it — writing `null` instead would collide (null is indexed value).
     },
     actorId: {
       type: Schema.Types.ObjectId,

@@ -23,6 +23,10 @@ async function fixAlertIndexes(): Promise<void> {
   await Alert.deleteMany({ ruleKey: null });
   await Alert.syncIndexes();
   await WorkflowState.syncIndexes();
+  // Normalize legacy audit rows that stored dedupeKey: null — a sparse unique
+  // index indexes explicit nulls, so they'd collide when the engine recreates
+  // the index. Non-event entries must OMIT the field, not null it.
+  await AuditLog.updateMany({ dedupeKey: null }, { $unset: { dedupeKey: "" } });
   await AuditLog.syncIndexes();
   await OutboxEvent.syncIndexes();
   await FailedJob.syncIndexes();

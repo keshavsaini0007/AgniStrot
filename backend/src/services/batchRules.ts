@@ -4,8 +4,7 @@ import Alert from "../models/Alert.js";
 import Inspection from "../models/Inspection.js";
 import Attendance from "../models/Attendance.js";
 import { resolveAssignee } from "./ruleEngine.js";
-import { logAction } from "./auditLogger.js";
-import { emitAlertEvent } from "../sockets/index.js";
+import { emitOutboxEvent } from "./outboxService.js";
 import { INSPECTION_INTERVALS, ALERT_DEADLINES } from "../types/index.js";
 import type {
   InspectionType,
@@ -205,17 +204,15 @@ async function createBatchAlert(input: BatchAlertInput): Promise<void> {
     deadline: new Date(Date.now() + deadlineMs),
   });
 
-  emitAlertEvent("alert:new", input.siteId.toString(), {
-    alertId: alertId.toString(),
-    ruleCode: input.ruleCode,
-    severity: input.severity,
-    siteId: input.siteId.toString(),
-  });
-
-  await logAction({
-    entityType: "alert",
-    entityId: alertId,
-    action: "created",
+  // Publish the durable ALERT_CREATED event — the consumer owns the socket
+  // fan-out + audit entry (idempotent on the eventKey). Crash between the alert
+  // upsert and this emit leaves an alert but no event — the batch cron reruns
+  // and the ruleKey upsert dedupes, so the alert itself is not duplicated.
+  await emitOutboxEvent({
+    type: "ALERT_CREATED",
+    aggregateType: "alert",
+    aggregateId: alertId,
+    siteId: input.siteId,
     payload: {
       ruleCode: input.ruleCode,
       severity: input.severity,

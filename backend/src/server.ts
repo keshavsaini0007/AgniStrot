@@ -22,6 +22,7 @@ import userRoutes from "./routes/users.js";
 import sitesRoutes from "./routes/sites.js";
 import correctiveActionsRoutes from "./routes/correctiveActions.js";
 import complianceRoutes from "./routes/compliance.js";
+import systemRoutes from "./routes/system.js";
 import { authenticate } from "./middleware/auth.js";
 import { runBatchRules } from "./services/batchRules.js";
 import { runEscalations } from "./services/workflowEngine.js";
@@ -70,6 +71,7 @@ app.use(["/api/v1/users", "/users"], authenticate, userRoutes);
 app.use(["/api/v1/sites", "/sites"], authenticate, sitesRoutes);
 app.use(["/api/v1/corrective-actions", "/corrective-actions"], authenticate, correctiveActionsRoutes);
 app.use(["/api/v1/compliance", "/compliance"], authenticate, complianceRoutes);
+app.use(["/api/v1/system", "/system"], authenticate, systemRoutes);
 
 // ── Start server ───────────────────────────────────────────
 const start = async (): Promise<void> => {
@@ -82,6 +84,15 @@ const start = async (): Promise<void> => {
     try {
       await runBatchRules();
       await runEscalations();
+      // Dispatch the events the engines just emitted (batch alerts + escalation
+      // transitions) immediately instead of waiting for the next poll cycle.
+      const stats = await processOutboxEvents();
+      if (stats.claimed > 0) {
+        console.log(
+          `[outbox] post-cron cycle: claimed=${stats.claimed} completed=${stats.completed} ` +
+            `held=${stats.heldForOrdering} retried=${stats.retried} dead=${stats.deadLettered}`
+        );
+      }
     } catch (err) {
       console.error("Scheduled task error:", err);
     }
