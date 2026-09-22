@@ -6,6 +6,12 @@ import Document from "../models/Document.js";
 import Site from "../models/Site.js";
 import { extractFormFields } from "../services/ocrService.js";
 import { logAction } from "../services/auditLogger.js";
+import {
+  emitOutboxEvent,
+  processOutboxEvents,
+  runInTransaction,
+  sessionOption,
+} from "../services/outboxService.js";
 import type { AuthenticatedRequest } from "../types/index.js";
 
 // ── Document DTO ────────────────────────────────────────────────────────────
@@ -137,13 +143,46 @@ export const ingestDocument = async (
     // Run OCR extraction
     const ocrResult = await extractFormFields(ocrTarget);
 
-    // Create document record
-    const document = await Document.create({
-      siteId: new Types.ObjectId(siteId),
-      sourceImageUrl,
-      extractedFields: ocrResult.extractedFields,
-      confidence: ocrResult.confidence,
-      reviewStatus: "pending",
+    // Create document record + domain event transactionally (Transactional
+    // Outbox — a document that exists must never lose its automation event).
+    // The upload dedupes on the OCR confidence payload via DOCUMENT_UPLOADED.
+    const { document } = await runInTransaction(async (session) => {
+      const [doc] = await Document.create(
+        [
+          {
+            siteId: new Types.ObjectId(siteId),
+            sourceImageUrl,
+            extractedFields: ocrResult.extractedFields,
+            confidence: ocrResult.confidence,
+            reviewStatus: "pending",
+          },
+        ],
+        { ...sessionOption(session) }
+      );
+      if (!doc) throw new Error("Document creation returned no result.");
+
+      await emitOutboxEvent(
+        {
+          type: "DOCUMENT_UPLOADED",
+          aggregateType: "document",
+          aggregateId: doc._id,
+          siteId: new Types.ObjectId(siteId),
+          actorId: new Types.ObjectId(req.user.id),
+          payload: {
+            sourceImageUrl,
+            confidence: ocrResult.confidence,
+            reviewStatus: "pending",
+          },
+        },
+        session
+      );
+
+      return { document: doc };
+    });
+
+    // Kick the outbox worker so the DOCUMENT_UPLOADED consumer runs promptly.
+    void processOutboxEvents().catch((err) => {
+      console.error("[outbox] Worker kick failed:", err);
     });
 
     // Log audit trail entry

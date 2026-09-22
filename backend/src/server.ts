@@ -25,6 +25,11 @@ import complianceRoutes from "./routes/compliance.js";
 import { authenticate } from "./middleware/auth.js";
 import { runBatchRules } from "./services/batchRules.js";
 import { runEscalations } from "./services/workflowEngine.js";
+import {
+  getOutboxStats,
+  processOutboxEvents,
+  recoverStaleProcessing,
+} from "./services/outboxService.js";
 import { initSocket } from "./sockets/index.js";
 
 const app = express();
@@ -82,6 +87,56 @@ const start = async (): Promise<void> => {
     }
   });
   console.log("Scheduler started: batch rules + escalations every 15 minutes.");
+
+  // ── Outbox worker ────────────────────────────────────────────────────────
+  // Polls the durable event store and dispatches to consumers (alerts / audit /
+  // sockets). Near-real-time: sync/ingest endpoints also kick it immediately
+  // after commit. Stale "processing" events (worker crash — edge B) are pushed
+  // back to pending on a slower cadence.
+  const outboxPollMs = Number(process.env.OUTBOX_POLL_MS ?? 30_000);
+  const outboxBatchSize = Number(process.env.OUTBOX_BATCH_SIZE ?? 50);
+  const outboxLeaseMs = Number(process.env.OUTBOX_LEASE_MS ?? 5 * 60 * 1000);
+
+  setInterval(async () => {
+    try {
+      const stats = await processOutboxEvents({ batchSize: outboxBatchSize });
+      if (stats.claimed > 0) {
+        console.log(
+          `[outbox] cycle: claimed=${stats.claimed} completed=${stats.completed} ` +
+            `held=${stats.heldForOrdering} retried=${stats.retried} dead=${stats.deadLettered}`
+        );
+      }
+    } catch (err) {
+      console.error("Outbox worker error:", err);
+    }
+  }, outboxPollMs);
+
+  // Crash recovery (edge B): reset events stuck in "processing" beyond the lease.
+  cron.schedule("*/5 * * * *", async () => {
+    try {
+      const recovered = await recoverStaleProcessing({ leaseMs: outboxLeaseMs });
+      if (recovered > 0) {
+        console.log(`[outbox] Recovered ${recovered} stale processing event(s).`);
+      }
+    } catch (err) {
+      console.error("Outbox recovery error:", err);
+    }
+  });
+
+  // Startup health snapshot — surface pending/DLQ counts in logs.
+  void getOutboxStats()
+    .then((stats) =>
+      console.log(
+        `[outbox] initial state: pending=${stats.pending} processing=${stats.processing} ` +
+          `completed=${stats.completed} dead=${stats.dead} DLQ=${stats.deadLetterQueue}`
+      )
+    )
+    .catch(() => undefined);
+
+  console.log(
+    `Outbox worker started (poll=${outboxPollMs}ms, batch=${outboxBatchSize}, lease=${outboxLeaseMs}ms).`
+  );
+
   initSocket(httpServer);
   console.log("Socket.io initialized.");
 

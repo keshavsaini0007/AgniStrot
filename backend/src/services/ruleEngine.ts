@@ -1,7 +1,10 @@
-import { Types } from "mongoose";
+import { Types, type Model } from "mongoose";
 import Alert from "../models/Alert.js";
 import User from "../models/User.js";
 import WorkflowState from "../models/WorkflowState.js";
+import Inspection from "../models/Inspection.js";
+import Incident from "../models/Incident.js";
+import Attendance from "../models/Attendance.js";
 import { emitAlertEvent } from "../sockets/index.js";
 import { logAction } from "./auditLogger.js";
 import type {
@@ -111,6 +114,25 @@ export async function evaluateRules(
   siteId: Types.ObjectId,
   record: Record<string, unknown>
 ): Promise<void> {
+  // Edge E (event-driven): the triggering record may have been deleted after
+  // its event was queued (e.g. an incident raised and removed before the outbox
+  // worker ran). Never create alerts/audit for a record that no longer exists.
+  const sourceModels: Record<SourceType, Model<any>> = {
+    inspection: Inspection,
+    incident: Incident,
+    attendance: Attendance,
+  };
+  const sourceModel = sourceModels[sourceType];
+  if (sourceModel) {
+    const exists = await sourceModel.exists({ _id: sourceId });
+    if (!exists) {
+      console.warn(
+        `[ruleEngine] Source ${sourceType}:${sourceId.toString()} not found — skipping rule evaluation.`
+      );
+      return;
+    }
+  }
+
   let ruleResults: RuleResult[] = [];
 
   switch (sourceType) {

@@ -49,6 +49,11 @@ export interface AuditEntry {
   action: string;
   actorId?: Types.ObjectId;
   payload?: unknown;
+  dedupeKey?: string;
+  // When set, the entry is written idempotently: a replay with the same
+  // dedupeKey (e.g. the outbox eventKey) is silently ignored thanks to the
+  // sparse unique index on { dedupeKey }. Keeps the hash chain append-only while
+  // making event-driven consumers safe against re-delivery (outbox edge B).
 }
 
 export async function logAction(entry: AuditEntry): Promise<void> {
@@ -59,22 +64,29 @@ export async function logAction(entry: AuditEntry): Promise<void> {
   const prevHash = last?.thisHash ?? GENESIS_HASH;
   const createdAt = new Date();
 
-  await AuditLog.create({
-    entityType: entry.entityType,
-    entityId: entry.entityId,
-    action: entry.action,
-    ...(entry.actorId ? { actorId: entry.actorId } : {}),
-    payload: entry.payload ?? null,
-    prevHash,
-    thisHash: computeThisHash({
+  try {
+    await AuditLog.create({
       entityType: entry.entityType,
       entityId: entry.entityId,
       action: entry.action,
       ...(entry.actorId ? { actorId: entry.actorId } : {}),
-      payload: entry.payload,
+      payload: entry.payload ?? null,
+      ...(entry.dedupeKey ? { dedupeKey: entry.dedupeKey } : {}),
       prevHash,
+      thisHash: computeThisHash({
+        entityType: entry.entityType,
+        entityId: entry.entityId,
+        action: entry.action,
+        ...(entry.actorId ? { actorId: entry.actorId } : {}),
+        payload: entry.payload,
+        prevHash,
+        createdAt,
+      }),
       createdAt,
-    }),
-    createdAt,
-  });
+    });
+  } catch (err) {
+    // Duplicate dedupeKey → already logged for this event → idempotent skip.
+    if ((err as { code?: number })?.code === 11000 && entry.dedupeKey) return;
+    throw err;
+  }
 }

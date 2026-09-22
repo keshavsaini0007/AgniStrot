@@ -18,6 +18,13 @@ const auditLogSchema = new Schema<IAuditLog>(
       required: [true, "action is required."],
       // what happened: 'created', 'status_changed', 'escalated', 'resolved', etc.
     },
+    dedupeKey: {
+      type: String,
+      default: null,
+      // unique per (logical) event — used by event-driven consumers so a
+      // re-delivered outbox event cannot double-log. Null for legacy/not-
+      // event-driven entries, which the sparse unique index allows to repeat.
+    },
     actorId: {
       type: Schema.Types.ObjectId,
       ref: "User",
@@ -63,6 +70,10 @@ auditLogSchema.index({ entityType: 1, entityId: 1 });
 
 // Hash chain verification: "get all entries in insertion order to recompute hashes"
 auditLogSchema.index({ createdAt: 1 });
+
+// Idempotent logging for event-driven consumers — sparse so legacy entries
+// with dedupeKey: null don't collide.
+auditLogSchema.index({ dedupeKey: 1 }, { unique: true, sparse: true });
 
 const AuditLog = model<IAuditLog>("AuditLog", auditLogSchema);
 

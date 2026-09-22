@@ -39,6 +39,45 @@ export type SourceType = "inspection" | "incident" | "attendance";
 
 export type DocumentReviewStatus = "pending" | "confirmed" | "rejected";
 
+// ── Event-Driven Architecture types ──────────────────────────────────────────
+
+// Domain events published to the durable outbox. Type = SCREAMING_SNAKE.
+// Only the events we currently emit are dispatched by consumers; the rest are
+// reserved for future flows (corrective actions, compliance, auth, ...).
+export type EventType =
+  | "INCIDENT_CREATED"
+  | "INCIDENT_CRITICAL"
+  | "INSPECTION_CREATED"
+  | "INSPECTION_FAILED"
+  | "ATTENDANCE_SYNCED"
+  | "DOCUMENT_UPLOADED"
+  | "DOCUMENT_VERIFIED"
+  | "ALERT_CREATED"
+  | "ALERT_ESCALATED"
+  | "CORRECTIVE_ACTION_CREATED"
+  | "CORRECTIVE_ACTION_OVERDUE"
+  | "CORRECTIVE_ACTION_VERIFIED"
+  | "COMPLIANCE_OVERDUE"
+  | "USER_LOGIN";
+
+// Which kind of aggregate an event is attached to.
+export type AggregateType =
+  | "inspection"
+  | "incident"
+  | "attendance"
+  | "document"
+  | "alert";
+
+// Lifecycle of an outbox event:
+//   pending → processing → completed
+//   pending → processing → failed → (retry → pending | dead → FailedJob/DLQ)
+export type OutboxStatus =
+  | "pending"
+  | "processing"
+  | "completed"
+  | "failed"
+  | "dead";
+
 // Rule codes — every alert is traceable to one of these
 export type RuleCode =
   | "SAFETY_CHECKLIST_FAIL"      // sync: safety inspection has a failed checklist item
@@ -174,6 +213,7 @@ export interface IAuditLog {
   entityType: string;          // 'inspection' | 'incident' | 'alert' | etc.
   entityId: Types.ObjectId;
   action: string;              // 'created' | 'status_changed' | 'escalated' | etc.
+  dedupeKey?: string | null;   // unique idempotency key (usually the outbox eventKey)
   actorId?: Types.ObjectId;    // undefined for system-triggered actions
   payload?: unknown;
   prevHash: string;            // SHA-256 of previous log entry (genesis = '0'.repeat(64))
@@ -188,6 +228,39 @@ export interface IDocument {
   extractedFields?: Record<string, unknown>;
   confidence?: number;
   reviewStatus: DocumentReviewStatus;
+  createdAt: Date;
+}
+
+export interface IOutboxEvent {
+  _id: Types.ObjectId;
+  eventKey: string;          // unique dedup key: "<aggregateType>:<aggregateId>:<type>"
+  type: EventType;
+  aggregateType: AggregateType;
+  aggregateId: Types.ObjectId;
+  siteId?: Types.ObjectId;
+  actorId?: Types.ObjectId | null;
+  sequenceNumber: number;    // per-aggregate ordering (monotonic, assigned at emit)
+  payload?: unknown;
+  status: OutboxStatus;
+  retryCount: number;
+  maxRetries: number;
+  lastError?: string | null;
+  nextAttemptAt: Date;       // when the worker may retry this event
+  processingStartedAt?: Date | null;
+  processedAt?: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface IFailedJob {
+  _id: Types.ObjectId;
+  jobType: string;           // the event type that exhausted its retries
+  payload?: unknown;
+  error: string;
+  attempts: number;
+  firstFailedAt: Date;
+  lastFailedAt: Date;
+  status: "failed" | "reprocessed" | "discarded";
   createdAt: Date;
 }
 

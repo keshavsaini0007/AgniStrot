@@ -1,28 +1,42 @@
 import type { Request, Response } from "express";
-import { Types } from "mongoose";
-import type { Model } from "mongoose";
+import { Types, type Model } from "mongoose";
 import type { ZodSchema } from "zod";
 import Inspection from "../models/Inspection.js";
 import Incident from "../models/Incident.js";
 import Attendance from "../models/Attendance.js";
-import { evaluateRules } from "../services/ruleEngine.js";
-import { logAction } from "../services/auditLogger.js";
-import { emitRecordEvent } from "../sockets/index.js";
-import { syncBatchSchema } from "../validators/sync.validator.js";
+import {
+  emitOutboxEvent,
+  processOutboxEvents,
+  runInTransaction,
+  sessionOption,
+} from "../services/outboxService.js";
 import {
   inspectionRecordSchema,
   incidentRecordSchema,
   attendanceRecordSchema,
 } from "../validators/sync.validator.js";
-import type { SourceType } from "../types/index.js";
+import type { EventType, SourceType } from "../types/index.js";
 
-// ── Sync helper ──────────────────────────────────────────────────────────────
-// Generic per-record processor. Validates each record individually so invalid
-// records go to rejected[] without failing the entire batch.
+// ── Sync controller (event-driven) ───────────────────────────────────────────
+// Each accepted record is written inside a MongoDB transaction together with
+// its OutboxEvent (Transactional Outbox — edge F). The outbox worker then
+// consumes the event durably:
+//
+//   Transaction { Sync Record + OutboxEvent } → Worker → Socket / Audit / Rules
+//
+// What used to run inline here (socket emit, audit log, rule engine) now runs
+// in the consumers (services/eventConsumers.ts) — crash-safe and replay-safe.
 
 type SyncResult = {
   accepted: string[];
   rejected: { clientUuid: string; reason: string }[];
+};
+
+// Map sync source → domain event emitted on insert.
+const EVENT_TYPE_BY_SOURCE: Record<SourceType, EventType> = {
+  inspection: "INSPECTION_CREATED",
+  incident: "INCIDENT_CREATED",
+  attendance: "ATTENDANCE_SYNCED",
 };
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -52,57 +66,51 @@ async function processRecord(
 
   // Step 2: build the safe document — only whitelisted fields, server-set values override client
   const safeDoc = buildSafeDoc(validated, userId);
+  const siteId = new Types.ObjectId(validated.siteId as string);
 
-  // Step 3: atomic upsert — insert if new, skip if clientUuid already exists
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-explicit-any
-  const result: any = await Model.findOneAndUpdate(
-    { clientUuid: uuid },
-    { $setOnInsert: safeDoc },
-    { upsert: true, new: true, includeResultMetadata: true }
-  );
-
-  if (result.lastErrorObject?.upserted) {
-    // New document inserted — trigger rule engine
-    results.accepted.push(uuid);
-    const doc = result.value as { _id: Types.ObjectId } | undefined;
-    if (doc) {
-      // Push the live event FIRST so the dashboards always update in real
-      // time, even if the rule engine (DB lookups/alert creation) fails below.
-      emitRecordEvent(sourceType, String(validated.siteId), {
-        recordId: doc._id.toString(),
-        siteId: validated.siteId,
-        severity: validated.severity,
-        category: validated.category,
-        type: validated.type,
-        checkType: validated.checkType,
-        workerRef: validated.workerRef,
-        capturedAt: validated.capturedAt,
-      });
-
-      const siteId = new Types.ObjectId(validated.siteId as string);
-      try {
-        await logAction({
-          entityType: sourceType,
-          entityId: doc._id,
-          action: "created",
-          actorId: new Types.ObjectId(userId),
-          payload: {
-            siteId: validated.siteId,
-            type: validated.type,
-            severity: validated.severity,
-            category: validated.category,
-            workerRef: validated.workerRef,
-            checkType: validated.checkType,
-          },
-        });
-        await evaluateRules(sourceType, doc._id, siteId, safeDoc);
-      } catch (ruleErr) {
-        console.error(`Rule engine error for ${sourceType} ${uuid}:`, ruleErr);
+  // Step 3: transactional outbox (edges A + F) — entity + event commit together.
+  await runInTransaction(async (session) => {
+    const result: any = await Model.findOneAndUpdate(
+      { clientUuid: uuid },
+      { $setOnInsert: safeDoc },
+      {
+        upsert: true,
+        returnDocument: "after",
+        includeResultMetadata: true,
+        ...sessionOption(session),
       }
+    );
+
+    if (result.lastErrorObject?.upserted) {
+      // New document inserted — write its domain event into the durable outbox.
+      results.accepted.push(uuid);
+      const doc = result.value as { _id: Types.ObjectId };
+      await emitOutboxEvent(
+        {
+          type: EVENT_TYPE_BY_SOURCE[sourceType],
+          aggregateType: sourceType,
+          aggregateId: doc._id,
+          siteId,
+          actorId: new Types.ObjectId(userId),
+          payload: safeDoc,
+        },
+        session
+      );
+    } else {
+      // clientUuid already exists → duplicate, no event emitted (idempotent sync)
+      results.rejected.push({ clientUuid: uuid, reason: "duplicate" });
     }
-  } else {
-    results.rejected.push({ clientUuid: uuid, reason: "duplicate" });
-  }
+  });
+}
+
+// ── Kick the outbox worker so consumers run immediately, not just on the
+// server's poll interval. Safe to call concurrently: events are claimed
+// atomically (status: pending → processing).
+
+function kickOutboxWorker(): void {
+  void processOutboxEvents().catch((err) => {
+    console.error("[outbox] Worker kick failed:", err);
+  });
 }
 
 // ── POST /api/v1/inspections/sync ───────────────────────────────────────────
@@ -135,6 +143,7 @@ export const syncInspections = async (req: Request, res: Response): Promise<void
       );
     }
 
+    kickOutboxWorker();
     res.json(results);
   } catch (err) {
     console.error("Sync inspections error:", err);
@@ -174,6 +183,7 @@ export const syncIncidents = async (req: Request, res: Response): Promise<void> 
       );
     }
 
+    kickOutboxWorker();
     res.json(results);
   } catch (err) {
     console.error("Sync incidents error:", err);
@@ -209,6 +219,7 @@ export const syncAttendance = async (req: Request, res: Response): Promise<void>
       );
     }
 
+    kickOutboxWorker();
     res.json(results);
   } catch (err) {
     console.error("Sync attendance error:", err);

@@ -10,6 +10,7 @@
     "start": "node dist/server.js",
     "seed": "tsx src/scripts/seed.ts",
     "verify": "tsx src/scripts/verify.ts",
+    "verify:outbox": "tsx src/scripts/verifyOutbox.ts",
     "generate:postman": "tsx src/scripts/generatePostman.ts",
     "test:postman": "tsx src/scripts/runPostmanTests.ts"
   },
