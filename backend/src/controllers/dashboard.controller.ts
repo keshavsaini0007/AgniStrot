@@ -19,6 +19,78 @@ function todayRange(): { $gte: Date; $lt: Date } {
   return { $gte: start, $lt: end };
 }
 
+// ── Feature 02: SLA breach stats (query-computed, no runtime breach events) ──
+// Scope is passed in by the role summary (site-scoped for mine_official).
+// Ack breach   = acknowledgedAt > ackDeadline; open past ackDeadline = overdue.
+// Resolution   = resolvedAt > resolutionDeadline (late) or still open past it
+//                (overdue). Compliance = % of handled alerts within SLA.
+
+interface SlaStats {
+  ack: {
+    acked: number;
+    onTime: number;
+    late: number;
+    overdue: number;
+    compliance: number | null;
+  };
+  resolution: {
+    resolved: number;
+    onTime: number;
+    late: number;
+    overdue: number;
+    compliance: number | null;
+  };
+  bySeverity: Record<string, { total: number; breached: number }>;
+}
+
+async function buildSlaStats(filter: Record<string, unknown> = {}): Promise<SlaStats> {
+  const now = Date.now();
+  const rows = await Alert.find(filter)
+    .select("severity acknowledgedAt resolvedAt ackDeadline resolutionDeadline")
+    .lean();
+
+  const stats: SlaStats = {
+    ack: { acked: 0, onTime: 0, late: 0, overdue: 0, compliance: null },
+    resolution: { resolved: 0, onTime: 0, late: 0, overdue: 0, compliance: null },
+    bySeverity: {},
+  };
+
+  for (const a of rows) {
+    const sev = a.severity;
+    const bucket = stats.bySeverity[sev] ?? { total: 0, breached: 0 };
+    bucket.total += 1;
+
+    if (a.acknowledgedAt && a.ackDeadline) {
+      stats.ack.acked += 1;
+      if (a.acknowledgedAt.getTime() <= a.ackDeadline.getTime()) stats.ack.onTime += 1;
+      else stats.ack.late += 1;
+    } else if (a.ackDeadline && now > a.ackDeadline.getTime()) {
+      stats.ack.overdue += 1;
+    }
+
+    if (a.resolvedAt && a.resolutionDeadline) {
+      stats.resolution.resolved += 1;
+      if (a.resolvedAt.getTime() <= a.resolutionDeadline.getTime()) {
+        stats.resolution.onTime += 1;
+      } else {
+        stats.resolution.late += 1;
+        bucket.breached += 1;
+      }
+    } else if (a.resolutionDeadline && now > a.resolutionDeadline.getTime()) {
+      stats.resolution.overdue += 1;
+      bucket.breached += 1;
+    }
+
+    stats.bySeverity[sev] = bucket;
+  }
+
+  stats.ack.compliance = stats.ack.acked > 0 ? Math.round((stats.ack.onTime / stats.ack.acked) * 100) : null;
+  stats.resolution.compliance =
+    stats.resolution.resolved > 0 ? Math.round((stats.resolution.onTime / stats.resolution.resolved) * 100) : null;
+
+  return stats;
+}
+
 // ── GET /api/v1/dashboard/summary ──────────────────────────────────────────
 
 export const getSummary = async (
@@ -61,7 +133,7 @@ async function mineOfficialSummary(
   const today = todayRange();
   const since7d = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
-  const [site, openAlerts, todaysInspections, inspections7d, alerts7d, presentWorkers, pendingWorkflows] = await Promise.all([
+  const [site, openAlerts, todaysInspections, inspections7d, alerts7d, presentWorkers, pendingWorkflows, sla] = await Promise.all([
     Site.findById(siteId).lean(),
     Alert.find({ siteId, status: "open" })
       .sort({ createdAt: -1 })
@@ -77,6 +149,7 @@ async function mineOfficialSummary(
     Alert.countDocuments({ siteId, createdAt: { $gte: since7d } }),
     Attendance.distinct("workerRef", { siteId, capturedAt: today, checkType: "in" }),
     getPendingWorkflows(siteId),
+    buildSlaStats({ siteId }),
   ]);
 
   const present = presentWorkers.length;
@@ -105,6 +178,7 @@ async function mineOfficialSummary(
     inspections7d,
     alerts7d,
     pendingWorkflows,
+    sla,
   });
 }
 
@@ -149,7 +223,7 @@ async function corporateManagerSummary(res: Response): Promise<void> {
   const now = new Date();
   const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
-  const [sites, criticalAlerts, trendData, inspections7d, incidents7d] = await Promise.all([
+  const [sites, criticalAlerts, trendData, inspections7d, incidents7d, sla] = await Promise.all([
     Site.find({}).lean(),
     Alert.find({ severity: "critical", status: "open" })
       .sort({ createdAt: -1 })
@@ -170,6 +244,7 @@ async function corporateManagerSummary(res: Response): Promise<void> {
     ]),
     Inspection.countDocuments({ capturedAt: { $gte: sevenDaysAgo } }),
     Incident.countDocuments({ capturedAt: { $gte: sevenDaysAgo } }),
+    buildSlaStats({}),
   ]);
 
   // Per-site alert counts
@@ -219,6 +294,7 @@ async function corporateManagerSummary(res: Response): Promise<void> {
     inspections7d,
     incidents7d,
     trend7Day: { daily, totals },
+    sla,
   });
 }
 
@@ -227,7 +303,7 @@ async function corporateManagerSummary(res: Response): Promise<void> {
 async function regulatorSummary(res: Response): Promise<void> {
   const now = new Date();
 
-  const [sites, criticalAlertCounts, overdueData] = await Promise.all([
+  const [sites, criticalAlertCounts, overdueData, sla] = await Promise.all([
     Site.find({}).lean(),
     Alert.aggregate([
       { $match: { severity: "critical", status: "open" } },
@@ -237,6 +313,7 @@ async function regulatorSummary(res: Response): Promise<void> {
       { $sort: { capturedAt: -1 } },
       { $group: { _id: { siteId: "$siteId", type: "$type" }, lastDate: { $first: "$capturedAt" } } },
     ]),
+    buildSlaStats({}),
   ]);
 
   const criticalCountMap = new Map(
@@ -272,6 +349,7 @@ async function regulatorSummary(res: Response): Promise<void> {
         .sort((a, b) => (b.lastDate as Date).getTime() - (a.lastDate as Date).getTime())[0]?.lastDate ?? null,
     })),
     overdueItems,
+    sla,
   });
 }
 
