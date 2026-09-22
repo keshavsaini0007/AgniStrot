@@ -1037,7 +1037,7 @@ const collection: PostmanCollection = {
           ],
         },
         {
-          name: "List Attendance - Field Officer Blocked (RBAC 403)",
+          name: "List Attendance - Field Officer Site-Scoped (200)",
           request: {
             method: "GET",
             auth: bearerAuth("{{token_fo}}"),
@@ -1050,8 +1050,14 @@ const collection: PostmanCollection = {
               script: {
                 type: "text/javascript",
                 exec: [
-                  "pm.test('Field Officer blocked with 403 Forbidden', function () {",
-                  "    pm.response.to.have.status(403);",
+                  "pm.test('Field Officer sees attendance scoped to their site', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const res = pm.response.json();",
+                  "pm.test('Field Officer attendance list is a non-empty array', function () {",
+                  "    pm.expect(res.data).to.be.an('array');",
+                  "    pm.expect(res.data.length).to.be.greaterThan(0);",
                   "});",
                 ],
               },
@@ -1797,8 +1803,8 @@ const collection: PostmanCollection = {
                   "});",
                   "",
                   "if (res.data.length > 0) {",
-                  "    pm.environment.set('active_doc_id', res.data[0]._id);",
-                  "    pm.collectionVariables.set('active_doc_id', res.data[0]._id);",
+                  "    pm.environment.set('active_doc_id', res.data[0].id);",
+                  "    pm.collectionVariables.set('active_doc_id', res.data[0].id);",
                   "}",
                 ],
               },
