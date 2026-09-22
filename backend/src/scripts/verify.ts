@@ -16,8 +16,8 @@ import Incident from "../models/Incident.js";
 import Inspection from "../models/Inspection.js";
 import { computeThisHash, GENESIS_HASH } from "../services/auditLogger.js";
 import { runEscalations } from "../services/workflowEngine.js";
+import { resolveAssignee } from "../services/ruleEngine.js";
 import { ALERT_DEADLINES } from "../types/index.js";
-import type { AlertSeverity } from "../types/index.js";
 
 // ── Verification battery ────────────────────────────────────────────────────
 // `npm run verify` — one-command end-to-end check of the Phase 4 alert engine.
@@ -614,8 +614,6 @@ async function workflowProbes(tokens: { priya: string; meena: string }, SJ: stri
   if (!journey) return;
 
   const aid = journey._id.toString();
-  const severity = (journey.alert?.severity ?? "medium") as AlertSeverity;
-  const window = ALERT_DEADLINES[severity] * 0.25;
   let wf = await WorkflowState.find({ alertId: aid }).sort({ changedAt: -1 }).limit(1).lean();
   let row = wf[0];
   if (!row) return;
@@ -623,14 +621,29 @@ async function workflowProbes(tokens: { priya: string; meena: string }, SJ: stri
   await runEscalations();
   wf = await WorkflowState.find({ alertId: aid }).sort({ changedAt: -1 }).limit(1).lean();
   check("assigned → reminded after deadline", wf[0]?.state === "reminded", JSON.stringify(wf[0]?.state));
-  check("not escalated in that pass (window still ahead)", (await WorkflowState.countDocuments({ alertId: aid, state: "escalated" })) === 0);
+  check("not escalated in that pass (next rung not due)", (await WorkflowState.countDocuments({ alertId: aid, state: "escalated" })) === 0);
 
+  // ── Feature 02: multi-level climb ────────────────────────────────────────
+  // Shift the alert's createdAt far into the past so EVERY rung of its snapshot
+  // chain is due. A single pass must then climb assigned → reminded → L2 (next
+  // role) → L3 (top) and land the alert in the terminal escalated state —
+  // proving the ladder is per-level, not a single reminded + 25% window hop.
   row = wf[0];
   if (!row) return;
-  await WorkflowState.updateOne({ _id: row._id }, { deadline: new Date(Date.now() - (window + 60 * 60 * 1000)) });
+  // Raw collection update — Mongoose's updateOne with `timestamps` strips a
+  // user-supplied createdAt from $set, so the driver-level write is required
+  // to backdate the alert for the climb probe.
+  await Alert.collection.updateOne({ _id: new Types.ObjectId(aid) }, { $set: { createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000) } });
   await runEscalations();
-  const escalated = (await Alert.findById(aid).lean())?.status;
-  check(`reminded → escalated (deadline +${Math.round(window / 36e5)}h window passed)`, escalated === "escalated", `status=${escalated}`);
+  await runEscalations(); // idempotent — the climb topped out in a single pass
+  const climbed = await Alert.findById(aid).lean();
+  const climbedRows = await WorkflowState.find({ alertId: aid, state: "escalated" }).sort({ changedAt: 1 }).lean();
+  const topRow = await WorkflowState.find({ alertId: aid }).sort({ changedAt: -1 }).limit(1).lean();
+  check("climbed the full ladder → terminal escalated", climbed?.status === "escalated" && topRow[0]?.state === "escalated", `status=${climbed?.status} state=${topRow[0]?.state}`);
+  check("currentLevel == chain top && escalationCount == rungs-1", climbed?.currentLevel === 3 && climbed?.escalationCount === 2, `lvl=${climbed?.currentLevel} count=${climbed?.escalationCount}`);
+  check("escalated rows stamped with levels 2→3", climbedRows.map((r) => r.level).join(",") === "2,3", `levels=${climbedRows.map((r) => r.level).join(",")}`);
+  const climber = climbed?.assignedTo ? await User.findById(climbed.assignedTo).lean() : null;
+  check("terminal assignee is an active top-rung user (regulator)", !!climber && climber.isActive !== false && climber.role === "regulator", `role=${climber?.role}`);
 
   const resolve = await post(tokens.meena, `/alerts/${aid}/resolve`, { resolutionNote: "escalation journey closed" });
   check("regulator resolves an ESCALATED alert → 200 closed", resolve.status === 200 && (resolve.body as { status: string }).status === "closed", JSON.stringify(resolve.body));
@@ -647,6 +660,250 @@ async function workflowProbes(tokens: { priya: string; meena: string }, SJ: stri
     const after = await WorkflowState.countDocuments({ alertId: cid });
     check("closed alert is never re-touched", before === after, `ws ${before}→${after}`);
   }
+}
+
+// ── [F02] Escalation Matrix (feature 02, Phases B–E) ─────────────────────────
+// End-to-end battery for the configurable SLA engine:
+//   A. SLA-policy admin API + role guards (corporate/regulator, 403s elsewhere)
+//   B. structural validation → structured 400s (circular / non-increasing /
+//      ladder exceeding resolution SLA)
+//   C. snapshot-at-creation + snapshot-driven climbing (edge G — the custom row
+//      is DELETED before the climb, so only snapshot timing can land it)
+//   D. assignee resolution: department priority (edge H), inactive skip (edge B),
+//      all-inactive → null (edge A)
+//   E. SLA breach stats surfaced on the dashboard (role-scoped)
+
+async function feature02SlaBattery(
+  tokens: { priya: string; meena: string; amit: string; rahul: string },
+  sites: { SJ: string; SD: string }
+): Promise<void> {
+  console.log("\n== [F02] Escalation matrix ==");
+  const { priya, meena, amit, rahul } = tokens;
+  const { SJ, SD } = sites;
+
+  // ── A. Admin API + role guards ───────────────────────────────────────────
+  const list = await get(amit, "/sla-policies");
+  check("corporate lists SLA policies (4 severities)", list.status === 200 && (list.body as { data?: unknown[] }).data?.length === 4, `status=${list.status}`);
+  check("regulator reads SLA policies → 200", (await get(meena, "/sla-policies")).status === 200);
+  check("mine_official blocked from SLA policies → 403", (await get(priya, "/sla-policies")).status === 403);
+  check("field_officer blocked from SLA policies → 403", (await get(rahul, "/sla-policies")).status === 403);
+
+  const single = await get(amit, "/sla-policies/high");
+  check("get single severity → source=configured (seed stores rows)", single.status === 200 && (single.body as { data?: { source?: string } }).data?.source === "configured", `status=${single.status}`);
+
+  // ── B. Structural validation (bad configs → 400) ─────────────────────────
+  const circ = await api("/sla-policies/high", {
+    token: amit,
+    method: "PUT",
+    body: {
+      ackSla: 30,
+      resolutionSla: 400,
+      escalationChain: [
+        { level: 1, role: "mine_official", waitMinutes: 120 },
+        { level: 2, role: "mine_official", waitMinutes: 240 },
+      ],
+    },
+  });
+  check("circular chain (repeated role) → 400", circ.status === 400, `status=${circ.status}`);
+
+  const nonInc = await api("/sla-policies/high", {
+    token: amit,
+    method: "PUT",
+    body: {
+      ackSla: 30,
+      resolutionSla: 400,
+      escalationChain: [
+        { level: 1, role: "mine_official", waitMinutes: 240 },
+        { level: 2, role: "corporate_manager", waitMinutes: 120 },
+      ],
+    },
+  });
+  check("non-increasing waits → 400", nonInc.status === 400, `status=${nonInc.status}`);
+
+  const lastOver = await api("/sla-policies/high", {
+    token: amit,
+    method: "PUT",
+    body: {
+      ackSla: 30,
+      resolutionSla: 100,
+      escalationChain: [
+        { level: 1, role: "mine_official", waitMinutes: 60 },
+        { level: 2, role: "regulator", waitMinutes: 300 },
+      ],
+    },
+  });
+  check("ladder longer than resolution SLA → 400", lastOver.status === 400, `status=${lastOver.status}`);
+
+  // Legacy parity: a default-policy alert's level-1 workflow deadline still
+  // mirrors the pre-feature ALERT_DEADLINES constant.
+  const pre = await Alert.findOne({ ruleCode: "CRITICAL_INCIDENT" }).lean();
+  if (pre && pre.createdAt) {
+    const preWf = await WorkflowState.findOne({ alertId: pre._id, state: "assigned" }).lean();
+    const offsetMin = preWf
+      ? Math.round((new Date(preWf.deadline).getTime() - new Date(pre.createdAt).getTime()) / 60000)
+      : -1;
+    check("legacy parity: critical level-1 deadline == ALERT_DEADLINES", offsetMin === ALERT_DEADLINES.critical / 60000, `offset=${offsetMin}min`);
+  }
+
+  // ── C. Custom policy → snapshot at creation (edge G) ─────────────────────
+  const custom = await api("/sla-policies/high", {
+    token: amit,
+    method: "PUT",
+    body: {
+      ackSla: 20,
+      resolutionSla: 600,
+      escalationChain: [
+        { level: 1, role: "mine_official", waitMinutes: 60 },
+        { level: 2, role: "corporate_manager", waitMinutes: 300 },
+        { level: 3, role: "regulator", waitMinutes: 600 },
+      ],
+    },
+  });
+  check("upsert custom high policy → source=configured", custom.status === 200 && (custom.body as { data?: { source?: string } }).data?.source === "configured", `status=${custom.status}`);
+
+  const uuid = randomUUID();
+  const sync = await post(rahul, "/inspections/sync", {
+    records: [
+      {
+        clientUuid: uuid,
+        siteId: SJ,
+        type: "safety",
+        checklist: [{ item: "PPE compliance", result: "fail" }],
+        capturedAt: new Date().toISOString(),
+        photoUrls: [],
+      },
+    ],
+  });
+  check("sync safety inspection accepted", sync.status === 200 && (sync.body as { accepted?: string[] }).accepted?.includes(uuid) === true, JSON.stringify(sync.body));
+  await sleep(3000);
+
+  const snap = await Alert.findOne({ ruleCode: "SAFETY_CHECKLIST_FAIL" }).sort({ createdAt: -1 }).lean();
+  check("new alert snapshots the custom high policy", !!snap && snap.slaSnapshot?.ackSla === 20 && snap.slaSnapshot.escalationChain.length === 3 && snap.currentLevel === 1 && snap.ackDeadline !== null && snap.resolutionDeadline !== null, `ack=${snap?.slaSnapshot?.ackSla}`);
+  check("snapshot chain (60→300→600) diverges from live default", snap?.slaSnapshot?.escalationChain[1]?.waitMinutes === 300, `w2=${snap?.slaSnapshot?.escalationChain[1]?.waitMinutes}`);
+  const snapAssignee = snap?.assignedTo ? await User.findById(snap.assignedTo).lean() : null;
+  check("safety source → safety-dept official at site (edge H)", snap?.department === "safety" && !!snapAssignee && snapAssignee.role === "mine_official" && snapAssignee.isActive !== false, `dept=${snap?.department}`);
+  if (!snap) return;
+  const snapId = snap._id as unknown as Types.ObjectId;
+
+  // Drop the custom row BEFORE climbing — the reverted live default (1440 /
+  // 2880 / 4320 min) is far in the future for a 700-min-old alert, so ONLY
+  // snapshot timing (60 / 300 / 600) can drive the climb. Decisive for edge G.
+  const del = await api("/sla-policies/high", { token: amit, method: "DELETE" });
+  check("DELETE custom policy → reset-to-default", del.status === 200 && (del.body as { data?: { action?: string } }).data?.action === "reset-to-default", `status=${del.status}`);
+  const afterDel = await get(amit, "/sla-policies/high");
+  check("deleted severity now reads source=default", (afterDel.body as { data?: { source?: string } }).data?.source === "default", `status=${afterDel.status}`);
+
+  await Alert.collection.updateOne({ _id: snapId }, { $set: { createdAt: new Date(Date.now() - 700 * 60 * 1000) } });
+  // The fresh alert still sits at rung 1 with a FUTURE row deadline — the engine
+  // first waits out rung 1 (remind) before climbing. Push the latest row's
+  // deadline into the past so a single pass can remind → L2 → L3.
+  const snapLast = await WorkflowState.findOne({ alertId: snapId }).sort({ changedAt: -1 }).lean();
+  if (snapLast) {
+    await WorkflowState.updateOne({ _id: snapLast._id }, { deadline: new Date(Date.now() - 60 * 1000) });
+  }
+  await runEscalations();
+  const climbedSnap = await Alert.findById(snapId).lean();
+  check("snapshot chain drives escalation (60→300→600)", climbedSnap?.status === "escalated" && climbedSnap?.currentLevel === 3 && climbedSnap?.escalationCount === 2, `status=${climbedSnap?.status} lvl=${climbedSnap?.currentLevel} count=${climbedSnap?.escalationCount}`);
+  const snapTop = await WorkflowState.findOne({ alertId: snapId, state: "escalated" }).sort({ changedAt: -1 }).lean();
+  check("snapshot climb stamped top level 3 → regulator", snapTop?.level === 3, `lv=${snapTop?.level}`);
+  const snapClimber = climbedSnap?.assignedTo ? await User.findById(climbedSnap.assignedTo).lean() : null;
+  check("climbed alert re-assigned to active top-rung user (edge B)", !!snapClimber && snapClimber.isActive !== false && snapClimber.role === "regulator", `role=${snapClimber?.role}`);
+
+  // ── D. Assignee resolution (edges A/B/H) ─────────────────────────────────
+  const priyaU = await User.findOne({ email: "priya@agnistrot.com" }).lean();
+  if (!priyaU) return;
+  const priyaId = priyaU._id as unknown as Types.ObjectId;
+  const SJoid = new Types.ObjectId(SJ);
+
+  const deptPick = await resolveAssignee(SJoid, "mine_official", "safety");
+  check("dept priority: safety official at SJ wins (edge H)", deptPick?.toString() === priyaId.toString(), `got=${deptPick?.toString()}`);
+
+  await User.updateOne({ _id: priyaId }, { $set: { isActive: false } });
+  const skipInactive = await resolveAssignee(SJoid, "mine_official");
+  check("inactive assignee skipped → any-site active official (edge B)", !!skipInactive && skipInactive.toString() !== priyaId.toString(), `got=${skipInactive?.toString()}`);
+
+  await User.updateMany({ role: "mine_official" }, { $set: { isActive: false } });
+  const none = await resolveAssignee(SJoid, "mine_official");
+  check("no active candidate anywhere → null (edge A)", none === null, `got=${none?.toString()}`);
+  await User.updateMany({ role: "mine_official" }, { $set: { isActive: true } });
+  const restored = await resolveAssignee(SJoid, "mine_official");
+  check("reactivation restores resolution", restored !== null, `got=${restored?.toString()}`);
+
+  // ── F. Single-level chain → terminal with grace (legacy parity) ──────────
+  // A 1-rung ladder sets status escalated only after the rung deadline PLUS
+  // 25% grace has elapsed — exactly the pre-feature engine's behavior.
+  const gracePolicy = await api("/sla-policies/high", {
+    token: amit,
+    method: "PUT",
+    body: {
+      ackSla: 20,
+      resolutionSla: 600,
+      escalationChain: [{ level: 1, role: "mine_official", waitMinutes: 60 }],
+    },
+  });
+  check("single-level chain accepts 1 rung", gracePolicy.status === 200, `status=${gracePolicy.status}`);
+
+  const uuid2 = randomUUID();
+  await post(rahul, "/inspections/sync", {
+    records: [
+      {
+        clientUuid: uuid2,
+        siteId: SJ,
+        type: "safety",
+        checklist: [{ item: "PPE compliance", result: "fail" }],
+        capturedAt: new Date().toISOString(),
+        photoUrls: [],
+      },
+    ],
+  });
+  await sleep(3000);
+  const grace = await Alert.findOne({ ruleCode: "SAFETY_CHECKLIST_FAIL" }).sort({ createdAt: -1 }).lean();
+  check("single-level alert snapshots 1-rung chain", !!grace && grace.slaSnapshot?.escalationChain.length === 1, `len=${grace?.slaSnapshot?.escalationChain.length}`);
+  if (!grace) return;
+  const graceId = grace._id as unknown as Types.ObjectId;
+  await Alert.collection.updateOne({ _id: graceId }, { $set: { createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000) } });
+  const graceLast = await WorkflowState.findOne({ alertId: graceId }).sort({ changedAt: -1 }).lean();
+  if (graceLast) await WorkflowState.updateOne({ _id: graceLast._id }, { deadline: new Date(Date.now() - 60 * 1000) });
+  await runEscalations();
+  const graceClimbed = await Alert.findById(graceId).lean();
+  check("single-level chain terminalizes with grace (legacy parity)", graceClimbed?.status === "escalated" && graceClimbed?.currentLevel === 1 && graceClimbed?.escalationCount === 1, `status=${graceClimbed?.status} lvl=${graceClimbed?.currentLevel} count=${graceClimbed?.escalationCount}`);
+  const graceRow = await WorkflowState.findOne({ alertId: graceId, state: "escalated" }).lean();
+  check("single-level climb appends one escalated row at level 1", !!graceRow && graceRow.level === 1, `lv=${graceRow?.level}`);
+  await api("/sla-policies/high", { token: amit, method: "DELETE" });
+
+  // ── G. Engine fallback routing (edge C) ──────────────────────────────────
+  // Climb an alert whose NEXT-RUNG role has NO active candidate: with every
+  // corporate_manager and regulator deactivated, the engine must route to the
+  // policy's system fallback (seeded System Administrator) instead of stalling.
+  const anomaly = await Alert.findOne({ status: "open" }).sort({ createdAt: 1 }).lean();
+  check("fixture: an open alert for fallback probe", !!anomaly);
+  if (!anomaly) return;
+  const anomId = anomaly._id as unknown as Types.ObjectId;
+  await User.updateMany({ role: { $in: ["corporate_manager", "regulator"] } }, { $set: { isActive: false } });
+  await Alert.collection.updateOne({ _id: anomId }, { $set: { createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000) } });
+  const anomLast = await WorkflowState.findOne({ alertId: anomId }).sort({ changedAt: -1 }).lean();
+  if (anomLast) await WorkflowState.updateOne({ _id: anomLast._id }, { deadline: new Date(Date.now() - 60 * 1000) });
+  await runEscalations();
+  await User.updateMany({ role: { $in: ["corporate_manager", "regulator"] } }, { $set: { isActive: true } });
+  const anomClimbed = await Alert.findById(anomId).lean();
+  const sysadmin = await User.findOne({ email: "sysadmin@agnistrot.com" }).lean();
+  check(
+    "no-candidate climb routes to system fallback (edge C)",
+    anomClimbed?.status === "escalated" &&
+      !!sysadmin &&
+      anomClimbed?.assignedTo?.toString() === (sysadmin._id as unknown as Types.ObjectId).toString(),
+    `assigned=${anomClimbed?.assignedTo}`
+  );
+  const fbRow = await WorkflowState.findOne({ alertId: anomId, state: "escalated", note: { $ne: null } }).sort({ changedAt: -1 }).lean();
+  check("fallback transition is annotated in workflow history", !!fbRow && fbRow.level === 3, `lv=${fbRow?.level}`);
+
+  // ── E. SLA stats on the dashboard ────────────────────────────────────────
+  const dash = await get(amit, "/dashboard/summary");
+  const sla = (dash.body as { sla?: { ack?: { compliance?: number | null }; resolution?: { compliance?: number | null }; bySeverity?: Record<string, unknown> } }).sla;
+  check("corporate dashboard exposes sla stats", !!sla && !!sla.bySeverity && (typeof sla.resolution?.compliance === "number" || sla.resolution?.compliance === null), `sla=${JSON.stringify(sla).slice(0, 80)}`);
+  const moDash = await get(priya, "/dashboard/summary");
+  const moSla = (moDash.body as { sla?: unknown }).sla;
+  check("mine_official dashboard has site-scoped sla stats", moSla !== undefined);
 }
 
 // ── [F9] GIS Map Markers Battery ────────────────────────────────────────────
@@ -1155,6 +1412,7 @@ async function main(): Promise<void> {
     await attendanceBattery(tokens, { SJ, SD });
     await socketBattery(tokens.rahul, SJ);
     await workflowProbes({ priya: tokens.priya, meena: tokens.meena }, SJ);
+    await feature02SlaBattery(tokens, { SJ, SD });
     await reportsBattery(tokens, { SJ, SD });
     await manualEscalationBattery(tokens, { SJ, SD });
     await gisBattery(tokens, { SJ, SD });
