@@ -75,7 +75,7 @@ async function checkOverdueInspections(): Promise<void> {
 
 // ── Attendance anomaly ──────────────────────────────────────────────────────
 
-async function checkAttendanceAnomaly(): Promise<void> {
+export async function checkAttendanceAnomaly(): Promise<void> {
   const sites = await Site.find({}).select("_id").lean();
   const now = new Date();
 

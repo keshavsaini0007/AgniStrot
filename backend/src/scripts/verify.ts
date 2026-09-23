@@ -19,6 +19,7 @@ import Inspection from "../models/Inspection.js";
 import Evidence from "../models/Evidence.js";
 import Hazard from "../models/Hazard.js";
 import CorrectiveCloseout from "../models/CorrectiveCloseout.js";
+import Attendance from "../models/Attendance.js";
 import { computeThisHash, GENESIS_HASH } from "../services/auditLogger.js";
 import {
   buildCloudinaryOriginalUrl,
@@ -34,7 +35,7 @@ import {
 } from "../services/hazardService.js";
 import { runEscalations } from "../services/workflowEngine.js";
 import { resolveAssignee } from "../services/ruleEngine.js";
-import { checkRecurringHazards } from "../services/batchRules.js";
+import { checkRecurringHazards, checkAttendanceAnomaly } from "../services/batchRules.js";
 import { normalizeHazardCategory } from "../services/recurringHazards.js";
 import { ALERT_DEADLINES } from "../types/index.js";
 
@@ -2657,6 +2658,129 @@ async function closeoutBattery(
   }
 }
 
+// ── [F21] Attendance anomaly detection battery ───────────────────────────────
+// Direct, deterministic proof for the batch ATTENDANCE_ANOMALY rule: today's
+// in-check-ins must deviate by MORE than ±30% from the previous 14 days' daily
+// average. Controlled probe sites prove the trigger, the exact +30% no-fire
+// boundary, the missing-baseline skip, the per-site/day ruleKey dedup, and
+// end-to-end visibility for a corporate manager. Probes self-clean in finally.
+// Only checkAttendanceAnomaly() is invoked — never runBatchRules(), which would
+// also fire the overdue/repeat passes mid-suite and pollute other batteries.
+
+async function attendanceAnomalyBattery(t: { amit: string }): Promise<void> {
+  console.log("\n== [F21] Attendance anomaly detection ==");
+  const createdSites: Types.ObjectId[] = [];
+
+  const makeSite = async (sub: string): Promise<Types.ObjectId> => {
+    const s = await Site.create({
+      name: `F21 Probe ${sub} ${randomUUID().slice(0, 8)}`,
+      subsidiary: "Verify F21 Probes",
+      location: { lat: 23.7, lng: 86.4 },
+      expectedWorkers: 50,
+    });
+    const id = s._id as Types.ObjectId;
+    createdSites.push(id);
+    return id;
+  };
+
+  // One shared timestamp per day (mirrors the seed) so the rule's
+  // Attendance.distinct("capturedAt") counts DAYS, not records → avg = per day.
+  const seedAttendance = async (
+    siteId: Types.ObjectId,
+    historyDays: number,
+    todayCount: number
+  ): Promise<void> => {
+    const rows: Array<{
+      clientUuid: string;
+      siteId: Types.ObjectId;
+      workerRef: string;
+      checkType: "in";
+      location: { lat: number; lng: number };
+      capturedAt: Date;
+    }> = [];
+    const pushDay = (dayOffset: number, hour: number, count: number): void => {
+      const base = new Date();
+      base.setDate(base.getDate() - dayOffset);
+      base.setHours(hour, 0, 0, 0);
+      for (let j = 0; j < count; j++) {
+        rows.push({
+          clientUuid: `f21-${randomUUID()}`,
+          siteId,
+          workerRef: `F21 Worker ${j}`,
+          checkType: "in",
+          location: { lat: 23.7 + Math.random() * 0.01, lng: 86.4 + Math.random() * 0.01 },
+          capturedAt: new Date(base),
+        });
+      }
+    };
+    for (let d = 1; d <= historyDays; d++) pushDay(d, 7, 20); // 20 in/day
+    pushDay(0, 7, todayCount);
+    await Attendance.insertMany(rows);
+  };
+
+  const anomaliesFor = (siteId: Types.ObjectId): Promise<Array<Record<string, unknown>>> =>
+    Alert.find({ siteId, ruleCode: "ATTENDANCE_ANOMALY" }).lean() as unknown as Promise<Array<Record<string, unknown>>>;
+
+  const todayKey = (siteId: Types.ObjectId): string => {
+    const s = new Date();
+    s.setHours(0, 0, 0, 0);
+    return `anomaly:${siteId.toString()}:${s.toISOString().slice(0, 10)}`;
+  };
+
+  try {
+    // 13 history days × 20 in (one timestamp each) → daily average 20.
+    const HISTORY = 13;
+
+    // ── 1. Positive: today 2 in → −90% → fires ─────────────────────────────
+    const fire = await makeSite("Fire");
+    await seedAttendance(fire, HISTORY, 2);
+
+    // ── 2. Calm: today 19 in → −5% → no alert ──────────────────────────────
+    const calm = await makeSite("Calm");
+    await seedAttendance(calm, HISTORY, 19);
+
+    // ── 3. Boundary: today 26 in → exactly +30% → strict > skips ───────────
+    const boundary = await makeSite("Boundary");
+    await seedAttendance(boundary, HISTORY, 26);
+
+    // ── 4. Fresh: today only, no 14-day baseline → rule skips ──────────────
+    const fresh = await makeSite("Fresh");
+    await seedAttendance(fresh, 0, 5);
+
+    await checkAttendanceAnomaly();
+
+    const fireAlerts = await anomaliesFor(fire);
+    check("F21 fire: −90% vs avg 20 → ATTENDANCE_ANOMALY fires", fireAlerts.length === 1, `${fireAlerts.length}`);
+    const fa = fireAlerts[0] ?? {};
+    check("F21 fire: severity medium + status open", fa.severity === "medium" && fa.status === "open", `${fa.severity}/${fa.status}`);
+    check("F21 fire: ruleKey pins site + day", fa.ruleKey === todayKey(fire), `${fa.ruleKey}`);
+    check("F21 calm: −5% → no alert", (await anomaliesFor(calm)).length === 0, `${(await anomaliesFor(calm)).length}`);
+    check("F21 boundary: exactly +30% → no alert", (await anomaliesFor(boundary)).length === 0, `${(await anomaliesFor(boundary)).length}`);
+    check("F21 fresh: no baseline → skipped", (await anomaliesFor(fresh)).length === 0, `${(await anomaliesFor(fresh)).length}`);
+
+    // ── 5. Dedup: same-day rerun must not double-fire ───────────────────────
+    await checkAttendanceAnomaly();
+    check("F21 dedup: rerun keeps exactly one alert", (await anomaliesFor(fire)).length === 1, `${(await anomaliesFor(fire)).length}`);
+
+    // ── 6. End-to-end: corporate reads the anomaly in the alerts feed ───────
+    const list = await get(t.amit, `/alerts?siteId=${fire.toString()}&ruleCode=ATTENDANCE_ANOMALY`);
+    const row = (list.body as AnyJson)?.data?.[0] as AnyJson | undefined;
+    check(
+      "F21 API: corporate lists the anomaly alert",
+      list.status === 200 && !!row && row.ruleCode === "ATTENDANCE_ANOMALY" && row.siteId === fire.toString(),
+      JSON.stringify(row ?? null).slice(0, 160)
+    );
+  } finally {
+    const ids = { $in: createdSites };
+    const alertIds = await Alert.find({ siteId: ids }).select("_id").lean();
+    const aid = { $in: alertIds.map((a) => a._id as Types.ObjectId) };
+    await WorkflowState.deleteMany({ alertId: aid });
+    await Alert.deleteMany({ siteId: ids });
+    await Attendance.deleteMany({ siteId: ids });
+    await Site.deleteMany({ _id: ids });
+  }
+}
+
 async function main(): Promise<void> {
   killPort(PORT);
   runSeed();
@@ -2760,6 +2884,9 @@ async function main(): Promise<void> {
     await usersManagementBattery(tokens, { SJ, SD });
     // Feature 08 — terminal battery; resolved-alert probes self-clean in finally.
     await closeoutBattery(tokens, { SJ, SD });
+    // Feature batch-rules — terminal battery; attendance-anomaly probes
+    // self-clean in finally, then the reseed below restores the canonical state.
+    await attendanceAnomalyBattery({ amit: tokens.amit });
   } finally {
     stopServer(server);
   }
