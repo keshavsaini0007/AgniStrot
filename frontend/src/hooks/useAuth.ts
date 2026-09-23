@@ -65,6 +65,7 @@ const ROLE_PERMISSIONS: Record<string, string[]> = {
     'audit.read',         // Full audit trail
     'users.read',         // User management
     'users.create',       // Register new users
+    'users.write',        // Edit / deactivate users (feature 07)
     'settings.read',
   ],
   regulator: [

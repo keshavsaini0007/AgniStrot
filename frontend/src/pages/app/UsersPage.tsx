@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import { Plus, X, UsersRound } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -15,11 +15,12 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { CardSkeleton } from '@/components/ui/Skeleton';
 import { ErrorState } from '@/components/ui/ErrorState';
+import { FilterBar } from '@/components/ui/FilterBar';
 import { env } from '@/config/env';
 import { useAuth } from '@/hooks/useAuth';
 import { useDashboardSummary } from '@/hooks/useDashboard';
+import { useUpdateUser, useUsers } from '@/hooks/useUsers';
 import { queryKeys } from '@/hooks/useMines';
-import { usersService } from '@/services/usersService';
 import { authService } from '@/services/authService';
 import { ROLE_CONFIG } from '@/utils/roles';
 import { formatDate } from '@/utils/date';
@@ -44,10 +45,35 @@ const userSchema = z
 
 type UserFormData = z.infer<typeof userSchema>;
 
+// Manage modal (feature 07) — name/role/site/status. Email is immutable, so it
+// is displayed read-only and never submitted.
+const editUserSchema = z
+  .object({
+    name: z.string().min(2, 'Name must be at least 2 characters'),
+    role: z.enum(['field_officer', 'mine_official', 'corporate_manager', 'regulator'] as const),
+    siteId: z.string().nullable(),
+    status: z.enum(['active', 'inactive'] as const),
+  })
+  .superRefine((values, ctx) => {
+    const siteScoped = values.role === 'field_officer' || values.role === 'mine_official';
+    if (siteScoped && !values.siteId) {
+      ctx.addIssue({ code: 'custom', path: ['siteId'], message: 'Site is required for this role.' });
+    }
+  });
+
+type EditUserFormData = z.infer<typeof editUserSchema>;
+
 const roleOptions = (Object.keys(ROLE_CONFIG) as UserRole[]).map((role) => ({
   value: role,
   label: ROLE_CONFIG[role].label,
 }));
+
+const roleFilterOptions = [{ value: '', label: 'All roles' }, ...roleOptions];
+const statusFilterOptions = [
+  { value: '', label: 'All statuses' },
+  { value: 'active', label: 'Active' },
+  { value: 'inactive', label: 'Inactive' },
+];
 
 export const UsersPage = () => {
   const { user } = useAuth();
@@ -59,16 +85,30 @@ export const UsersPage = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
+  const [roleFilter, setRoleFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+
+  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [isEditSubmitting, setIsEditSubmitting] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+
   const { data: dashboard } = useDashboardSummary();
+
+  // Server-side filters (feature 07) — empty values are omitted by the repos.
+  const listParams = useMemo(
+    () => ({
+      ...(roleFilter ? { role: roleFilter as UserRole } : {}),
+      ...(statusFilter ? { status: statusFilter as 'active' | 'inactive' } : {}),
+    }),
+    [roleFilter, statusFilter]
+  );
   const {
     data: users,
     isLoading,
     error,
     refetch,
-  } = useQuery({
-    queryKey: queryKeys.users.all,
-    queryFn: () => usersService.list(),
-  });
+  } = useUsers(listParams);
+  const updateUser = useUpdateUser();
 
   // Live site list — corporate dashboard already returns every site (id + name)
   // via the role adapter. Fall back to [] while it loads (or on non-corporate).
@@ -82,6 +122,7 @@ export const UsersPage = () => {
 
   const siteNameById = useMemo(() => new Map(siteOptions.map((s) => [s.value, s.label])), [siteOptions]);
 
+  // ── Add-user form ─────────────────────────────────────────────────────────
   const {
     register,
     handleSubmit,
@@ -95,6 +136,48 @@ export const UsersPage = () => {
 
   const selectedRole = watch('role');
   const siteScopedRole = selectedRole === 'field_officer' || selectedRole === 'mine_official';
+
+  // ── Manage-user form (feature 07) ─────────────────────────────────────────
+  const {
+    register: registerEdit,
+    handleSubmit: handleEditSubmit,
+    reset: resetEdit,
+    watch: watchEdit,
+    formState: { errors: editErrors, isDirty: editIsDirty },
+  } = useForm<EditUserFormData>({
+    resolver: zodResolver(editUserSchema),
+  });
+
+  const editSelectedRole = watchEdit('role');
+  const editSiteScopedRole = editSelectedRole === 'field_officer' || editSelectedRole === 'mine_official';
+
+  const openManage = (u: User) => {
+    resetEdit({ name: u.name, role: u.role, siteId: u.siteId ?? '', status: u.status });
+    setEditError(null);
+    setEditingUser(u);
+  };
+
+  const onSubmitEdit = handleEditSubmit(async (data) => {
+    if (!editingUser) return;
+    setIsEditSubmitting(true);
+    setEditError(null);
+    try {
+      await updateUser.mutateAsync({
+        id: editingUser.id,
+        input: {
+          name: data.name,
+          role: data.role,
+          siteId: editSiteScopedRole && data.siteId ? data.siteId : null,
+          status: data.status,
+        },
+      });
+      setEditingUser(null);
+    } catch (err: any) {
+      setEditError(sanitizeErrorMessage(err) ?? 'Failed to update user');
+    } finally {
+      setIsEditSubmitting(false);
+    }
+  });
 
   if (isRealMode && !canManage) {
     return (
@@ -121,6 +204,27 @@ export const UsersPage = () => {
         }
       />
 
+      <FilterBar>
+        <div className="w-full sm:w-56">
+          <Select
+            data-testid="role-filter"
+            compact
+            options={roleFilterOptions}
+            value={roleFilter}
+            onChange={(e) => setRoleFilter(e.target.value)}
+          />
+        </div>
+        <div className="w-full sm:w-56">
+          <Select
+            data-testid="status-filter"
+            compact
+            options={statusFilterOptions}
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+          />
+        </div>
+      </FilterBar>
+
       {isLoading ? (
         <CardSkeleton />
       ) : error ? (
@@ -144,7 +248,7 @@ export const UsersPage = () => {
                   key: 'role',
                   header: 'Role',
                   render: (u: User) => (
-                    <Badge status={u.role === 'field_officer' ? 'active' : u.role === 'mine_official' ? 'open' : u.role === 'regulator' ? 'info' : 'scheduled'} />
+                    <span className="text-[#E8F0F3]">{ROLE_CONFIG[u.role]?.label ?? u.role}</span>
                   ),
                 },
                 {
@@ -159,12 +263,33 @@ export const UsersPage = () => {
                 {
                   key: 'status',
                   header: 'Status',
-                  render: (u: User) => <Badge status={u.status} />,
+                  render: (u: User) => (
+                    <span data-testid={`user-status-${u.id}`}>
+                      <Badge status={u.status} />
+                    </span>
+                  ),
                 },
                 {
                   key: 'createdAt',
                   header: 'Joined',
                   render: (u: User) => <span className="text-[#A4ADB2]">{formatDate(u.createdAt)}</span>,
+                },
+                {
+                  key: 'actions',
+                  header: 'Actions',
+                  render: (u: User) =>
+                    user?.id === u.id ? (
+                      <span className="text-xs text-[#5F6B72]">You</span>
+                    ) : (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        data-testid={`manage-user-${u.id}`}
+                        onClick={() => openManage(u)}
+                      >
+                        Manage
+                      </Button>
+                    ),
                 },
               ]}
               data={users ?? []}
@@ -231,6 +356,53 @@ export const UsersPage = () => {
             </Button>
             <Button type="submit" variant="primary" isLoading={isSubmitting} disabled={!isDirty}>
               Add User
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      <Modal isOpen={!!editingUser} onClose={() => setEditingUser(null)} title="Manage User">
+        <form data-testid="user-manage-form" onSubmit={onSubmitEdit} className="space-y-4">
+          {editError && (
+            <div className="rounded-lg border border-[#FF4D4F]/30 bg-[#FF4D4F]/10 p-3">
+              <p className="text-sm text-[#FF4D4F]">{editError}</p>
+            </div>
+          )}
+          {editingUser && (
+            <p className="text-xs text-[#8299A7]">
+              Email is immutable — <span className="text-[#A4ADB2]">{editingUser.email}</span> cannot be changed.
+            </p>
+          )}
+          <Input data-testid="edit-name" label="Full name" error={editErrors.name?.message} {...registerEdit('name')} />
+          <Select data-testid="edit-role" label="Role" options={roleOptions} error={editErrors.role?.message} {...registerEdit('role')} />
+          <div className="relative">
+            <Select
+              data-testid="edit-site"
+              label="Site"
+              options={siteOptions}
+              placeholder={editSiteScopedRole ? 'Select a site' : 'Cross-site (manager / regulator)'}
+              error={editErrors.siteId?.message}
+              {...registerEdit('siteId')}
+            />
+            {editSiteScopedRole && (
+              <p className="mt-1 text-xs text-[#8299A7]">
+                Field officers and mine officials are bound to the site they work from.
+              </p>
+            )}
+          </div>
+          <Select
+            data-testid="edit-status"
+            label="Status"
+            options={statusFilterOptions.slice(1)}
+            error={editErrors.status?.message}
+            {...registerEdit('status')}
+          />
+          <div className="flex justify-end gap-2 pt-2">
+            <Button type="button" variant="ghost" onClick={() => setEditingUser(null)} leftIcon={<X className="h-4 w-4" />}>
+              Cancel
+            </Button>
+            <Button type="submit" data-testid="save-user-edit" variant="primary" isLoading={isEditSubmitting} disabled={!editIsDirty}>
+              Save changes
             </Button>
           </div>
         </form>

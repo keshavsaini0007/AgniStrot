@@ -92,6 +92,20 @@ export interface User {
   updatedAt: string;
 }
 
+/** Admin user-management patch (feature 07). Email is immutable — never sent. */
+export interface UpdateUserInput {
+  name?: string;
+  role?: UserRole;
+  siteId?: string | null;
+  status?: 'active' | 'inactive';
+}
+
+/** Optional GET /users filters (feature 07) — empty values are omitted by the client. */
+export interface UserListParams {
+  role?: UserRole;
+  status?: 'active' | 'inactive';
+}
+
 export interface ChecklistItem {
   item: string;
   result: ChecklistResult;

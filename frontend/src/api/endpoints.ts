@@ -8,6 +8,7 @@ export const API_ENDPOINTS = {
   },
   USERS: {
     LIST: '/users',
+    UPDATE: (id: string) => `/users/${id}`,
   },
   INSPECTIONS: {
     BASE: '/inspections',
