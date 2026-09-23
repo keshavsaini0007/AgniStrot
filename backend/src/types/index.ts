@@ -388,6 +388,34 @@ export interface IWorkflowState {
   note?: string | null; // free-text captured alongside the transition (e.g. resolutionNote on resolve)
 }
 
+// ── Feature 08: Corrective action close-out loop ─────────────────────────────
+// One close-out record per corrective action (1:1 with its source alert —
+// unique alertId index). A mine official (own site) or corporate manager
+// submits the close-out evidence (`submitted`); a corporate manager then
+// approves (`approved` → corrective action terminal status "closed") or
+// rejects (`rejected` → the submitter may resubmit with revised evidence).
+// The record is persistent proof of the loop — the derived corrective feed
+// never invents a terminal state that was not written here.
+
+export type CorrectiveCloseoutStatus = "submitted" | "approved" | "rejected";
+
+export interface ICorrectiveCloseout {
+  _id: Types.ObjectId;
+  alertId: Types.ObjectId;  // source alert (corrective action) this close-out closes
+  siteId: Types.ObjectId;   // denormalized for site-scoped RBAC queries
+  recommendation: string;   // what the site actually did to fix the root cause
+  effectiveness: string;    // how the fix was verified as effective
+  evidenceNote?: string;    // optional pointer to uploaded evidence / site records
+  submittedBy: Types.ObjectId;
+  submittedAt: Date;
+  status: CorrectiveCloseoutStatus;
+  reviewedBy?: Types.ObjectId;
+  reviewedAt?: Date;
+  reviewNote?: string;      // corporate review comment (approval reason / rejection feedback)
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 // ── Configurable SLA / Escalation Matrix (feature 02) ─────────────────────────
 // Admin-managed per-severity deadline + escalation ladder stored in MongoDB
 // instead of the hardcoded ALERT_DEADLINES map below.

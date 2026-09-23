@@ -1,6 +1,6 @@
 {
   "info": {
-    "_postman_id": "f271fb32-c4d2-469b-8745-d246f144313c",
+    "_postman_id": "5efc4875-c929-474d-a355-b2904e272f8c",
     "name": "AgniStrot API — Automated Test Suite",
     "description": "Complete automated test suite for AgniStrot Smart Governance & Compliance Monitoring Platform for Coal Mines (SIH26024).\n\nCovers all 4 RBAC roles (Field Officer, Mine Official, Corporate Manager, Regulator), offline synchronization, alert workflow engine, tamper-evident SHA-256 audit trail, statutory report PDF generation, GIS spatial markers, and OCR document processing.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
@@ -4255,6 +4255,432 @@
                   "    res.data.forEach(function (u) {",
                   "        pm.expect(u.status).to.eql('inactive');",
                   "    });",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "14. Corrective Action Close-out Loop",
+      "description": "Feature 08 — a persistent close-out record turns the derived corrective feed into a real loop: the mine official (own site) or corporate manager submits fix evidence (status becomes 'verified'), then the corporate manager approves (terminal 'closed') or rejects (sender may resubmit). The chain resolves a fresh open alert, submits the close-out, approves it, and confirms the derived status on the detail feed. Runs on the freshly-seeded DB, so assertions are exact; RBAC negatives close the folder.",
+      "item": [
+        {
+          "name": "Capture Open Alert - Mine Official @ Jharia",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_mo}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/alerts",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "alerts"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const res = pm.response.json();",
+                  "pm.test('Captures an alert id for the close-out loop', function () {",
+                  "    const rows = res.data || [];",
+                  "    const open = rows.filter(function (a) { return a.status !== 'closed'; })[0];",
+                  "    pm.expect(open).to.be.an('object');",
+                  "    pm.expect(open.id).to.be.a('string');",
+                  "    pm.environment.set('ca_id', open.id);",
+                  "    pm.collectionVariables.set('ca_id', open.id);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Resolve Alert (Corporate, Any Site)",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_cm}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"resolutionNote\": \"Close-out loop probe — fixed on site.\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/alerts/{{ca_id}}/resolve",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "alerts",
+                "{{ca_id}}",
+                "resolve"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Resolve succeeds (200) or is already closed (409)', function () {",
+                  "    pm.expect([200, 409]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Submit Close-out - Mine Official (Own Site)",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_mo}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"recommendation\": \"Installed a locked guard rail along the haul road.\",\n  \"effectiveness\": \"Two consecutive weekly inspections passed with zero findings.\",\n  \"evidenceNote\": \"Inspection checklist in the register, week 32.\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/corrective-actions/{{ca_id}}/close-out",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "corrective-actions",
+                "{{ca_id}}",
+                "close-out"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "const res = pm.response.json();",
+                  "pm.test('Close-out record created as submitted', function () {",
+                  "    pm.expect(res.data.status).to.eql('submitted');",
+                  "    pm.expect(res.data.recommendation).to.be.a('string');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Detail Feed Shows Verified (Close-out Submitted)",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_mo}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/corrective-actions/{{ca_id}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "corrective-actions",
+                "{{ca_id}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const res = pm.response.json();",
+                  "pm.test('Derived status is verified with closeout evidence', function () {",
+                  "    pm.expect(res.data.status).to.eql('verified');",
+                  "    pm.expect(res.data.closeout).to.be.an('object');",
+                  "    pm.expect(res.data.closeout.status).to.eql('submitted');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Approve Close-out (Corporate Manager)",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_cm}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reviewNote\": \"Evidence checks out — closing out.\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/corrective-actions/{{ca_id}}/approve",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "corrective-actions",
+                "{{ca_id}}",
+                "approve"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const res = pm.response.json();",
+                  "pm.test('Close-out is approved', function () {",
+                  "    pm.expect(res.data.status).to.eql('approved');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Detail Feed Shows Terminal Closed After Approval",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_cm}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/corrective-actions/{{ca_id}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "corrective-actions",
+                "{{ca_id}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const res = pm.response.json();",
+                  "pm.test('Derived status is closed with approved closeout', function () {",
+                  "    pm.expect(res.data.status).to.eql('closed');",
+                  "    pm.expect(res.data.closeout.status).to.eql('approved');",
+                  "    pm.expect(res.data.closeout.reviewedBy).to.be.a('string');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "RBAC: Field Officer Submit Blocked",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_fo}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"recommendation\": \"Not authorised to submit.\",\n  \"effectiveness\": \"Not authorised to submit.\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/corrective-actions/{{ca_id}}/close-out",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "corrective-actions",
+                "{{ca_id}}",
+                "close-out"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Field officer denied with 403', function () {",
+                  "    pm.response.to.have.status(403);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "RBAC: Mine Official Approve Blocked",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_mo}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reviewNote\": \"Not corporate.\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/corrective-actions/{{ca_id}}/approve",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "corrective-actions",
+                "{{ca_id}}",
+                "approve"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Mine official denied with 403', function () {",
+                  "    pm.response.to.have.status(403);",
                   "});"
                 ]
               }

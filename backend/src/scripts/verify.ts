@@ -18,6 +18,7 @@ import Incident from "../models/Incident.js";
 import Inspection from "../models/Inspection.js";
 import Evidence from "../models/Evidence.js";
 import Hazard from "../models/Hazard.js";
+import CorrectiveCloseout from "../models/CorrectiveCloseout.js";
 import { computeThisHash, GENESIS_HASH } from "../services/auditLogger.js";
 import {
   buildCloudinaryOriginalUrl,
@@ -2492,6 +2493,170 @@ async function usersManagementBattery(
   }
 }
 
+// ── [F20] Corrective action close-out loop ───────────────────────────────────
+// Feature 08 — a persistent close-out record (1:1 with the source alert) turns
+// the derived corrective feed into a real loop: mine_official (own site) or
+// corporate submits evidence → status "verified"; corporate approves → terminal
+// "closed"; rejects → "rejected" and the submitter may resubmit. Probes are
+// created directly (resolved alerts) so every assertion is deterministic and
+// self-clean — the resolve API itself is covered by battery F1.
+
+async function closeoutBattery(
+  t: { amit: string; priya: string; meena: string; rahul: string },
+  sites: { SJ: string; SD: string }
+): Promise<void> {
+  console.log("\n== [F20] Corrective action close-out loop ==");
+  const createdAlerts: Types.ObjectId[] = [];
+
+  const makeProbe = async (siteId: string, status: "open" | "closed"): Promise<string> => {
+    const priyaUser = await User.findOne({ email: "priya@agnistrot.com" }).select("_id").lean();
+    const probe = await Alert.create({
+      siteId: new Types.ObjectId(siteId),
+      sourceType: "incident",
+      sourceId: new Types.ObjectId(),
+      ruleKey: `f20-${randomUUID()}`,
+      ruleCode: "CRITICAL_INCIDENT",
+      severity: "high",
+      status,
+      assignedTo: (priyaUser?._id ?? new Types.ObjectId()) as Types.ObjectId,
+      slaSnapshot: {
+        ackSla: 60,
+        resolutionSla: 1440,
+        escalationChain: [{ level: 1, role: "mine_official", waitMinutes: 60 }],
+      },
+      ...(status === "closed" ? { resolvedAt: new Date() } : {}),
+    });
+    const id = probe._id as Types.ObjectId;
+    createdAlerts.push(id);
+    return id.toString();
+  };
+
+  const closeoutBody = {
+    recommendation: "Installed a locked guard rail along the haul road.",
+    effectiveness: "Two consecutive weekly inspections passed with zero findings.",
+    evidenceNote: "Inspection checklist in the register, week 32.",
+  };
+
+  try {
+    const approveProbe = await makeProbe(sites.SJ, "closed");
+    const rejectProbe = await makeProbe(sites.SJ, "closed");
+
+    // ── RBAC guards ──────────────────────────────────────────────────────
+    check("field_officer submit close-out → 403",
+      (await post(t.rahul, `/corrective-actions/${approveProbe}/close-out`, closeoutBody)).status === 403);
+    check("field_officer approve → 403",
+      (await post(t.rahul, `/corrective-actions/${approveProbe}/approve`, {})).status === 403);
+    check("regulator submit close-out → 403",
+      (await post(t.meena, `/corrective-actions/${approveProbe}/close-out`, closeoutBody)).status === 403);
+    check("regulator approve → 403",
+      (await post(t.meena, `/corrective-actions/${approveProbe}/approve`, {})).status === 403);
+
+    // ── malformed / unknown / unreviewable ──────────────────────────────
+    check("malformed id close-out → 400",
+      (await post(t.priya, "/corrective-actions/not-an-id/close-out", closeoutBody)).status === 400);
+    check("unknown id close-out → 404",
+      (await post(t.priya, "/corrective-actions/0123456789abcdef01234567/close-out", closeoutBody)).status === 404);
+    check("malformed id approve → 400",
+      (await post(t.amit, "/corrective-actions/not-an-id/approve", {})).status === 400);
+    check("unknown id approve → 404",
+      (await post(t.amit, "/corrective-actions/0123456789abcdef01234567/approve", {})).status === 404);
+    check("unknown id reject → 404",
+      (await post(t.amit, "/corrective-actions/0123456789abcdef01234567/reject", {})).status === 404);
+    check("approve before any close-out → 404",
+      (await post(t.amit, `/corrective-actions/${approveProbe}/approve`, {})).status === 404);
+
+    // ── validation ───────────────────────────────────────────────────────
+    check("too-short recommendation → 400",
+      (await post(t.priya, `/corrective-actions/${approveProbe}/close-out`, { recommendation: "short", effectiveness: "Verified effective over two weeks." })).status === 400);
+    check("missing effectiveness → 400",
+      (await post(t.priya, `/corrective-actions/${approveProbe}/close-out`, { recommendation: "Replaced the damaged safety barrier." })).status === 400);
+
+    // ── cross-site scope ─────────────────────────────────────────────────
+    const sdProbe = await makeProbe(sites.SD, "closed");
+    check("cross-site mine_official submit → 403",
+      (await post(t.priya, `/corrective-actions/${sdProbe}/close-out`, closeoutBody)).status === 403);
+
+    // ── unresolved guard ─────────────────────────────────────────────────
+    const openProbe = await makeProbe(sites.SJ, "open");
+    check("close-out on unresolved corrective action → 409",
+      (await post(t.priya, `/corrective-actions/${openProbe}/close-out`, closeoutBody)).status === 409);
+
+    // ── happy path (approve) ─────────────────────────────────────────────
+    const submit = await post(t.priya, `/corrective-actions/${approveProbe}/close-out`, closeoutBody);
+    const submitted = submit.body as { data?: { status?: string; recommendation?: string } };
+    check("mine_official submits close-out → 201 submitted",
+      submit.status === 201 && submitted.data?.status === "submitted", `${submit.status}`);
+
+    const d1 = (await get(t.amit, `/corrective-actions/${approveProbe}`)).body as {
+      data?: { status?: unknown; closeout?: { status?: unknown; recommendation?: unknown; submittedBy?: unknown } };
+    };
+    const c1 = d1.data?.closeout;
+    check("derived status → verified after submission", d1.data?.status === "verified", `${d1.data?.status}`);
+    check("detail carries closeout block with evidence + submitter",
+      c1?.status === "submitted" && c1?.recommendation === closeoutBody.recommendation && c1?.submittedBy === "Priya Singh", JSON.stringify(c1 ?? null).slice(0, 160));
+
+    check("duplicate submit while pending → 409",
+      (await post(t.priya, `/corrective-actions/${approveProbe}/close-out`, closeoutBody)).status === 409);
+
+    const verifiedList = (await get(t.amit, "/corrective-actions?status=verified")).body as { data: Array<{ id: string }> };
+    check("?status=verified includes pending probe", verifiedList.data.some((r) => r.id === approveProbe), `rows=${verifiedList.data.length}`);
+
+    const review = await post(t.amit, `/corrective-actions/${approveProbe}/approve`, { reviewNote: "Evidence checks out — closing out." });
+    check("corporate approves → 200 approved",
+      review.status === 200 && (review.body as { data?: { status?: string } }).data?.status === "approved", `${review.status}`);
+
+    const d2 = (await get(t.amit, `/corrective-actions/${approveProbe}`)).body as { data?: { status?: unknown; closeout?: { status?: unknown; reviewedBy?: unknown; reviewNote?: unknown } } };
+    check("derived status → closed after approval", d2.data?.status === "closed", `${d2.data?.status}`);
+    check("approved closeout carries reviewer + note",
+      d2.data?.closeout?.status === "approved" && d2.data?.closeout?.reviewedBy === "Amit Sharma" && d2.data?.closeout?.reviewNote === "Evidence checks out — closing out.", JSON.stringify(d2.data?.closeout ?? null).slice(0, 160));
+
+    check("re-approve → 409", (await post(t.amit, `/corrective-actions/${approveProbe}/approve`, {})).status === 409);
+    check("submit after approval → 409",
+      (await post(t.priya, `/corrective-actions/${approveProbe}/close-out`, closeoutBody)).status === 409);
+
+    // ── reject + resubmission path ───────────────────────────────────────
+    check("submit on second probe → 201",
+      (await post(t.priya, `/corrective-actions/${rejectProbe}/close-out`, closeoutBody)).status === 201);
+    const rej = await post(t.amit, `/corrective-actions/${rejectProbe}/reject`, { reviewNote: "Missing photographic evidence." });
+    check("corporate rejects → 200 rejected",
+      rej.status === 200 && (rej.body as { data?: { status?: string } }).data?.status === "rejected", `${rej.status}`);
+    const dRej = (await get(t.amit, `/corrective-actions/${rejectProbe}`)).body as { data?: { status?: unknown } };
+    check("derived status → rejected", dRej.data?.status === "rejected", `${dRej.data?.status}`);
+
+    const resub = await post(t.priya, `/corrective-actions/${rejectProbe}/close-out`, {
+      recommendation: "Replaced guard rail AND added a daily inspection checklist sign-off.",
+      effectiveness: "Thirty days of daily sign-offs with zero repeat findings.",
+      evidenceNote: "Daily checklist log appended, weeks 33–37.",
+    });
+    check("resubmission after rejection → 200 submitted",
+      resub.status === 200 && (resub.body as { data?: { status?: string } }).data?.status === "submitted", `${resub.status}`);
+    const approved2 = await post(t.amit, `/corrective-actions/${rejectProbe}/approve`, {});
+    check("resubmitted close-out can then be approved → 200",
+      approved2.status === 200 && (approved2.body as { data?: { status?: string } }).data?.status === "approved", `${approved2.status}`);
+    const dResub = (await get(t.amit, `/corrective-actions/${rejectProbe}`)).body as { data?: { status?: unknown } };
+    check("derived status → closed after resubmit + approve", dResub.data?.status === "closed", `${dResub.data?.status}`);
+
+    const closedList = (await get(t.amit, "/corrective-actions?status=closed")).body as { data: Array<{ id: string }> };
+    check("?status=closed includes both closed probes",
+      closedList.data.some((r) => r.id === approveProbe) && closedList.data.some((r) => r.id === rejectProbe), `rows=${closedList.data.length}`);
+
+    // ── audit trail ───────────────────────────────────────────────────────
+    const approveAudit = await AuditLog.find({ entityType: "correctiveAction", entityId: new Types.ObjectId(approveProbe) }).lean();
+    check("audit logs closeout_submitted + closeout_approved",
+      approveAudit.some((a) => a.action === "closeout_submitted") && approveAudit.some((a) => a.action === "closeout_approved"),
+      JSON.stringify(approveAudit.map((a) => a.action)));
+    const rejectAudit = await AuditLog.find({ entityType: "correctiveAction", entityId: new Types.ObjectId(rejectProbe) }).lean();
+    check("audit logs closeout_rejected + resubmit + approve",
+      rejectAudit.some((a) => a.action === "closeout_rejected") && rejectAudit.some((a) => a.action === "closeout_submitted") && rejectAudit.some((a) => a.action === "closeout_approved"),
+      JSON.stringify(rejectAudit.map((a) => a.action)));
+  } finally {
+    const ids = { $in: createdAlerts };
+    await CorrectiveCloseout.deleteMany({ alertId: ids });
+    await WorkflowState.deleteMany({ alertId: ids });
+    await Alert.deleteMany({ _id: ids });
+  }
+}
+
 async function main(): Promise<void> {
   killPort(PORT);
   runSeed();
@@ -2593,6 +2758,8 @@ async function main(): Promise<void> {
     // deactivation revocation) can never disturb an earlier battery's claims;
     // the probe user is deleted in its finally block.
     await usersManagementBattery(tokens, { SJ, SD });
+    // Feature 08 — terminal battery; resolved-alert probes self-clean in finally.
+    await closeoutBattery(tokens, { SJ, SD });
   } finally {
     stopServer(server);
   }

@@ -2769,6 +2769,256 @@ const collection: PostmanCollection = {
         },
       ],
     },
+    {
+      name: "14. Corrective Action Close-out Loop",
+      description:
+        "Feature 08 — a persistent close-out record turns the derived corrective feed into a real loop: the mine official (own site) or corporate manager submits fix evidence (status becomes 'verified'), then the corporate manager approves (terminal 'closed') or rejects (sender may resubmit). The chain resolves a fresh open alert, submits the close-out, approves it, and confirms the derived status on the detail feed. Runs on the freshly-seeded DB, so assertions are exact; RBAC negatives close the folder.",
+      item: [
+        {
+          name: "Capture Open Alert - Mine Official @ Jharia",
+          request: {
+            method: "GET",
+            auth: bearerAuth("{{token_mo}}"),
+            header: [],
+            url: parseUrl("{{baseUrl}}/alerts"),
+          },
+          event: [
+            {
+              listen: "test",
+              script: {
+                type: "text/javascript",
+                exec: [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const res = pm.response.json();",
+                  "pm.test('Captures an alert id for the close-out loop', function () {",
+                  "    const rows = res.data || [];",
+                  "    const open = rows.filter(function (a) { return a.status !== 'closed'; })[0];",
+                  "    pm.expect(open).to.be.an('object');",
+                  "    pm.expect(open.id).to.be.a('string');",
+                  "    pm.environment.set('ca_id', open.id);",
+                  "    pm.collectionVariables.set('ca_id', open.id);",
+                  "});",
+                ],
+              },
+            },
+          ],
+        },
+        {
+          name: "Resolve Alert (Corporate, Any Site)",
+          request: {
+            method: "POST",
+            auth: bearerAuth("{{token_cm}}"),
+            header: [{ key: "Content-Type", value: "application/json" }],
+            body: {
+              mode: "raw",
+              raw: JSON.stringify({ resolutionNote: "Close-out loop probe — fixed on site." }, null, 2),
+            },
+            url: parseUrl("{{baseUrl}}/alerts/{{ca_id}}/resolve"),
+          },
+          event: [
+            {
+              listen: "test",
+              script: {
+                type: "text/javascript",
+                exec: [
+                  "pm.test('Resolve succeeds (200) or is already closed (409)', function () {",
+                  "    pm.expect([200, 409]).to.include(pm.response.code);",
+                  "});",
+                ],
+              },
+            },
+          ],
+        },
+        {
+          name: "Submit Close-out - Mine Official (Own Site)",
+          request: {
+            method: "POST",
+            auth: bearerAuth("{{token_mo}}"),
+            header: [{ key: "Content-Type", value: "application/json" }],
+            body: {
+              mode: "raw",
+              raw: JSON.stringify(
+                {
+                  recommendation: "Installed a locked guard rail along the haul road.",
+                  effectiveness: "Two consecutive weekly inspections passed with zero findings.",
+                  evidenceNote: "Inspection checklist in the register, week 32.",
+                },
+                null,
+                2
+              ),
+            },
+            url: parseUrl("{{baseUrl}}/corrective-actions/{{ca_id}}/close-out"),
+          },
+          event: [
+            {
+              listen: "test",
+              script: {
+                type: "text/javascript",
+                exec: [
+                  "pm.test('Status code is 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "const res = pm.response.json();",
+                  "pm.test('Close-out record created as submitted', function () {",
+                  "    pm.expect(res.data.status).to.eql('submitted');",
+                  "    pm.expect(res.data.recommendation).to.be.a('string');",
+                  "});",
+                ],
+              },
+            },
+          ],
+        },
+        {
+          name: "Detail Feed Shows Verified (Close-out Submitted)",
+          request: {
+            method: "GET",
+            auth: bearerAuth("{{token_mo}}"),
+            header: [],
+            url: parseUrl("{{baseUrl}}/corrective-actions/{{ca_id}}"),
+          },
+          event: [
+            {
+              listen: "test",
+              script: {
+                type: "text/javascript",
+                exec: [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const res = pm.response.json();",
+                  "pm.test('Derived status is verified with closeout evidence', function () {",
+                  "    pm.expect(res.data.status).to.eql('verified');",
+                  "    pm.expect(res.data.closeout).to.be.an('object');",
+                  "    pm.expect(res.data.closeout.status).to.eql('submitted');",
+                  "});",
+                ],
+              },
+            },
+          ],
+        },
+        {
+          name: "Approve Close-out (Corporate Manager)",
+          request: {
+            method: "POST",
+            auth: bearerAuth("{{token_cm}}"),
+            header: [{ key: "Content-Type", value: "application/json" }],
+            body: {
+              mode: "raw",
+              raw: JSON.stringify({ reviewNote: "Evidence checks out — closing out." }, null, 2),
+            },
+            url: parseUrl("{{baseUrl}}/corrective-actions/{{ca_id}}/approve"),
+          },
+          event: [
+            {
+              listen: "test",
+              script: {
+                type: "text/javascript",
+                exec: [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const res = pm.response.json();",
+                  "pm.test('Close-out is approved', function () {",
+                  "    pm.expect(res.data.status).to.eql('approved');",
+                  "});",
+                ],
+              },
+            },
+          ],
+        },
+        {
+          name: "Detail Feed Shows Terminal Closed After Approval",
+          request: {
+            method: "GET",
+            auth: bearerAuth("{{token_cm}}"),
+            header: [],
+            url: parseUrl("{{baseUrl}}/corrective-actions/{{ca_id}}"),
+          },
+          event: [
+            {
+              listen: "test",
+              script: {
+                type: "text/javascript",
+                exec: [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const res = pm.response.json();",
+                  "pm.test('Derived status is closed with approved closeout', function () {",
+                  "    pm.expect(res.data.status).to.eql('closed');",
+                  "    pm.expect(res.data.closeout.status).to.eql('approved');",
+                  "    pm.expect(res.data.closeout.reviewedBy).to.be.a('string');",
+                  "});",
+                ],
+              },
+            },
+          ],
+        },
+        {
+          name: "RBAC: Field Officer Submit Blocked",
+          request: {
+            method: "POST",
+            auth: bearerAuth("{{token_fo}}"),
+            header: [{ key: "Content-Type", value: "application/json" }],
+            body: {
+              mode: "raw",
+              raw: JSON.stringify(
+                { recommendation: "Not authorised to submit.", effectiveness: "Not authorised to submit." },
+                null,
+                2
+              ),
+            },
+            url: parseUrl("{{baseUrl}}/corrective-actions/{{ca_id}}/close-out"),
+          },
+          event: [
+            {
+              listen: "test",
+              script: {
+                type: "text/javascript",
+                exec: [
+                  "pm.test('Field officer denied with 403', function () {",
+                  "    pm.response.to.have.status(403);",
+                  "});",
+                ],
+              },
+            },
+          ],
+        },
+        {
+          name: "RBAC: Mine Official Approve Blocked",
+          request: {
+            method: "POST",
+            auth: bearerAuth("{{token_mo}}"),
+            header: [{ key: "Content-Type", value: "application/json" }],
+            body: {
+              mode: "raw",
+              raw: JSON.stringify({ reviewNote: "Not corporate." }, null, 2),
+            },
+            url: parseUrl("{{baseUrl}}/corrective-actions/{{ca_id}}/approve"),
+          },
+          event: [
+            {
+              listen: "test",
+              script: {
+                type: "text/javascript",
+                exec: [
+                  "pm.test('Mine official denied with 403', function () {",
+                  "    pm.response.to.have.status(403);",
+                  "});",
+                ],
+              },
+            },
+          ],
+        },
+      ],
+    },
   ],
 };
 
