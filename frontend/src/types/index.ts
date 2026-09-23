@@ -712,8 +712,22 @@ export interface CorrectiveAction {
   resolutionNote?: string;
   verifiedBy?: string;
   verifiedAt?: string;
+  closeout?: CorrectiveCloseout;
   createdAt: string;
   updatedAt: string;
+}
+
+/** Feature 08 — persistent close-out record (1:1 with the corrective action). */
+export interface CorrectiveCloseout {
+  status: 'submitted' | 'approved' | 'rejected';
+  recommendation: string;
+  effectiveness: string;
+  evidenceNote?: string;
+  submittedBy?: string;
+  submittedAt: string;
+  reviewedBy?: string;
+  reviewedAt?: string;
+  reviewNote?: string;
 }
 
 /** Demo screen (CompliancePage): requirement register. */

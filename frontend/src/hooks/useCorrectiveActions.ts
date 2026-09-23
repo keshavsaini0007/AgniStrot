@@ -37,3 +37,41 @@ export const useUpdateCorrectiveAction = () => {
     },
   });
 };
+
+// ── Feature 08: close-out loop mutations ─────────────────────────────────────
+const invalidateCorrective = (queryClient: ReturnType<typeof useQueryClient>, id: string) => {
+  queryClient.invalidateQueries({ queryKey: queryKeys.correctiveActions.all });
+  queryClient.invalidateQueries({ queryKey: queryKeys.correctiveActions.detail(id) });
+};
+
+export const useSubmitCloseout = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      input,
+    }: {
+      id: string;
+      input: { recommendation: string; effectiveness: string; evidenceNote?: string };
+    }) => correctiveActionService.submitCloseout(id, input),
+    onSuccess: (_, { id }) => invalidateCorrective(queryClient, id),
+  });
+};
+
+export const useApproveCloseout = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, reviewNote }: { id: string; reviewNote?: string }) =>
+      correctiveActionService.approveCloseout(id, reviewNote),
+    onSuccess: (_, { id }) => invalidateCorrective(queryClient, id),
+  });
+};
+
+export const useRejectCloseout = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, reviewNote }: { id: string; reviewNote?: string }) =>
+      correctiveActionService.rejectCloseout(id, reviewNote),
+    onSuccess: (_, { id }) => invalidateCorrective(queryClient, id),
+  });
+};

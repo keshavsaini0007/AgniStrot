@@ -53,6 +53,9 @@ export const API_ENDPOINTS = {
   CORRECTIVE_ACTIONS: {
     BASE: '/corrective-actions',
     DETAIL: (id: string) => `/corrective-actions/${id}`,
+    CLOSE_OUT: (id: string) => `/corrective-actions/${id}/close-out`,
+    APPROVE: (id: string) => `/corrective-actions/${id}/approve`,
+    REJECT: (id: string) => `/corrective-actions/${id}/reject`,
   },
   COMPLIANCE: {
     BASE: '/compliance',

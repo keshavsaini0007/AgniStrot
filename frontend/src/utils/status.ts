@@ -58,6 +58,18 @@ export const STATUS_CONFIG = {
     dot: 'bg-green-400',
   },
 
+  // ── Feature 08: close-out loop states (submitted / approved) ─────────────
+  submitted: {
+    label: 'Submitted',
+    color: 'text-yellow-400',
+    dot: 'bg-yellow-400',
+  },
+  approved: {
+    label: 'Approved',
+    color: 'text-green-400',
+    dot: 'bg-green-400',
+  },
+
   // Compliance statuses
   compliant: {
     label: 'Compliant',

@@ -98,6 +98,7 @@ export const CorrectiveActionsPage = () => {
                 { value: 'in_progress', label: 'In Progress' },
                 { value: 'resolved', label: 'Resolved' },
                 { value: 'verified', label: 'Verified' },
+                { value: 'rejected', label: 'Rejected' },
                 { value: 'closed', label: 'Closed' },
               ]}
               value={statusFilter}

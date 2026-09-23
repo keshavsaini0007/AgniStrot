@@ -1,7 +1,7 @@
 import apiClient, { normalizeList, unwrap } from '@/api/client';
 import { API_ENDPOINTS } from '@/api/endpoints';
 import { handleApiError } from '@/api/errors';
-import type { CorrectiveAction, FilterParams, PaginatedResponse } from '@/types';
+import type { CorrectiveAction, CorrectiveCloseout, FilterParams, PaginatedResponse } from '@/types';
 import { alertApiRepository } from './alertApiRepository';
 
 /**
@@ -24,6 +24,17 @@ type CorrectiveActionDto = {
   resolutionNote?: string;
   verifiedBy?: string;
   verifiedAt?: string;
+  closeout?: {
+    status: 'submitted' | 'approved' | 'rejected';
+    recommendation: string;
+    effectiveness: string;
+    evidenceNote?: string;
+    submittedBy?: string;
+    submittedAt: string;
+    reviewedBy?: string;
+    reviewedAt?: string;
+    reviewNote?: string;
+  };
   createdAt: string;
   updatedAt: string;
 };
@@ -43,6 +54,7 @@ function toCorrectiveAction(d: CorrectiveActionDto): CorrectiveAction {
     resolutionNote: d.resolutionNote,
     verifiedBy: d.verifiedBy,
     verifiedAt: d.verifiedAt,
+    closeout: d.closeout,
     createdAt: d.createdAt,
     updatedAt: d.updatedAt,
   };
@@ -95,6 +107,41 @@ export const correctiveActionApiRepository = {
         resolutionNote: data.resolutionNote ?? current.resolutionNote,
         updatedAt: new Date().toISOString(),
       };
+    } catch (error) {
+      throw handleApiError(error);
+    }
+  },
+
+  // ── Feature 08: close-out loop (move the action to a terminal state) ──────
+  submitCloseout: async (
+    id: string,
+    input: { recommendation: string; effectiveness: string; evidenceNote?: string }
+  ): Promise<CorrectiveCloseout | null> => {
+    try {
+      const response = await apiClient.post(API_ENDPOINTS.CORRECTIVE_ACTIONS.CLOSE_OUT(id), input);
+      return unwrap<CorrectiveCloseout>(response.data) ?? null;
+    } catch (error) {
+      throw handleApiError(error);
+    }
+  },
+
+  approveCloseout: async (id: string, reviewNote?: string): Promise<CorrectiveCloseout | null> => {
+    try {
+      const response = await apiClient.post(API_ENDPOINTS.CORRECTIVE_ACTIONS.APPROVE(id), {
+        reviewNote: reviewNote || undefined,
+      });
+      return unwrap<CorrectiveCloseout>(response.data) ?? null;
+    } catch (error) {
+      throw handleApiError(error);
+    }
+  },
+
+  rejectCloseout: async (id: string, reviewNote?: string): Promise<CorrectiveCloseout | null> => {
+    try {
+      const response = await apiClient.post(API_ENDPOINTS.CORRECTIVE_ACTIONS.REJECT(id), {
+        reviewNote: reviewNote || undefined,
+      });
+      return unwrap<CorrectiveCloseout>(response.data) ?? null;
     } catch (error) {
       throw handleApiError(error);
     }
