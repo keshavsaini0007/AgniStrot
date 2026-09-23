@@ -1167,6 +1167,232 @@ async function aiBattery(
   check("trends incidents.total is a number", typeof trendsIncidents.total === "number");
 }
 
+// ── [F13] Feature 03: Risk Trend Forecasting ─────────────────────────────────
+// Enriched /ai/trends payload: rule-based classification (increasing /
+// decreasing / stable / volatile / new-activity / insufficient-data),
+// normalized contributor ranking, statistical projection and a 13-week series.
+// Deterministic probes create controlled multi-week data per site to prove the
+// increasing / volatile / zero-baseline / insufficient-history classifications
+// and the linear-regression forecast, then clean up after themselves.
+
+const F03_DIRECTIONS = [
+  "increasing",
+  "decreasing",
+  "stable",
+  "volatile",
+  "new-activity",
+  "insufficient-data",
+] as const;
+
+function f03RankWeight(c: { magnitude: string; direction: string }): number {
+  const mag = c.magnitude === "high" ? 3 : c.magnitude === "medium" ? 2 : 1;
+  return mag + (c.direction === "increasing" ? 1 : 0);
+}
+
+async function feature03ForecastBattery(
+  t: { priya: string; amit: string; meena: string; rahul: string },
+  sites: { SJ: string; SD: string }
+): Promise<void> {
+  console.log("\n== [F13] Risk Trend Forecasting ==");
+
+  // ── 1. Enriched payload shape on the seeded site ───────────────────────────
+  const trends = await get(t.amit, `/ai/trends/${sites.SJ}`);
+  check("trends enriched payload → 200", trends.status === 200);
+  const data = (trends.body as { data: AnyJson }).data as AnyJson;
+
+  check("classification present", !!data.classification);
+  check("classification.method is rule-based", data.classification?.method === "rule-based", `got ${data.classification?.method}`);
+  check("classification.overall is a valid direction", F03_DIRECTIONS.includes(data.classification?.overall), `got ${data.classification?.overall}`);
+  check("classification.label present", typeof data.classification?.label === "string" && data.classification.label.length > 0);
+
+  for (const key of ["inspections", "incidents", "alerts"]) {
+    const cat = data.classification?.perCategory?.[key];
+    check(`perCategory.${key} valid direction + newActivity flag`,
+      !!cat && F03_DIRECTIONS.includes(cat.direction) && typeof cat.newActivity === "boolean",
+      JSON.stringify(cat).slice(0, 120));
+    check(`perCategory.${key}.percentChange is number|null`,
+      !!cat && (typeof cat.percentChange === "number" || cat.percentChange === null));
+  }
+
+  check("contributors is an array", Array.isArray(data.contributors));
+  const contributors = (data.contributors ?? []) as Array<{
+    key: string; label: string; direction: string; magnitude: string; count: number; detail: string;
+  }>;
+  const contribShapeOk = contributors.every(
+    (c) =>
+      typeof c.key === "string" &&
+      typeof c.label === "string" &&
+      ["increasing", "decreasing", "stable"].includes(c.direction) &&
+      ["high", "medium", "low"].includes(c.magnitude) &&
+      typeof c.count === "number" &&
+      typeof c.detail === "string"
+  );
+  check("contributor shape valid (key/label/direction/magnitude/count/detail)", contribShapeOk);
+  const ranked = contributors.every((c, i) => i === 0 || f03RankWeight(contributors[i - 1]!) >= f03RankWeight(c));
+  check("contributors ranked by weight desc", ranked);
+
+  check("forecast present", !!data.forecast);
+  check("forecast.method valid", ["linear-regression", "moving-average", "insufficient-data"].includes(data.forecast?.method), `got ${data.forecast?.method}`);
+  check("forecast.baselineScore 0-100", typeof data.forecast?.baselineScore === "number" && data.forecast.baselineScore >= 0 && data.forecast.baselineScore <= 100);
+  check("forecast.projectedScore number|null", typeof data.forecast?.projectedScore === "number" || data.forecast?.projectedScore === null);
+  check("forecast.projectedBand valid|null", data.forecast?.projectedBand === null || ["LOW", "MEDIUM", "HIGH", "CRITICAL"].includes(data.forecast?.projectedBand), `got ${data.forecast?.projectedBand}`);
+  check("forecast.bandTrend valid", F03_DIRECTIONS.includes(data.forecast?.bandTrend), `got ${data.forecast?.bandTrend}`);
+  check("forecast label present", typeof data.forecast?.label === "string" && data.forecast.label.length > 0);
+
+  const series = data.series as AnyJson;
+  const seriesShapeOk =
+    Array.isArray(series?.labels) && series.labels.length === 13 &&
+    Array.isArray(series.inspections) && series.inspections.length === 13 &&
+    Array.isArray(series.incidents) && series.incidents.length === 13 &&
+    Array.isArray(series.alerts) && series.alerts.length === 13 &&
+    Array.isArray(series.score) && series.score.length === 13;
+  check("series shape (13-week labels/counts/score)", seriesShapeOk);
+
+  // ── 2. Backward-compat fields intact ───────────────────────────────────────
+  check("backward-compat trend fields intact", data.period === "30days" && !!data.inspections && !!data.incidents && !!data.alerts);
+  check("inspections.failed is a number", typeof data.inspections?.failed === "number");
+  check("alerts.avgResolutionTimeHours is a number", typeof data.alerts?.avgResolutionTimeHours === "number");
+
+  // ── 3. RBAC / error guards ─────────────────────────────────────────────────
+  check("cross-site trends still 403 for mine_official", (await get(t.priya, `/ai/trends/${sites.SD}`)).status === 403);
+  check("malformed trends id → 400", (await get(t.amit, "/ai/trends/not-a-valid-id")).status === 400);
+  check("missing trends site → 404", (await get(t.amit, "/ai/trends/507f1f77bcf86cd799439011")).status === 404);
+
+  // ── 4. Controlled deterministic probes ─────────────────────────────────────
+  await f03ControlledProbes(t.amit);
+}
+
+async function f03ControlledProbes(amitToken: string): Promise<void> {
+  const now = Date.now();
+  const w = (weeksAgo: number): Date => new Date(now - weeksAgo * 7 * 24 * 60 * 60 * 1000);
+
+  const checklistWithFails = (fails: number): Array<{ item: string; result: "pass" | "fail"; notes: string }> =>
+    Array.from({ length: 6 }, (_, i) => ({
+      item: `Verify item ${i}`,
+      result: (i < fails ? "fail" : "pass") as "pass" | "fail",
+      notes: "",
+    }));
+
+  const created: Types.ObjectId[] = [];
+
+  const makeInspection = (siteId: Types.ObjectId, weeksAgo: number, fails: number) => ({
+    clientUuid: `f03-${randomUUID()}`,
+    siteId,
+    inspectorId: new Types.ObjectId(),
+    type: "safety" as const,
+    checklist: checklistWithFails(fails),
+    photoUrls: [],
+    location: { lat: 23.7, lng: 86.4 },
+    capturedAt: w(weeksAgo),
+    syncedAt: w(weeksAgo),
+  });
+
+  const makeAlert = (siteId: Types.ObjectId, ruleCode: string, severity: string, weeksAgo: number) => ({
+    siteId,
+    sourceType: "inspection" as const,
+    ruleKey: `f03-${randomUUID()}`,
+    ruleCode,
+    severity,
+    status: "open" as const,
+    createdAt: w(weeksAgo),
+  });
+
+  const makeSite = async (sub: string): Promise<Types.ObjectId> => {
+    const s = await Site.create({
+      name: `F03 Probe ${sub} ${randomUUID().slice(0, 8)}`,
+      subsidiary: "Verify F03 Probes",
+      location: { lat: 23.7, lng: 86.4 },
+      expectedWorkers: 50,
+    });
+    const id = s._id as Types.ObjectId;
+    created.push(id);
+    return id;
+  };
+
+  try {
+    // Probe A — sustained increasing failure rate (multi-period, edge case B)
+    const siteA = await makeSite("Increasing");
+    const inspDocsA: Array<ReturnType<typeof makeInspection>> = [];
+    for (let wk = 12; wk >= 1; wk--) {
+      inspDocsA.push(makeInspection(siteA, wk, wk <= 6 ? 3 : 0));
+    }
+    await Inspection.insertMany(inspDocsA);
+    await Alert.collection.insertMany([
+      makeAlert(siteA, "REPEAT_VIOLATION", "medium", 1),
+      makeAlert(siteA, "REPEAT_VIOLATION", "medium", 0),
+      makeAlert(siteA, "REPEAT_VIOLATION", "medium", 0),
+    ]);
+
+    const trA = await get(amitToken, `/ai/trends/${siteA.toString()}`);
+    check("probe A trends → 200", trA.status === 200);
+    const dA = (trA.body as { data: AnyJson }).data as AnyJson;
+    check("probe A inspections classified increasing",
+      dA.classification?.perCategory?.inspections?.direction === "increasing",
+      `got ${dA.classification?.perCategory?.inspections?.direction}`);
+    check("probe A overall not insufficient-data",
+      dA.classification?.overall !== "insufficient-data",
+      `got ${dA.classification?.overall}`);
+    check("probe A forecast method is linear-regression",
+      dA.forecast?.method === "linear-regression",
+      `got ${dA.forecast?.method}`);
+    check("probe A forecast has a projected score",
+      typeof dA.forecast?.projectedScore === "number",
+      `got ${dA.forecast?.projectedScore}`);
+    check("probe A repeat-violation contributor present (count 3)",
+      (dA.contributors ?? []).some((c: AnyJson) => c.key === "repeat_violations" && c.count === 3));
+    check("probe A score series has non-zero weekly scores",
+      Array.isArray(dA.series?.score) && dA.series.score.some((v: number | null) => typeof v === "number" && v > 0));
+
+    // Probe B — oscillation across weeks → volatile (edge case E)
+    const siteB = await makeSite("Volatile");
+    const inspDocsB: Array<ReturnType<typeof makeInspection>> = [];
+    for (let wk = 12; wk >= 0; wk--) {
+      inspDocsB.push(makeInspection(siteB, wk, wk % 2 === 0 ? 6 : 0));
+    }
+    await Inspection.insertMany(inspDocsB);
+    const trB = await get(amitToken, `/ai/trends/${siteB.toString()}`);
+    const dB = (trB.body as { data: AnyJson }).data as AnyJson;
+    check("probe B inspections classified volatile",
+      dB.classification?.perCategory?.inspections?.direction === "volatile",
+      `got ${dB.classification?.perCategory?.inspections?.direction}`);
+
+    // Probe C — zero baseline: previous period empty, current has activity → new-activity (edge case C)
+    const siteC = await makeSite("NewActivity");
+    await Inspection.insertMany([
+      makeInspection(siteC, 1, 2),
+      makeInspection(siteC, 0, 2),
+    ]);
+    const trC = await get(amitToken, `/ai/trends/${siteC.toString()}`);
+    const dC = (trC.body as { data: AnyJson }).data as AnyJson;
+    const inspC = dC.classification?.perCategory?.inspections;
+    check("probe C inspections new-activity (zero baseline)",
+      inspC?.direction === "new-activity",
+      `got ${inspC?.direction}`);
+    check("probe C percentChange is null (never Infinity%)",
+      inspC?.percentChange === null,
+      `got ${inspC?.percentChange}`);
+    check("probe C newActivity flag true", inspC?.newActivity === true);
+
+    // Probe D — one week of history → honest insufficient-data (edge case A)
+    const siteD = await makeSite("Insufficient");
+    await Inspection.insertMany([makeInspection(siteD, 0, 1)]);
+    const trD = await get(amitToken, `/ai/trends/${siteD.toString()}`);
+    const dD = (trD.body as { data: AnyJson }).data as AnyJson;
+    check("probe D overall insufficient-data (mine created yesterday)",
+      dD.classification?.overall === "insufficient-data",
+      `got ${dD.classification?.overall}`);
+    check("probe D forecast insufficient-data (no projection)",
+      dD.forecast?.method === "insufficient-data",
+      `got ${dD.forecast?.method}`);
+    check("probe D projectedScore null", dD.forecast?.projectedScore === null, `got ${dD.forecast?.projectedScore}`);
+  } finally {
+    await Inspection.deleteMany({ siteId: { $in: created } });
+    await Incident.deleteMany({ siteId: { $in: created } });
+    await Alert.deleteMany({ siteId: { $in: created } });
+    await Site.deleteMany({ _id: { $in: created } });
+  }
+}
+
 // ── [F12] Dashboard 7-day KPI battery ────────────────────────────────────────
 // Backend now supplies truthful 7-day counts: mine_official gets inspections7d
 // + alerts7d, corporate gets inspections7d + incidents7d (frontend dashboard
@@ -1418,6 +1644,7 @@ async function main(): Promise<void> {
     await gisBattery(tokens, { SJ, SD });
     await documentBattery(tokens, { SJ, SD });
     await aiBattery(tokens, { SJ, SD });
+    await feature03ForecastBattery(tokens, { SJ, SD });
     await dashboardBattery({ priya: tokens.priya, amit: tokens.amit });
     await usersBattery({ amit: tokens.amit, priya: tokens.priya, meena: tokens.meena });
     await listShapeBattery({ amit: tokens.amit });
