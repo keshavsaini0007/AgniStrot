@@ -9,7 +9,9 @@ test.describe('notifications', () => {
   test('list is populated from live alerts and shows unread dots', async ({ page }) => {
     await login(page, 'mineOfficial');
     await page.goto('/app/notifications');
-    await expect(page.getByRole('heading', { name: 'Notifications' })).toBeVisible();
+    // First visit in a fresh context compiles the route under vite dev + opens
+    // the socket — allow more than the default 5s for the header to mount.
+    await expect(page.getByRole('heading', { name: 'Notifications' })).toBeVisible({ timeout: 15_000 });
     await expect(page.getByRole('button', { name: 'Mark All as Read' })).toBeVisible();
     await expect(page.getByText(/alert detected/i).first()).toBeVisible();
     expect(await unreadDot(page).count()).toBeGreaterThan(0);

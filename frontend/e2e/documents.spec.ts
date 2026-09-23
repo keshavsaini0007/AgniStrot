@@ -16,13 +16,17 @@ test.describe('documents — OCR ingest', () => {
   test('ingests a paper form and confirms the extracted fields', async ({ page }) => {
     test.setTimeout(120_000);
     await login(page, 'mineOfficial');
-    await page.goto('/app/documents');
 
-    await expect(page.getByRole('button', { name: 'Scan Document' })).toBeVisible();
-    // Wait for the documents list to finish loading so rowsBefore is accurate.
-    await page.waitForResponse(
+    // Register the waiter BEFORE the navigation — the list GET fires on page
+    // mount and can complete before a late registration (the race that flakes
+    // this spec when the API responds fast under load).
+    const listResponse = page.waitForResponse(
       (r) => r.url().includes('/api/v1/documents') && r.request().method() === 'GET',
     );
+    await page.goto('/app/documents');
+    await listResponse;
+
+    await expect(page.getByRole('button', { name: 'Scan Document' })).toBeVisible();
     const rowsBefore = await documents(page).count();
 
     const chooserPromise = page.waitForEvent('filechooser');
