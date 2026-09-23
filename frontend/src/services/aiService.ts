@@ -1,12 +1,12 @@
 import { aiRepository } from '@/repositories';
-import type { RiskAssessment, TrendPoint, AiSummary } from '@/types';
+import type { RiskAssessment, SiteTrend, AiSummary } from '@/types';
 
 export const aiService = {
   getRiskScore: async (siteId: string): Promise<RiskAssessment> => {
     return await aiRepository.getRiskScore(siteId);
   },
 
-  getTrends: async (siteId: string): Promise<TrendPoint[]> => {
+  getTrends: async (siteId: string): Promise<SiteTrend> => {
     return await aiRepository.getTrends(siteId);
   },
 

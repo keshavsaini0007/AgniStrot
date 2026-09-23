@@ -1,7 +1,15 @@
 import apiClient from '@/api/client';
 import { API_ENDPOINTS } from '@/api/endpoints';
 import { handleApiError } from '@/api/errors';
-import type { RiskAssessment, TrendPoint, AiSummary } from '@/types';
+import type {
+  RiskAssessment,
+  SiteTrend,
+  AiSummary,
+  TrendClassification,
+  TrendContributor,
+  ForecastProjection,
+  TrendSeries,
+} from '@/types';
 
 interface BackendRiskScore {
   siteId: string;
@@ -23,11 +31,15 @@ interface BackendRiskScore {
 }
 
 interface BackendTrendData {
-  siteId: string;
-  period: string;
+  siteId?: string;
+  period?: string;
   inspections: { total: number; passed: number; failed: number; percentChange: number };
   incidents: { total: number; critical: number; resolved: number; percentChange: number };
   alerts: { total: number; open: number; avgResolutionTimeHours: number; percentChange: number };
+  classification?: TrendClassification;
+  contributors?: TrendContributor[];
+  forecast?: ForecastProjection;
+  series?: TrendSeries;
 }
 
 const FACTOR_LABELS: Array<{ label: string; key: keyof BackendRiskScore['breakdown'] }> = [
@@ -65,29 +77,46 @@ export const aiApiRepository = {
     }
   },
 
-  getTrends: async (siteId: string): Promise<TrendPoint[]> => {
+  getTrends: async (siteId: string): Promise<SiteTrend> => {
     try {
       const response = await apiClient.get(API_ENDPOINTS.AI.TRENDS(siteId));
       const raw = (response.data?.data ?? response.data) as BackendTrendData;
-      const now = Date.now();
-      const cap = (n: number) => Math.max(0, Math.min(100, Math.round(n)));
-      return [
-        {
-          date: new Date(now - 20 * 86400000).toISOString(),
-          label: 'inspections',
-          value: cap(raw?.inspections?.total ?? 0),
+      return {
+        siteId: raw.siteId ?? siteId,
+        period: raw.period ?? '30days',
+        inspections: raw.inspections ?? { total: 0, passed: 0, failed: 0, percentChange: 0 },
+        incidents: raw.incidents ?? { total: 0, critical: 0, resolved: 0, percentChange: 0 },
+        alerts: raw.alerts ?? { total: 0, open: 0, avgResolutionTimeHours: 0, percentChange: 0 },
+        classification: raw.classification ?? {
+          method: 'rule-based',
+          label: 'Trend based on historical rule-based analysis.',
+          overall: 'insufficient-data',
+          confidence: 'low',
+          perCategory: {
+            inspections: { direction: 'insufficient-data', percentChange: null, newActivity: false },
+            incidents: { direction: 'insufficient-data', percentChange: null, newActivity: false },
+            alerts: { direction: 'insufficient-data', percentChange: null, newActivity: false },
+          },
         },
-        {
-          date: new Date(now - 10 * 86400000).toISOString(),
-          label: 'incidents',
-          value: cap(raw?.incidents?.total ?? 0),
+        contributors: Array.isArray(raw.contributors) ? raw.contributors : [],
+        forecast: raw.forecast ?? {
+          method: 'insufficient-data',
+          baselineScore: 0,
+          projectedScore: null,
+          projectedBand: null,
+          bandTrend: 'insufficient-data',
+          next30d: { inspections: null, incidents: null, alerts: null },
+          confidence: 'low',
+          label: 'Statistical projection of the rule-based risk score.',
         },
-        {
-          date: new Date(now).toISOString(),
-          label: 'alerts',
-          value: cap(raw?.alerts?.open ?? 0),
+        series: raw.series ?? {
+          labels: [],
+          inspections: [],
+          incidents: [],
+          alerts: [],
+          score: [],
         },
-      ];
+      };
     } catch (error) {
       throw handleApiError(error);
     }

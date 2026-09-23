@@ -232,6 +232,79 @@ export interface TrendPoint {
   label?: string;
 }
 
+/** Feature 03 — risk trend forecasting (rule-based + statistical). */
+export type TrendDirection =
+  | 'increasing'
+  | 'decreasing'
+  | 'stable'
+  | 'volatile'
+  | 'new-activity'
+  | 'insufficient-data';
+
+export interface TrendCategory {
+  direction: TrendDirection;
+  /** `null` when the previous period had zero activity (zero baseline → new activity). */
+  percentChange: number | null;
+  newActivity: boolean;
+}
+
+export interface TrendClassification {
+  method: 'rule-based';
+  label: string;
+  overall: TrendDirection;
+  confidence: 'low' | 'medium' | 'high';
+  perCategory: {
+    inspections: TrendCategory;
+    incidents: TrendCategory;
+    alerts: TrendCategory;
+  };
+}
+
+export interface TrendContributor {
+  key: string;
+  label: string;
+  direction: 'increasing' | 'decreasing' | 'stable';
+  magnitude: 'high' | 'medium' | 'low';
+  count: number;
+  detail: string;
+}
+
+export interface ForecastProjection {
+  method: 'linear-regression' | 'moving-average' | 'insufficient-data';
+  baselineScore: number;
+  projectedScore: number | null;
+  projectedBand: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL' | null;
+  bandTrend: TrendDirection;
+  next30d: {
+    inspections: number | null;
+    incidents: number | null;
+    alerts: number | null;
+  };
+  confidence: 'low' | 'medium' | 'high';
+  label: string;
+}
+
+export interface TrendSeries {
+  labels: string[];
+  inspections: number[];
+  incidents: number[];
+  alerts: number[];
+  score: (number | null)[];
+}
+
+/** Normalized per-site trend/forecast payload (`GET /ai/trends/:siteId`). */
+export interface SiteTrend {
+  siteId: string;
+  period: string;
+  inspections: { total: number; passed: number; failed: number; percentChange: number };
+  incidents: { total: number; critical: number; resolved: number; percentChange: number };
+  alerts: { total: number; open: number; avgResolutionTimeHours: number; percentChange: number };
+  classification: TrendClassification;
+  contributors: TrendContributor[];
+  forecast: ForecastProjection;
+  series: TrendSeries;
+}
+
 /** Global risk scanner summary across all sites (`GET /ai/summary`). */
 export interface AiSummary {
   totalSites: number;

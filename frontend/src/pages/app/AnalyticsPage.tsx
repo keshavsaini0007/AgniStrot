@@ -7,6 +7,7 @@ import { ErrorState } from '@/components/ui/ErrorState';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { RiskScoreCard } from '@/components/analytics/RiskScoreCard';
 import { ComplianceTrendChart } from '@/components/analytics/ComplianceTrendChart';
+import { TrendForecastPanel } from '@/components/analytics/TrendForecastPanel';
 import { Select } from '@/components/ui/Select';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Brain, TrendingUp, Building2 } from 'lucide-react';
@@ -127,7 +128,7 @@ export const AnalyticsPage = () => {
               <CardHeader>
                 <div className="flex items-center gap-2">
                   <TrendingUp className="w-5 h-5 text-[#4DA3FF]" />
-                  <h3 className="text-lg font-semibold text-[#F4F5F5]">Incident Trend</h3>
+                  <h3 className="text-lg font-semibold text-[#F4F5F5]">Risk Score Trend</h3>
                 </div>
               </CardHeader>
               <CardContent>
@@ -137,7 +138,11 @@ export const AnalyticsPage = () => {
                   <CardSkeleton />
                 ) : (
                   <ComplianceTrendChart
-                    data={(trends ?? []).map((point) => ({ date: point.date, value: point.value }))}
+                    data={(trends?.series?.score ?? []).map((score, i) => ({
+                      date: trends?.series?.labels?.[i] ?? '',
+                      label: trends?.series?.labels?.[i] ?? '',
+                      value: Math.max(0, Math.min(100, score ?? 0)),
+                    }))}
                     color="bg-[#4DA3FF]"
                     height="h-48"
                   />
@@ -145,6 +150,8 @@ export const AnalyticsPage = () => {
               </CardContent>
             </Card>
           </div>
+
+          <TrendForecastPanel trend={trends} />
         </>
       ) : (
         <Card>
