@@ -18,6 +18,7 @@ import {
   Bell,
   Users,
   X,
+  Fingerprint,
 } from 'lucide-react';
 import { useUIStore } from '@/store/uiStore';
 import { useAuth } from '@/hooks/useAuth';
@@ -41,6 +42,7 @@ const workspaceNav = [
   { name: 'GIS Intelligence', href: '/app/gis', icon: Globe, permission: 'gis.read' },
   { name: 'Reports', href: '/app/reports', icon: FileBarChart, permission: 'reports.read' },
   { name: 'Documents', href: '/app/documents', icon: FolderOpen, permission: 'documents.read' },
+  { name: 'Evidence Integrity', href: '/app/evidence', icon: Fingerprint, permission: 'evidence.read' },
   { name: 'Audit Logs', href: '/app/audit-logs', icon: History, permission: 'audit.read' },
   { name: 'Settings', href: '/app/settings', icon: Settings, permission: 'settings.read' },
 ];

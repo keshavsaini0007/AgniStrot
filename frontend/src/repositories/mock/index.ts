@@ -8,6 +8,7 @@ export { auditMockRepository } from './auditMockRepository';
 export { reportMockRepository } from './reportMockRepository';
 export { gisMockRepository } from './gisMockRepository';
 export { documentMockRepository } from './documentMockRepository';
+export { evidenceMockRepository } from './evidenceMockRepository';
 export { dashboardMockRepository } from './dashboardMockRepository';
 export { aiMockRepository } from './aiMockRepository';
 export { correctiveActionMockRepository } from './correctiveActionMockRepository';

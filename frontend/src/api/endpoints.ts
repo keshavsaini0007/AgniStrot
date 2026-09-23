@@ -59,4 +59,10 @@ export const API_ENDPOINTS = {
   MEDIA: {
     UPLOAD: '/media/upload',
   },
+  EVIDENCE: {
+    BASE: '/evidence',
+    DASHBOARD: '/evidence/dashboard',
+    VERIFY: (id: string) => `/evidence/${id}/verify`,
+    VERIFY_ALL: '/evidence/verify-all',
+  },
 } as const;

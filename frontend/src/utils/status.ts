@@ -147,6 +147,36 @@ export const STATUS_CONFIG = {
     color: 'text-gray-400',
     dot: 'bg-gray-400',
   },
+
+  // ── Evidence integrity (feature 05) ────────────────────────────────────
+  // verified is defined above (green MATCH state). These cover the rest of
+  // the integrity lifecycle; `unverified` doubles as the legacy "no baseline
+  // ❔" label in the dashboard grouping.
+  INTEGRITY_MISMATCH: {
+    label: 'Integrity Mismatch',
+    color: 'text-red-400',
+    dot: 'bg-red-400',
+  },
+  unverified: {
+    label: 'Unverified',
+    color: 'text-gray-400',
+    dot: 'bg-gray-400',
+  },
+  unavailable: {
+    label: 'Unavailable',
+    color: 'text-orange-400',
+    dot: 'bg-orange-400',
+  },
+  UPLOAD_FAILED: {
+    label: 'Upload Failed',
+    color: 'text-red-400',
+    dot: 'bg-red-400',
+  },
+  UPLOAD_PENDING: {
+    label: 'Upload Pending',
+    color: 'text-yellow-400',
+    dot: 'bg-yellow-400',
+  },
 } as const;
 
 export type StatusKey = keyof typeof STATUS_CONFIG;

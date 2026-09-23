@@ -23,6 +23,7 @@ import {
   CorrectiveActionDetailPage,
   CompliancePage,
   DocumentsPage,
+  EvidencePage,
   AnalyticsPage,
   GISPage,
   ReportsPage,
@@ -85,6 +86,7 @@ function App() {
                 <Route path="/app/compliance" element={<CompliancePage />} />
                 <Route path="/app/compliance/:complianceId" element={<CompliancePage />} />
                 <Route path="/app/documents" element={<DocumentsPage />} />
+                <Route path="/app/evidence" element={<EvidencePage />} />
                 <Route path="/app/analytics" element={<AnalyticsPage />} />
                 <Route path="/app/gis" element={<GISPage />} />
                 <Route path="/app/reports" element={<ReportsPage />} />

@@ -212,6 +212,69 @@ export interface OcrDocument {
   createdAt: string;
 }
 
+// ─── Feature 05: Evidence integrity (SHA-256 at ingest + verification) ──────
+
+export type EvidenceIntegrityStatus =
+  | 'UPLOAD_PENDING'
+  | 'UPLOAD_FAILED'
+  | 'unverified'
+  | 'verified'
+  | 'INTEGRITY_MISMATCH'
+  | 'unavailable';
+
+/** backend `Evidence` row — one attestation per uploaded file. */
+export interface Evidence {
+  id: string;
+  sourceType: 'document' | 'media';
+  sourceRecordId: string | null;
+  siteId: string;
+  fileUrl: string;
+  fileName: string | null;
+  contentHash: string | null;
+  uploadedByName: string;
+  uploadedAt: string;
+  integrityStatus: EvidenceIntegrityStatus;
+  verificationNote: string | null;
+  checkCount: number;
+  lastVerifiedAt: string | null;
+  createdAt: string;
+  /** Same binary content seen on another row — informational, never a fraud flag. */
+  duplicateCount: number;
+}
+
+/** `GET /evidence/dashboard` payload. */
+export interface EvidenceDashboard {
+  total: number;
+  checked: number;
+  verified: number;
+  mismatched: number;
+  unverified: number;
+  unavailable: number;
+  uploadFailed: number;
+  uploadPending: number;
+  noBaseline: number;
+}
+
+/** `POST /evidence/:id/verify` result. */
+export interface EvidenceVerifyResult {
+  id: string;
+  integrityStatus: EvidenceIntegrityStatus;
+  checkCount: number;
+  lastVerifiedAt: string;
+  verificationNote: string | null;
+}
+
+/** `POST /evidence/verify-all` summary. */
+export interface VerifyAllSummary {
+  checked: number;
+  verified: number;
+  mismatched: number;
+  unavailable: number;
+  unverified: number;
+  uploadFailed: number;
+  failed: number;
+}
+
 /** backend `gis/markers` payload. */
 export interface MapMarker {
   id: string;

@@ -33,6 +33,7 @@ const ROLE_PERMISSIONS: Record<string, string[]> = {
     'reports.read',       // Statutory reports for own site
     'documents.read',     // OCR documents for own site
     'documents.create',   // Ingest documents
+    'evidence.read',      // Evidence integrity (own site)
     'mines.read',         // Own-site directory
     'correctiveactions.read', // Derived feed (own site)
     'compliance.read',        // Derived compliance (own site)
@@ -51,6 +52,8 @@ const ROLE_PERMISSIONS: Record<string, string[]> = {
     'reports.read',       // Reports for all sites
     'documents.read',     // Documents for all sites
     'documents.confirm',  // Confirm OCR extractions
+    'evidence.read',      // Evidence integrity (all sites)
+    'evidence.verifyAll', // Site-wide verification pass
     'mines.read',         // Mine directory
     'correctiveactions.read', // Derived feed (all sites)
     'compliance.read',        // Derived compliance (all sites)
@@ -70,6 +73,8 @@ const ROLE_PERMISSIONS: Record<string, string[]> = {
     'gis.read',           // GIS for all sites
     'reports.read',       // Reports for all sites
     'documents.read',     // Documents read-only
+    'evidence.read',      // Evidence integrity (all sites)
+    'evidence.verifyAll', // Site-wide verification pass
     'mines.read',         // Mine directory
     'correctiveactions.read', // Derived feed (all sites)
     'compliance.read',        // Derived compliance (all sites)

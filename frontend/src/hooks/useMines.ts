@@ -33,6 +33,10 @@ export const queryKeys = {
   documents: {
     all: ['documents'] as const,
   },
+  evidence: {
+    all: ['evidence'] as const,
+    dashboard: ['evidence', 'dashboard'] as const,
+  },
   dashboard: {
     all: ['dashboard'] as const,
   },

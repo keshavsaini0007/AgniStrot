@@ -10,6 +10,7 @@ import {
   reportMockRepository,
   gisMockRepository,
   documentMockRepository,
+  evidenceMockRepository,
   dashboardMockRepository,
   aiMockRepository,
   usersMockRepository,
@@ -27,6 +28,7 @@ import {
   reportApiRepository,
   gisApiRepository,
   documentApiRepository,
+  evidenceApiRepository,
   dashboardApiRepository,
   aiApiRepository,
   usersApiRepository,
@@ -52,6 +54,7 @@ export const auditRepository = useMockApi ? auditMockRepository : auditApiReposi
 export const reportRepository = useMockApi ? reportMockRepository : reportApiRepository;
 export const gisRepository = useMockApi ? gisMockRepository : gisApiRepository;
 export const documentRepository = useMockApi ? documentMockRepository : documentApiRepository;
+export const evidenceRepository = useMockApi ? evidenceMockRepository : evidenceApiRepository;
 export const dashboardRepository = useMockApi ? dashboardMockRepository : dashboardApiRepository;
 export const aiRepository = useMockApi ? aiMockRepository : aiApiRepository;
 
