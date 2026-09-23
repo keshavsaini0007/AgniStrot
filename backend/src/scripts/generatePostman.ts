@@ -3019,6 +3019,141 @@ const collection: PostmanCollection = {
         },
       ],
     },
+    {
+      name: "15. Register CSV Export",
+      description:
+        "Feature 09 — register export as CSV with attachment headers (Content-Type: text/csv, Content-Disposition: attachment, UTF-8 BOM). Corporate manager downloads the full user register; attendance export is role-scoped (mine_official sees only own-site rows). RBAC negatives close the folder.",
+      item: [
+        {
+          name: "Export Users CSV - Corporate Manager",
+          request: {
+            method: "GET",
+            auth: bearerAuth("{{token_cm}}"),
+            header: [],
+            url: parseUrl("{{baseUrl}}/exports/users.csv"),
+          },
+          event: [
+            {
+              listen: "test",
+              script: {
+                type: "text/javascript",
+                exec: [
+                  "pm.test('Status code is 200 with text/csv', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    pm.expect(pm.response.headers.get('content-type')).to.include('text/csv');",
+                  "});",
+                  "pm.test('Attachment disposition + filename', function () {",
+                  "    const cd = pm.response.headers.get('content-disposition') || '';",
+                  "    pm.expect(cd).to.include('attachment');",
+                  "    pm.expect(cd).to.include('users-register.csv');",
+                  "});",
+                  "pm.test('Body has header row + seeded email', function () {",
+                  "    const txt = pm.response.text();",
+                  "    pm.expect(txt).to.include('Name,Email,Role,Site,Status,Created');",
+                  "    pm.expect(txt).to.include('amit@agnistrot.com');",
+                  "});",
+                ],
+              },
+            },
+          ],
+        },
+        {
+          name: "Export Users CSV - Field Officer Denied (403)",
+          request: {
+            method: "GET",
+            auth: bearerAuth("{{token_fo}}"),
+            header: [],
+            url: parseUrl("{{baseUrl}}/exports/users.csv"),
+          },
+          event: [
+            {
+              listen: "test",
+              script: {
+                type: "text/javascript",
+                exec: [
+                  "pm.test('Field officer denied with 403', function () {",
+                  "    pm.response.to.have.status(403);",
+                  "});",
+                ],
+              },
+            },
+          ],
+        },
+        {
+          name: "Export Users CSV - Regulator Denied (403)",
+          request: {
+            method: "GET",
+            auth: bearerAuth("{{token_reg}}"),
+            header: [],
+            url: parseUrl("{{baseUrl}}/exports/users.csv"),
+          },
+          event: [
+            {
+              listen: "test",
+              script: {
+                type: "text/javascript",
+                exec: [
+                  "pm.test('Regulator denied with 403', function () {",
+                  "    pm.response.to.have.status(403);",
+                  "});",
+                ],
+              },
+            },
+          ],
+        },
+        {
+          name: "Export Attendance CSV - Mine Official (Own Site)",
+          request: {
+            method: "GET",
+            auth: bearerAuth("{{token_mo}}"),
+            header: [],
+            url: parseUrl("{{baseUrl}}/exports/attendance.csv"),
+          },
+          event: [
+            {
+              listen: "test",
+              script: {
+                type: "text/javascript",
+                exec: [
+                  "pm.test('Mine official gets scoped attendance CSV', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    const cd = pm.response.headers.get('content-disposition') || '';",
+                  "    pm.expect(cd).to.include('attendance-register.csv');",
+                  "    pm.expect(pm.response.text()).to.include('Site ID,Site,Worker,Check Type,Captured At,Synced At');",
+                  "});",
+                ],
+              },
+            },
+          ],
+        },
+        {
+          name: "Export Attendance CSV - Corporate Date Window",
+          request: {
+            method: "GET",
+            auth: bearerAuth("{{token_cm}}"),
+            header: [],
+            url: parseUrl("{{baseUrl}}/exports/attendance.csv?from=2026-01-01T00:00:00.000Z&to=2031-01-01T00:00:00.000Z"),
+          },
+          event: [
+            {
+              listen: "test",
+              script: {
+                type: "text/javascript",
+                exec: [
+                  "pm.test('Corporate windowed export is a CSV with rows', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    pm.expect(pm.response.headers.get('content-type')).to.include('text/csv');",
+                  "    const txt = pm.response.text();",
+                  "    pm.expect(txt).to.include('Site ID,Site,Worker');",
+                  "    pm.expect(txt.split('\\r\\n').length).to.be.above(2);",
+                  "});",
+                ],
+              },
+            },
+          ],
+        },
+      ],
+    },
   ],
 };
 

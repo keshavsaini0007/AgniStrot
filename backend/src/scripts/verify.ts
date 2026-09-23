@@ -2781,6 +2781,100 @@ async function attendanceAnomalyBattery(t: { amit: string }): Promise<void> {
   }
 }
 
+// ── [F22] Register CSV export battery ────────────────────────────────────────
+// Feature 09 — hand-rolled CSV export with attachment headers. Corporate-only
+// users.csv carries the full register (header + seeded emails + site names);
+// attendance.csv is role-scoped via buildScope (mine_official sees only her own
+// site, field_officer his own site) and corporate/regulator may filter a date
+// window. RBAC negatives (field_officer / regulator → 403 on users.csv) and
+// the "exported" audit entries round it out. Read-only — no fixtures to clean.
+
+async function exportBattery(
+  t: { amit: string; priya: string; meena: string; rahul: string },
+  sites: { SJ: string }
+): Promise<void> {
+  console.log("\n== [F22] Register CSV export ==");
+  void sites;
+
+  const asText = (body: unknown): string => String(body ?? "").replace(/^\uFEFF/, "");
+
+  // ── 1. users.csv — corporate owns the register export ─────────────────
+  const users = await get(t.amit, "/exports/users.csv");
+  const usersTxt = asText(users.body);
+  check(
+    "users.csv: corporate → 200 + text/csv",
+    users.status === 200 && String(users.headers["content-type"] ?? "").includes("text/csv"),
+    `${users.status} / ${users.headers["content-type"] ?? ""}`
+  );
+  check(
+    "users.csv: attachment + filename header",
+    String(users.headers["content-disposition"] ?? "").includes("attachment") &&
+      String(users.headers["content-disposition"] ?? "").includes("users-register.csv"),
+    `${users.headers["content-disposition"] ?? ""}`
+  );
+  check("users.csv: Content-Length set", Number(users.headers["content-length"] ?? 0) > 0, `${users.headers["content-length"] ?? "?"}`);
+  check("users.csv: header row", usersTxt.includes("Name,Email,Role,Site,Status,Created"), usersTxt.slice(0, 120));
+  check(
+    "users.csv: seeded emails present",
+    usersTxt.includes("priya@agnistrot.com") && usersTxt.includes("amit@agnistrot.com"),
+    "emails"
+  );
+
+  // ── 2. users.csv — RBAC negatives ─────────────────────────────────────
+  const foUsers = await get(t.rahul, "/exports/users.csv");
+  check("users.csv: field_officer → 403", foUsers.status === 403, `${foUsers.status}`);
+  const regUsers = await get(t.meena, "/exports/users.csv");
+  check("users.csv: regulator → 403", regUsers.status === 403, `${regUsers.status}`);
+
+  // ── 3. attendance.csv — mine_official own-site only ───────────────────
+  const moAtt = await get(t.priya, "/exports/attendance.csv");
+  const moTxt = asText(moAtt.body);
+  check(
+    "attendance.csv: mine_official → 200 + text/csv",
+    moAtt.status === 200 && String(moAtt.headers["content-type"] ?? "").includes("text/csv"),
+    `${moAtt.status}`
+  );
+  check(
+    "attendance.csv: header row",
+    moTxt.includes("Site ID,Site,Worker,Check Type,Captured At,Synced At"),
+    moTxt.slice(0, 120)
+  );
+  check("attendance.csv: own site (Jharia) rows present", moTxt.includes("Jharia Underground Mine"), "site");
+  check("attendance.csv: no cross-site rows", !moTxt.includes("Dhanbad Coal Mine"), "scope");
+
+  // ── 4. attendance.csv — field_officer own-site only ───────────────────
+  const foAtt = await get(t.rahul, "/exports/attendance.csv");
+  const foTxt = asText(foAtt.body);
+  check(
+    "attendance.csv: field_officer → 200 + scoped",
+    foAtt.status === 200 && !foTxt.includes("Dhanbad Coal Mine"),
+    `${foAtt.status}`
+  );
+
+  // ── 5. attendance.csv — corporate/regulator all-sites + window ────────
+  const regAtt = await get(t.meena, "/exports/attendance.csv");
+  const regTxt = asText(regAtt.body);
+  check(
+    "attendance.csv: regulator sees all sites",
+    regAtt.status === 200 && regTxt.includes("Dhanbad Coal Mine"),
+    `${regAtt.status}`
+  );
+
+  const from = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString();
+  const to = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+  const winAtt = await get(t.amit, `/exports/attendance.csv?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`);
+  const winTxt = asText(winAtt.body);
+  check(
+    "attendance.csv: corporate date window → 200 + rows",
+    winAtt.status === 200 && winTxt.includes("Check Type") && winTxt.split("\r\n").length > 2,
+    `${winAtt.status}`
+  );
+
+  // ── 6. audit trail ─────────────────────────────────────────────────────
+  const exported = await AuditLog.countDocuments({ entityType: "export", action: "exported" });
+  check("audit logs exported entries (users + attendance)", exported >= 2, `count=${exported}`);
+}
+
 async function main(): Promise<void> {
   killPort(PORT);
   runSeed();
@@ -2887,6 +2981,11 @@ async function main(): Promise<void> {
     // Feature batch-rules — terminal battery; attendance-anomaly probes
     // self-clean in finally, then the reseed below restores the canonical state.
     await attendanceAnomalyBattery({ amit: tokens.amit });
+    // Feature 09 — terminal battery; read-only export checks leave no fixtures.
+    await exportBattery(
+      { amit: tokens.amit, priya: tokens.priya, meena: tokens.meena, rahul: tokens.rahul },
+      { SJ }
+    );
   } finally {
     stopServer(server);
   }
