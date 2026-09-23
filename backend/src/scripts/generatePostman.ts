@@ -2000,6 +2000,311 @@ const collection: PostmanCollection = {
         },
       ],
     },
+    {
+      name: "12. Hazard Register & Control Effectiveness",
+      description:
+        "Feature 06 — deterministic 5x5 risk matrix (likelihood x consequence), hierarchy-of-controls effectiveness engine, and control lifecycle (plan -> implement -> assess -> close).",
+      item: [
+        {
+          name: "Register Hazard - Corporate (Risk Matrix Computed Server-Side)",
+          request: {
+            method: "POST",
+            auth: bearerAuth("{{token_cm}}"),
+            header: [{ key: "Content-Type", value: "application/json" }],
+            body: {
+              mode: "raw",
+              raw: JSON.stringify({
+                siteId: "{{siteId_jharia}}",
+                title: "Crusher belt drive coupling guard damage",
+                description: "Recurring damage to the coupling guard at the crusher transfer point",
+                likelihood: 4,
+                consequence: 3,
+              }),
+            },
+            url: parseUrl("{{baseUrl}}/hazards"),
+          },
+          event: [
+            {
+              listen: "test",
+              script: {
+                type: "text/javascript",
+                exec: [
+                  "pm.test('Register hazard returns 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test('Risk matrix computed server-side (4x3 -> high/12)', function () {",
+                  "    const data = pm.response.json().data;",
+                  "    pm.expect(data.riskScore).to.eql(12);",
+                  "    pm.expect(data.riskLevel).to.eql('high');",
+                  "    pm.expect(data.status).to.eql('open');",
+                  "    pm.expect(data.category).to.be.a('string');",
+                  "    pm.collectionVariables.set('hazard_id', data.id);",
+                  "    pm.collectionVariables.set('hazard_category', data.category);",
+                  "});",
+                ],
+              },
+            },
+          ],
+        },
+        {
+          name: "Register Hazard - Validation Rejected (400)",
+          request: {
+            method: "POST",
+            auth: bearerAuth("{{token_cm}}"),
+            header: [{ key: "Content-Type", value: "application/json" }],
+            body: {
+              mode: "raw",
+              raw: JSON.stringify({
+                siteId: "{{siteId_jharia}}",
+                title: "Bad likelihood probe",
+                description: "likelihood must be 1-5",
+                likelihood: 0,
+                consequence: 3,
+              }),
+            },
+            url: parseUrl("{{baseUrl}}/hazards"),
+          },
+          event: [
+            {
+              listen: "test",
+              script: {
+                type: "text/javascript",
+                exec: [
+                  "pm.test('Out-of-range likelihood -> 400', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                ],
+              },
+            },
+          ],
+        },
+        {
+          name: "Register Hazard - Field Officer Blocked (RBAC 403)",
+          request: {
+            method: "POST",
+            auth: bearerAuth("{{token_fo}}"),
+            header: [{ key: "Content-Type", value: "application/json" }],
+            body: {
+              mode: "raw",
+              raw: JSON.stringify({
+                siteId: "{{siteId_jharia}}",
+                title: "Fence jump probe",
+                description: "field officer must not register hazards",
+                likelihood: 2,
+                consequence: 2,
+              }),
+            },
+            url: parseUrl("{{baseUrl}}/hazards"),
+          },
+          event: [
+            {
+              listen: "test",
+              script: {
+                type: "text/javascript",
+                exec: [
+                  "pm.test('Field officer registration blocked -> 403', function () {",
+                  "    pm.response.to.have.status(403);",
+                  "});",
+                ],
+              },
+            },
+          ],
+        },
+        {
+          name: "Register Hazard - Regulator Read-Only (RBAC 403)",
+          request: {
+            method: "POST",
+            auth: bearerAuth("{{token_reg}}"),
+            header: [{ key: "Content-Type", value: "application/json" }],
+            body: {
+              mode: "raw",
+              raw: JSON.stringify({
+                siteId: "{{siteId_jharia}}",
+                title: "Oversight probe",
+                description: "regulator is read-only oversight",
+                likelihood: 2,
+                consequence: 2,
+              }),
+            },
+            url: parseUrl("{{baseUrl}}/hazards"),
+          },
+          event: [
+            {
+              listen: "test",
+              script: {
+                type: "text/javascript",
+                exec: [
+                  "pm.test('Regulator registration blocked -> 403', function () {",
+                  "    pm.response.to.have.status(403);",
+                  "});",
+                ],
+              },
+            },
+          ],
+        },
+        {
+          name: "List Hazards - Corporate (All Sites)",
+          request: {
+            method: "GET",
+            auth: bearerAuth("{{token_cm}}"),
+            header: [],
+            url: parseUrl("{{baseUrl}}/hazards"),
+          },
+          event: [
+            {
+              listen: "test",
+              script: {
+                type: "text/javascript",
+                exec: [
+                  "pm.test('List hazards returns 200 with rows', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    const res = pm.response.json();",
+                  "    pm.expect(res.data).to.be.an('array');",
+                  "    pm.expect(res.total).to.be.a('number');",
+                  "});",
+                ],
+              },
+            },
+          ],
+        },
+        {
+          name: "Hazard Dashboard - Regulator (Read-Only Overview)",
+          request: {
+            method: "GET",
+            auth: bearerAuth("{{token_reg}}"),
+            header: [],
+            url: parseUrl("{{baseUrl}}/hazards/dashboard"),
+          },
+          event: [
+            {
+              listen: "test",
+              script: {
+                type: "text/javascript",
+                exec: [
+                  "pm.test('Dashboard returns 200 with counts', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    const d = pm.response.json().data;",
+                  "    pm.expect(d.total).to.be.a('number');",
+                  "    pm.expect(d.open).to.be.a('number');",
+                  "    pm.expect(d.mitigating).to.be.a('number');",
+                  "    pm.expect(d.controlled).to.be.a('number');",
+                  "    pm.expect(d.closed).to.be.a('number');",
+                  "});",
+                ],
+              },
+            },
+          ],
+        },
+        {
+          name: "Add Control Measure (Engineering)",
+          request: {
+            method: "POST",
+            auth: bearerAuth("{{token_cm}}"),
+            header: [{ key: "Content-Type", value: "application/json" }],
+            body: {
+              mode: "raw",
+              raw: JSON.stringify({
+                description: "Bolt-down heavy-duty coupling guard with interlock switch",
+                controlType: "engineering",
+              }),
+            },
+            url: parseUrl("{{baseUrl}}/hazards/{{hazard_id}}/controls"),
+          },
+          event: [
+            {
+              listen: "test",
+              script: {
+                type: "text/javascript",
+                exec: [
+                  "pm.test('Add control returns 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "    const controls = pm.response.json().data.controls;",
+                  "    const added = controls[controls.length - 1];",
+                  "    pm.expect(added.implemented).to.eql(false);",
+                  "    pm.collectionVariables.set('hazard_control_id', added.id);",
+                  "});",
+                ],
+              },
+            },
+          ],
+        },
+        {
+          name: "Implement Control (-> Mitigating)",
+          request: {
+            method: "POST",
+            auth: bearerAuth("{{token_cm}}"),
+            header: [],
+            url: parseUrl("{{baseUrl}}/hazards/{{hazard_id}}/controls/{{hazard_control_id}}/implement"),
+          },
+          event: [
+            {
+              listen: "test",
+              script: {
+                type: "text/javascript",
+                exec: [
+                  "pm.test('Implement control -> 200 mitigating', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    pm.expect(pm.response.json().data.status).to.eql('mitigating');",
+                  "});",
+                ],
+              },
+            },
+          ],
+        },
+        {
+          name: "Assess Control Effectiveness (Deterministic Engine)",
+          request: {
+            method: "POST",
+            auth: bearerAuth("{{token_cm}}"),
+            header: [],
+            url: parseUrl("{{baseUrl}}/hazards/{{hazard_id}}/effectiveness"),
+          },
+          event: [
+            {
+              listen: "test",
+              script: {
+                type: "text/javascript",
+                exec: [
+                  "pm.test('Assess effectiveness -> 200 with derived verdict', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    const data = pm.response.json().data;",
+                  "    pm.expect(data.effectiveness.status).to.be.oneOf(['effective', 'partially_effective', 'ineffective']);",
+                  "    pm.expect(data.effectiveness.residualRiskScore).to.be.a('number');",
+                  "});",
+                ],
+              },
+            },
+          ],
+        },
+        {
+          name: "Close Hazard - Not Yet Controlled Rejected (409)",
+          request: {
+            method: "POST",
+            auth: bearerAuth("{{token_cm}}"),
+            header: [{ key: "Content-Type", value: "application/json" }],
+            body: {
+              mode: "raw",
+              raw: JSON.stringify({ closureNote: "premature close probe" }),
+            },
+            url: parseUrl("{{baseUrl}}/hazards/{{hazard_id}}/close"),
+          },
+          event: [
+            {
+              listen: "test",
+              script: {
+                type: "text/javascript",
+                exec: [
+                  "pm.test('Close before controlled -> 409', function () {",
+                  "    pm.response.to.have.status(409);",
+                  "});",
+                ],
+              },
+            },
+          ],
+        },
+      ],
+    },
   ],
 };
 

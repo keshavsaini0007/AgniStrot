@@ -17,12 +17,20 @@ import AuditLog from "../models/AuditLog.js";
 import Incident from "../models/Incident.js";
 import Inspection from "../models/Inspection.js";
 import Evidence from "../models/Evidence.js";
+import Hazard from "../models/Hazard.js";
 import { computeThisHash, GENESIS_HASH } from "../services/auditLogger.js";
 import {
   buildCloudinaryOriginalUrl,
   sha256Hex,
   UPLOAD_FAILED_SENTINEL,
 } from "../services/evidenceService.js";
+import {
+  assessEffectiveness,
+  checkControlEffectiveness,
+  CONTROL_HIERARCHY_WEIGHT,
+  nextControlTier,
+  riskLevelFor,
+} from "../services/hazardService.js";
 import { runEscalations } from "../services/workflowEngine.js";
 import { resolveAssignee } from "../services/ruleEngine.js";
 import { checkRecurringHazards } from "../services/batchRules.js";
@@ -2093,6 +2101,307 @@ async function evidenceIntegrityBattery(
   }
 }
 
+// ── [F18] Hazard Register + Control Effectiveness Battery ────────────────────
+// Feature 06 — deterministic 5×5 risk matrix + hierarchy-of-controls
+// effectiveness engine + the post-control recurrence sweep (batch phase D).
+// Pure unit checks first (matrix bands, tier reductions, recurrence override),
+// then the full register lifecycle over the API (register → plan → implement →
+// assess → close) with RBAC, site scoping and validation probes, and finally a
+// direct invocation of the sweep with a deliberately re-sighted pattern alert.
+// Runs LAST (after feature05); every fixture (hazards + pattern alerts) is
+// removed in `finally`.
+
+async function hazardRegisterBattery(
+  t: { priya: string; meena: string; amit: string; rahul: string },
+  sites: { SJ: string; SD: string }
+): Promise<void> {
+  console.log("\n== [F18] Hazard Register & Control Effectiveness ==");
+  const createdHazardIds: string[] = [];
+  const createdAlertIds: string[] = [];
+
+  try {
+    const priyaUser = await User.findOne({ email: "priya@agnistrot.com" }).lean();
+    const officialId = (priyaUser?._id ?? new Types.ObjectId()) as Types.ObjectId;
+
+    const fixtureAlert = (overrides: Record<string, unknown> = {}) =>
+      Alert.create({
+        siteId: new Types.ObjectId(sites.SJ),
+        sourceType: "inspection" as const,
+        ruleKey: `f18:${randomUUID()}`,
+        ruleCode: "RECURRING_HAZARD" as const,
+        severity: "high" as const,
+        status: "open" as const,
+        assignedTo: officialId,
+        slaSnapshot: {
+          ackSla: 240,
+          resolutionSla: 1440,
+          escalationChain: [
+            { level: 1, role: "mine_official", waitMinutes: 240 },
+            { level: 2, role: "corporate_manager", waitMinutes: 480 },
+            { level: 3, role: "regulator", waitMinutes: 720 },
+          ],
+        },
+        ackDeadline: new Date(Date.now() + 240 * 60 * 1000),
+        resolutionDeadline: new Date(Date.now() + 1440 * 60 * 1000),
+        currentLevel: 1,
+        escalationCount: 0,
+        category: "LIGHTING",
+        scope: "localized",
+        evidence: [],
+        reportCount: 3,
+        uniqueReporters: 2,
+        firstReportedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
+        lastReportedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+        ...overrides,
+      });
+
+    // ── 0. Pure engine unit checks ─────────────────────────────────────────
+    check("matrix: 1×1 → low(1)", (() => { const r = riskLevelFor(1, 1); return r.riskScore === 1 && r.riskLevel === "low"; })());
+    check("matrix: 2×3 → medium(6)", (() => { const r = riskLevelFor(2, 3); return r.riskScore === 6 && r.riskLevel === "medium"; })());
+    check("matrix: 3×5 → high(15)", (() => { const r = riskLevelFor(3, 5); return r.riskScore === 15 && r.riskLevel === "high"; })());
+    check("matrix: 5×5 → critical(25)", (() => { const r = riskLevelFor(5, 5); return r.riskScore === 25 && r.riskLevel === "critical"; })());
+    check("matrix: drivers clamp to 1-5 (0×9 → 1×5 = 5 medium)", (() => { const r = riskLevelFor(0, 9); return r.riskScore === 5 && r.riskLevel === "medium"; })());
+    check("hierarchy: elimination weight 5 / ppe weight 1", CONTROL_HIERARCHY_WEIGHT.elimination === 5 && CONTROL_HIERARCHY_WEIGHT.ppe === 1);
+    check("nextControlTier: ppe → administrative", nextControlTier("ppe") === "administrative");
+    check("nextControlTier: elimination → null (top tier)", nextControlTier("elimination") === null);
+
+    const base = { likelihood: 5, consequence: 4 };
+    const ctl = (controlType: "ppe" | "engineering" | "substitution" | "elimination") => [{ controlType, implemented: true } as const];
+    const ppe = assessEffectiveness({ ...base, controls: ctl("ppe") });
+    check("effectiveness: ppe-only → ineffective, no reduction", ppe.status === "ineffective" && ppe.reduction === 0 && ppe.residualRiskScore === 20, `${ppe.status}/${ppe.reduction}/${ppe.residualRiskScore}`);
+    const eng = assessEffectiveness({ ...base, controls: ctl("engineering") });
+    check("effectiveness: engineering → partially_effective (-1)", eng.status === "partially_effective" && eng.reduction === 1 && eng.residualRiskScore === 12, `${eng.status}/${eng.reduction}/${eng.residualRiskScore}`);
+    const sub = assessEffectiveness({ ...base, controls: ctl("substitution") });
+    check("effectiveness: substitution → effective (-2)", sub.status === "effective" && sub.reduction === 2 && sub.residualRiskScore === 6, `${sub.status}/${sub.reduction}/${sub.residualRiskScore}`);
+    const eli = assessEffectiveness({ ...base, controls: ctl("elimination") });
+    check("effectiveness: elimination → effective (-3)", eli.status === "effective" && eli.reduction === 3 && eli.residualRiskScore === 2, `${eli.status}/${eli.reduction}/${eli.residualRiskScore}`);
+    const recur = assessEffectiveness({ ...base, controls: ctl("elimination") }, { recurrence: true });
+    check("effectiveness: recurrence override beats elimination", recur.status === "ineffective" && recur.recurrenceOverride === true, `${recur.status}/${recur.recurrenceOverride}`);
+
+    // ── 1. Register lifecycle (corporate) ───────────────────────────────────
+    const reg = await post(t.amit, "/hazards", {
+      siteId: sites.SJ,
+      title: "Ventilation fan bearing failure",
+      description: "Recurring ventilation fan bearing overheating near shaft 2",
+      likelihood: 4,
+      consequence: 3,
+    });
+    const regDto = ((reg.body as { data?: AnyJson }).data ?? {}) as { id?: string; riskScore?: number; riskLevel?: string; category?: string; status?: string; sourceType?: string };
+    check("register hazard → 201 with id", reg.status === 201 && !!regDto.id, `${reg.status}`);
+    const ventId = String(regDto.id ?? "");
+    createdHazardIds.push(ventId);
+    check("risk matrix computed server-side (4×3 = 12 high)", regDto.riskScore === 12 && regDto.riskLevel === "high", `${regDto.riskScore}/${regDto.riskLevel}`);
+    check("canonical category computed server-side (VENTILATION)", regDto.category === "VENTILATION", String(regDto.category));
+    check("hazard starts open + manual source", regDto.status === "open" && regDto.sourceType === "manual", JSON.stringify(regDto));
+
+    // ── 2. Validation + authority probes ────────────────────────────────────
+    check("register missing likelihood → 400", (await post(t.amit, "/hazards", { siteId: sites.SJ, title: "X", description: "missing driver probe", consequence: 3 })).status === 400);
+    check("register likelihood 0 → 400", (await post(t.amit, "/hazards", { siteId: sites.SJ, title: "X", description: "likelihood out-of-range probe", likelihood: 0, consequence: 3 })).status === 400);
+    check("register likelihood 6 → 400", (await post(t.amit, "/hazards", { siteId: sites.SJ, title: "X", description: "likelihood out-of-range probe 2", likelihood: 6, consequence: 3 })).status === 400);
+    check("register short title → 400", (await post(t.amit, "/hazards", { siteId: sites.SJ, title: "X", description: "short title probe", likelihood: 2, consequence: 2 })).status === 400);
+    check("field_officer register → 403", (await post(t.rahul, "/hazards", { siteId: sites.SJ, title: "Blocked", description: "field officer must not register hazards", likelihood: 2, consequence: 2 })).status === 403);
+    check("regulator register → 403 (read-only oversight)", (await post(t.meena, "/hazards", { siteId: sites.SJ, title: "Blocked", description: "regulator must not register hazards", likelihood: 2, consequence: 2 })).status === 403);
+    check("mine_official register cross-site → 403", (await post(t.priya, "/hazards", { siteId: sites.SD, title: "Cross", description: "cross-site fence jump probe", likelihood: 2, consequence: 2 })).status === 403);
+    check("malformed hazard id → 400", (await get(t.amit, "/hazards/not-an-id")).status === 400);
+
+    // ── 3. mine_official own-site register ──────────────────────────────────
+    const moReg = await post(t.priya, "/hazards", {
+      siteId: sites.SJ,
+      title: "Roof bolt loosening",
+      description: "Loose roof bolts observed in the development heading",
+      likelihood: 3,
+      consequence: 5,
+    });
+    const moDto = ((moReg.body as { data?: AnyJson }).data ?? {}) as { id?: string; riskLevel?: string };
+    check("mine_official own-site register → 201", moReg.status === 201 && !!moDto.id, `${moReg.status}`);
+    const roofId = String(moDto.id ?? "");
+    createdHazardIds.push(roofId);
+    check("mine_official register 3×5 → high", moDto.riskLevel === "high", String(moDto.riskLevel));
+
+    // ── 4. Corporate registers a cross-site (SD) hazard for scope probes ────
+    const sdReg = await post(t.amit, "/hazards", {
+      siteId: sites.SD,
+      title: "Conveyor belt spillage",
+      description: "Belt spillage around the transfer points",
+      likelihood: 2,
+      consequence: 2,
+    });
+    const sdDto = ((sdReg.body as { data?: AnyJson }).data ?? {}) as { id?: string; riskLevel?: string };
+    check("corporate register at SD → 201 low (2×2)", sdReg.status === 201 && sdDto.riskLevel === "low", `${sdReg.status}/${sdDto.riskLevel}`);
+    const sdId = String(sdDto.id ?? "");
+    createdHazardIds.push(sdId);
+
+    // ── 5. mine_official scoping — own site only, fail-closed ───────────────
+    const moList = await get(t.priya, "/hazards");
+    const moRows = ((moList.body as { data?: AnyJson }).data ?? []) as Array<{ id: string; siteId: string }>;
+    check("mine_official sees own-site hazards", moList.status === 200 && moRows.some((r) => r.id === ventId), `rows=${moRows.length}`);
+    check("mine_official list excludes cross-site hazards", moRows.every((r) => r.siteId === sites.SJ), `rows=${moRows.length}`);
+    check("mine_official cross-site detail → 404 (fail-closed)", (await get(t.priya, `/hazards/${sdId}`)).status === 404);
+    const corpHazard = await get(t.amit, `/hazards/${sdId}`);
+    check("corporate/regulator cross-site detail → 200", corpHazard.status === 200 && ((corpHazard.body as { data?: AnyJson }).data as { siteName?: unknown } | undefined)?.siteName !== undefined, `${corpHazard.status}`);
+    check("regulator list → 200 (all sites)", (await get(t.meena, "/hazards")).status === 200);
+    check("field_officer list → 403", (await get(t.rahul, "/hazards")).status === 403);
+
+    // Both ventilation (4×3) and roof (3×5) are high here — the filter is
+    // meaningful BEFORE any risk re-scoring.
+    const highFilter = await get(t.amit, "/hazards?riskLevel=high");
+    const highRows = ((highFilter.body as { data?: AnyJson }).data ?? []) as Array<{ riskLevel: string; id: string }>;
+    check("?riskLevel=high returns only high rows", highRows.length >= 2 && highRows.some((r) => r.id === ventId) && highRows.every((r) => r.riskLevel === "high"), `rows=${highRows.length}`);
+
+    // ── 6. Risk update recomputes the matrix + closed hazard is immutable ───
+    const put = await api(`/hazards/${roofId}`, { token: t.priya, method: "PUT", body: { likelihood: 1 } });
+    const putDto = ((put.body as { data?: AnyJson }).data ?? {}) as { riskScore?: number; riskLevel?: string };
+    check("PUT drivers recompute risk (1×5 = 5 medium)", put.status === 200 && putDto.riskScore === 5 && putDto.riskLevel === "medium", `${put.status}/${putDto.riskScore}/${putDto.riskLevel}`);
+
+    // ── 7. Register from an open RECURRING_HAZARD alert (source = alert) ────
+    const sourceAlert = await fixtureAlert();
+    createdAlertIds.push(String((sourceAlert._id as unknown as string)));
+    const fromAlert = await post(t.amit, "/hazards", {
+      siteId: sites.SJ,
+      title: "Shaft lighting intermittent",
+      description: "Shaft lighting keeps failing on the evening shift",
+      likelihood: 3,
+      consequence: 3,
+      sourceAlertId: String(sourceAlert._id),
+    });
+    const fromAlertDto = ((fromAlert.body as { data?: AnyJson }).data ?? {}) as { id?: string; sourceType?: string; category?: string };
+    check("register from open pattern alert → 201 sourceType alert", fromAlert.status === 201 && fromAlertDto.sourceType === "alert", `${fromAlert.status}/${fromAlertDto.sourceType}`);
+    const lightingId = String(fromAlertDto.id ?? "");
+    createdHazardIds.push(lightingId);
+    check("alert-source hazard shares canonical category", fromAlertDto.category === "LIGHTING", String(fromAlertDto.category));
+
+    const wrongRuleAlert = await fixtureAlert({ ruleCode: "SAFETY_CHECKLIST_FAIL" as const, category: undefined });
+    createdAlertIds.push(String((wrongRuleAlert._id as unknown as string)));
+    check("sourceAlertId must be RECURRING_HAZARD → 400", (await post(t.amit, "/hazards", { siteId: sites.SJ, title: "Bad source", description: "wrong rule alert probe", likelihood: 2, consequence: 2, sourceAlertId: String(wrongRuleAlert._id) })).status === 400);
+    const crossAlert = await fixtureAlert({ siteId: new Types.ObjectId(sites.SD) });
+    createdAlertIds.push(String((crossAlert._id as unknown as string)));
+    check("sourceAlertId cross-site → 400", (await post(t.amit, "/hazards", { siteId: sites.SJ, title: "Bad source", description: "cross-site alert probe", likelihood: 2, consequence: 2, sourceAlertId: String(crossAlert._id) })).status === 400);
+    const ghostId = new Types.ObjectId().toString();
+    check("sourceAlertId unknown → 400", (await post(t.amit, "/hazards", { siteId: sites.SJ, title: "Bad source", description: "ghost alert probe", likelihood: 2, consequence: 2, sourceAlertId: ghostId })).status === 400);
+
+    // ── 8. Control hierarchy lifecycle on the VENTILATION hazard ────────────
+    const addPpe = await post(t.amit, `/hazards/${ventId}/controls`, { description: "Issue hearing + dust PPE to shaft crew", controlType: "ppe" });
+    const addPpeDto = ((addPpe.body as { data?: AnyJson }).data ?? {}) as { controls?: Array<{ id?: string; implemented?: boolean }> };
+    check("add ppe control → 201, hazard stays open", addPpe.status === 201 && (addPpeDto.controls?.length ?? 0) === 1 && (addPpeDto.controls?.[0]?.implemented) === false, `${addPpe.status}`);
+    const ppeControlId = String(addPpeDto.controls?.[0]?.id ?? "");
+    const wrongControl = await post(t.amit, `/hazards/${ventId}/controls`, { description: "Bad tier", controlType: "magic" });
+    check("invalid controlType → 400", wrongControl.status === 400, `${wrongControl.status}`);
+
+    const impl = await post(t.amit, `/hazards/${ventId}/controls/${ppeControlId}/implement`, {});
+    const implDto = ((impl.body as { data?: AnyJson }).data ?? {}) as { status?: string };
+    check("implement control → status mitigating", impl.status === 200 && implDto.status === "mitigating", `${impl.status}/${implDto.status}`);
+    const reImpl = await post(t.amit, `/hazards/${ventId}/controls/${ppeControlId}/implement`, {});
+    check("re-implement is idempotent (200)", reImpl.status === 200, `${reImpl.status}`);
+
+    const assessPpe = await post(t.amit, `/hazards/${ventId}/effectiveness`, {});
+    const assessPpeDto = ((assessPpe.body as { data?: AnyJson }).data ?? {}) as { status?: string; effectiveness?: { status?: string; reduction?: number } };
+    check("assess ppe-only → ineffective, stays mitigating", assessPpe.status === 200 && assessPpeDto.effectiveness?.status === "ineffective" && assessPpeDto.status === "mitigating", `${assessPpe.status}/${assessPpeDto.effectiveness?.status}`);
+
+    const assessNoControls = await post(t.amit, `/hazards/${lightingId}/effectiveness`, {});
+    check("assess without implemented controls → 400", assessNoControls.status === 400, `${assessNoControls.status}`);
+
+    const addEng = await post(t.amit, `/hazards/${ventId}/controls`, { description: "Bearing guard + thermal trip on fan housing", controlType: "engineering" });
+    const engControlId = String(((addEng.body as { data?: AnyJson }).data as { controls?: Array<{ id?: string; controlType?: string }> } | undefined)?.controls?.find((c) => c.controlType === "engineering")?.id ?? "");
+    await post(t.amit, `/hazards/${ventId}/controls/${engControlId}/implement`, {});
+    const assessEng = await post(t.amit, `/hazards/${ventId}/effectiveness`, {});
+    const assessEngDto = ((assessEng.body as { data?: AnyJson }).data ?? {}) as { status?: string; effectiveness?: { status?: string; reduction?: number } };
+    check("assess engineering (strongest implemented) → partially_effective", assessEng.status === 200 && assessEngDto.effectiveness?.status === "partially_effective" && assessEngDto.effectiveness.reduction === 1, `${assessEngDto.effectiveness?.status}/${assessEngDto.effectiveness?.reduction}`);
+
+    const addSub = await post(t.amit, `/hazards/${ventId}/controls`, { description: "Replace plain bearings with self-lubricating ceramic bearings", controlType: "substitution" });
+    const subControlId = String(((addSub.body as { data?: AnyJson }).data as { controls?: Array<{ id?: string; controlType?: string }> } | undefined)?.controls?.find((c) => c.controlType === "substitution")?.id ?? "");
+    await post(t.amit, `/hazards/${ventId}/controls/${subControlId}/implement`, {});
+    const assessSub = await post(t.amit, `/hazards/${ventId}/effectiveness`, {});
+    const assessSubDto = ((assessSub.body as { data?: AnyJson }).data ?? {}) as { status?: string; effectiveness?: { status?: string; residualRiskScore?: number } };
+    check("assess substitution → effective → controlled", assessSub.status === 200 && assessSubDto.effectiveness?.status === "effective" && assessSubDto.status === "controlled", `${assessSubDto.effectiveness?.status}/${assessSubDto.status}`);
+
+    // Ventilation is controlled here — dashboard must count it before the close in step 9.
+    const dashControlled = ((await get(t.meena, "/hazards/dashboard")).body as { data?: AnyJson })?.data as Record<string, number> | undefined;
+    check("dashboard: controlled ≥ 1 (ventilation effective)", (dashControlled?.controlled ?? 0) >= 1, `${dashControlled?.controlled}`);
+
+    // ── 9. Close lifecycle ───────────────────────────────────────────────────
+    const closeOpen = await post(t.amit, `/hazards/${lightingId}/close`, { closureNote: "premature close attempt" });
+    check("close an open (uncontrolled) hazard → 409", closeOpen.status === 409, `${closeOpen.status}`);
+    const close = await post(t.amit, `/hazards/${ventId}/close`, { closureNote: "ceramic bearings installed, airflow restored" });
+    check("close controlled hazard → closed", close.status === 200 && ((close.body as { data?: AnyJson }).data as { status?: string } | undefined)?.status === "closed", `${close.status}`);
+    const reClose = await post(t.amit, `/hazards/${ventId}/close`, { closureNote: "second close attempt" });
+    check("re-close → 409", reClose.status === 409, `${reClose.status}`);
+    const putClosed = await api(`/hazards/${ventId}`, { token: t.amit, method: "PUT", body: { title: "Ventilation fan bearing failure (edited)" } });
+    check("update a closed hazard → 409 (immutable)", putClosed.status === 409, `${putClosed.status}`);
+    const addToClosed = await post(t.amit, `/hazards/${ventId}/controls`, { description: "late control", controlType: "administrative" });
+    check("add control to closed hazard → 409", addToClosed.status === 409, `${addToClosed.status}`);
+
+    // ── 10. Dashboard + list filters ────────────────────────────────────────
+    const dash = await get(t.meena, "/hazards/dashboard");
+    const d = ((dash.body as { data?: AnyJson }).data ?? {}) as Record<string, number>;
+    check("dashboard total ≥ 4", (d.total ?? 0) >= 4, `${d.total}`);
+    check("dashboard open ≥ 2", (d.open ?? 0) >= 2, `${d.open}`);
+    check("dashboard closed ≥ 1 (ventilation retired)", (d.closed ?? 0) >= 1, `${d.closed}`);
+    check("dashboard shape complete", typeof d.total === "number" && typeof d.mitigating === "number" && typeof d.high === "number" && typeof d.controlled === "number", JSON.stringify(d));
+
+    const openFilter = await get(t.amit, "/hazards?status=open");
+    const openRows = ((openFilter.body as { data?: AnyJson }).data ?? []) as Array<{ status: string }>;
+    check("?status=open returns only open rows", openFilter.status === 200 && openRows.length >= 2 && openRows.every((r) => r.status === "open"), `rows=${openRows.length}`);
+    const catFilter = await get(t.amit, "/hazards?category=LIGHTING");
+    const catRows = ((catFilter.body as { data?: AnyJson }).data ?? []) as Array<{ id: string }>;
+    check("?category=LIGHTING returns the alert-source hazard", catRows.some((r) => r.id === lightingId), `rows=${catRows.length}`);
+
+    // ── 11. Phase D sweep: post-control recurrence → ineffective override ───
+    const sweepReg = await post(t.amit, "/hazards", {
+      siteId: sites.SJ,
+      title: "Housekeeping clutter at belt transfer",
+      description: "Debris piles recurring at the belt transfer point",
+      likelihood: 3,
+      consequence: 3,
+    });
+    const sweepId = String(((sweepReg.body as { data?: AnyJson }).data as { id?: string } | undefined)?.id ?? "");
+    createdHazardIds.push(sweepId);
+    const sweepCtl = await post(t.amit, `/hazards/${sweepId}/controls`, { description: "Housekeeping sweep roster + cleanup shift", controlType: "administrative" });
+    const sweepCtlId = String(((sweepCtl.body as { data?: AnyJson }).data as { controls?: Array<{ id?: string }> } | undefined)?.controls?.[0]?.id ?? "");
+    await post(t.amit, `/hazards/${sweepId}/controls/${sweepCtlId}/implement`, {});
+    check("sweep precondition: hazard mitigating with implemented control", ((await get(t.amit, `/hazards/${sweepId}`)).body as { data?: AnyJson }).data?.status === "mitigating");
+
+    // The control was implemented 2 days ago (backdated — the API stamps `now`,
+    // but the realistic scenario is a control that has had time to prove itself).
+    // The pattern then re-sights 1 day ago — AFTER the control went live — which
+    // is exactly the post-control recurrence the Phase D sweep must catch.
+    const implementedTwoDaysAgo = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
+    await Hazard.updateOne(
+      { _id: new Types.ObjectId(sweepId) },
+      { $set: { "controls.$[ctl].implementedAt": implementedTwoDaysAgo } },
+      { arrayFilters: [{ "ctl.implemented": true }] }
+    );
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const recurrenceAlert = await fixtureAlert({
+      category: "HOUSEKEEPING",
+      firstReportedAt: oneDayAgo,
+      lastReportedAt: new Date(),
+    });
+    createdAlertIds.push(String((recurrenceAlert._id as unknown as string)));
+
+    const sweepStats = await checkControlEffectiveness();
+    check("sweep scanned ≥ 1 hazard", (sweepStats.scanned ?? -1) >= 1, `${sweepStats.scanned}`);
+    check("sweep reassessed ≥ 1 hazard", (sweepStats.reassessed ?? -1) >= 1, `${sweepStats.reassessed}`);
+    const sweepAfter = await get(t.amit, `/hazards/${sweepId}`);
+    const sweepDto = ((sweepAfter.body as { data?: AnyJson }).data ?? {}) as { status?: string; effectiveness?: { status?: string; recurrenceOverride?: boolean } };
+    check("sweep marks control ineffective via recurrence override", sweepDto.effectiveness?.status === "ineffective" && sweepDto.effectiveness.recurrenceOverride === true, JSON.stringify(sweepDto.effectiveness ?? null).slice(0, 120));
+    check("recurrence-ineffective hazard stays mitigating (never controlled)", sweepDto.status === "mitigating", String(sweepDto.status));
+
+    const dash2 = await get(t.meena, "/hazards/dashboard");
+    const d2 = ((dash2.body as { data?: AnyJson }).data ?? {}) as Record<string, number>;
+    check("dashboard after sweep: total ≥ 5", (d2.total ?? 0) >= 5, `${d2.total}`);
+    check("dashboard after sweep: mitigating ≥ 1", (d2.mitigating ?? 0) >= 1, `${d2.mitigating}`);
+  } finally {
+    const hazardIds = createdHazardIds.filter((x) => /^[a-f\d]{24}$/i.test(x));
+    const alertIds = createdAlertIds.filter((x) => /^[a-f\d]{24}$/i.test(x));
+    await Hazard.deleteMany({ _id: { $in: hazardIds.map((x) => new Types.ObjectId(x)) } });
+    await Alert.deleteMany({ _id: { $in: alertIds.map((x) => new Types.ObjectId(x)) } });
+    const leftoverHazards = await Hazard.countDocuments({ _id: { $in: hazardIds.map((x) => new Types.ObjectId(x)) } });
+    const leftoverAlerts = await Alert.countDocuments({ _id: { $in: alertIds.map((x) => new Types.ObjectId(x)) } });
+    check("CLEANUP: hazard fixtures fully removed", leftoverHazards === 0, `${leftoverHazards}`);
+    check("CLEANUP: alert fixtures fully removed", leftoverAlerts === 0, `${leftoverAlerts}`);
+  }
+}
+
 async function main(): Promise<void> {
   killPort(PORT);
   runSeed();
@@ -2188,6 +2497,8 @@ async function main(): Promise<void> {
     // Feature 05 — after feature04 (both self-clean); evidence runs against the
     // local-mode uploads dir and leaves the DB in the canonical seeded state.
     await evidenceIntegrityBattery(tokens, { SJ, SD });
+    // Feature 06 — terminal battery; hazard + pattern-alert fixtures self-clean.
+    await hazardRegisterBattery(tokens, { SJ, SD });
   } finally {
     stopServer(server);
   }

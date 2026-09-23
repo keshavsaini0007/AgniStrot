@@ -27,6 +27,7 @@ import type { Types } from "mongoose";
 import Alert from "../models/Alert.js";
 import Inspection from "../models/Inspection.js";
 import Incident from "../models/Incident.js";
+import Hazard from "../models/Hazard.js";
 import type { IAlert, IInspection, IIncident } from "../types/index.js";
 
 type AlertLean = IAlert & { _id: Types.ObjectId };
@@ -43,6 +44,7 @@ export interface MineRiskScore {
     incidentScore: number;
     resolutionBonus: number;
     recurringHazardBonus: number; // feature 04 — open recurring-hazard patterns add risk
+    openHazardBonus: number; // feature 06 — open register hazards add risk
   };
   metrics: {
     totalAlerts: number;
@@ -51,6 +53,7 @@ export interface MineRiskScore {
     criticalIncidents: number;
     resolutionRate: number;
     recurringHazards: number; // feature 04 — open RECURRING_HAZARD alerts in the window
+    openHazards: number; // feature 06 — open register hazards (open + mitigating)
   };
   dataSufficiency: {
     hasSufficientData: boolean;
@@ -633,11 +636,39 @@ export async function calculateMineRiskScore(
     15
   );
 
+  // ── Open Hazard Bonus (feature 06, + up to 10 points) ─────────────────────
+  // Open register hazards (status open or mitigating — NOT yet controlled) add
+  // risk weighted by their deterministic 5×5 risk level. A critical register
+  // entry weighs far more than a low one; controlled (effective) and closed
+  // hazards add nothing. Same additive, explainable shape as feature 04.
+  const HAZARD_RISK_POINTS: Record<string, number> = {
+    low: 1,
+    medium: 2,
+    high: 3,
+    critical: 4,
+  };
+  const openHazards = await Hazard.find({
+    siteId,
+    status: { $in: ["open", "mitigating"] },
+  })
+    .select("riskLevel")
+    .lean();
+  const openHazardBonus = Math.min(
+    openHazards.reduce((sum, h) => sum + (HAZARD_RISK_POINTS[h.riskLevel] ?? 1), 0),
+    10
+  );
+
   // ── BUG FIX #4: Data Sufficiency Check ─────────────────────────────────────
   const hasSufficientData = inspections.length >= 1 || alerts.length >= 1;
 
   // ── Final Score Calculation ────────────────────────────────────────────────
-  let finalScore = alertScore + inspectionScore + incidentScore - resolutionBonus + recurringHazardBonus;
+  let finalScore =
+    alertScore +
+    inspectionScore +
+    incidentScore -
+    resolutionBonus +
+    recurringHazardBonus +
+    openHazardBonus;
 
   // If insufficient data, floor risk at MEDIUM (31) to avoid false "safe" signal
   if (!hasSufficientData && finalScore < 31) {
@@ -666,6 +697,7 @@ export async function calculateMineRiskScore(
       incidentScore,
       resolutionBonus,
       recurringHazardBonus,
+      openHazardBonus,
     },
     metrics: {
       totalAlerts: alerts.length,
@@ -674,6 +706,7 @@ export async function calculateMineRiskScore(
       criticalIncidents: criticalIncidentCount,
       resolutionRate: Math.round(resolutionRate * 100),
       recurringHazards: openRecurringHazards.length,
+      openHazards: openHazards.length,
     },
     dataSufficiency: {
       hasSufficientData,

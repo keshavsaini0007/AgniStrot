@@ -103,6 +103,96 @@ export interface IAlertEvidence {
   capturedAt: Date;
 }
 
+// ── Feature 06: Hazard Register + Control Effectiveness types ────────────────
+// A hazard register row is a deterministic risk statement: a site hazard with
+// a 5×5 likelihood × consequence rating, a set of control measures (hierarchy
+// of controls), and a rule-based effectiveness verdict. Everything is
+// explainable — no ML, per project constraints.
+
+// Lifecycle: registered → open → control implemented → mitigating →
+// effectiveness effective → controlled → closed. An ineffective or
+// partially-effective assessment never advances past mitigating.
+export type HazardStatus = "open" | "mitigating" | "controlled" | "closed";
+
+// Deterministic 5×5 matrix output (likelihood × consequence → risk level).
+export type HazardRiskLevel = "low" | "medium" | "high" | "critical";
+
+// Deterministic control-effectiveness verdict:
+//   effective            the strongest implemented control reduces both
+//                        likelihood and consequence (hierarchy tier ≥ substitution)
+//   partially_effective  partial reduction — residual risk is still elevated
+//   ineffective          administrative/PPE only, OR empirical post-control
+//                        recurrence detected by the batch sweep (feature 06 D)
+export type HazardControlStatus = "effective" | "partially_effective" | "ineffective";
+
+// Hierarchy of controls — elimination ranks highest (weight 5), PPE lowest
+// (weight 1). The effectiveness engine reduces residual risk by the TIER of the
+// STRONGEST IMPLEMENTED control, never by a client-supplied sentiment.
+export type HazardControlType =
+  | "elimination"
+  | "substitution"
+  | "engineering"
+  | "administrative"
+  | "ppe";
+
+// Where the register entry came from:
+//   manual — a mine official registers a known hazard directly
+//   alert  — raised from an OPEN RECURRING_HAZARD pattern alert (sourceAlertId)
+export type HazardRegisterSource = "manual" | "alert";
+
+export interface IHazardControl {
+  _id: Types.ObjectId;
+  description: string;
+  controlType: HazardControlType;
+  ownerId?: Types.ObjectId;        // responsible user
+  targetDate?: Date;               // planned completion
+  implemented: boolean;
+  implementedAt?: Date;
+  implementedById?: Types.ObjectId;
+  createdAt: Date;
+}
+
+export interface IHazardEffectiveness {
+  status: HazardControlStatus;
+  reduction: number;               // hierarchy-driven reduction applied to L & C (0-3)
+  residualLikelihood: number;      // 1-5
+  residualConsequence: number;     // 1-5
+  residualRiskScore: number;       // residualL × residualC (1-25)
+  residualRiskLevel: HazardRiskLevel;
+  recurrenceOverride: boolean;     // true when the batch sweep found post-control recurrence
+  assessedAt: Date;
+  assessedBy: Types.ObjectId;
+  note?: string;
+}
+
+export interface IHazard {
+  _id: Types.ObjectId;
+  siteId: Types.ObjectId;
+  category: string;                // canonical hazard category (normalizeHazardCategory)
+  title: string;
+  description: string;
+  location?: {
+    lat: number;
+    lng: number;
+  };
+  sourceType: HazardRegisterSource;
+  sourceAlertId?: Types.ObjectId;  // RECURRING_HAZARD alert the entry was raised from
+  registeredBy: Types.ObjectId;
+  registeredAt: Date;
+  likelihood: number;              // 1-5 (probability of occurrence)
+  consequence: number;             // 1-5 (severity of outcome)
+  riskScore: number;               // likelihood × consequence (1-25)
+  riskLevel: HazardRiskLevel;      // matrix output
+  status: HazardStatus;
+  controls: IHazardControl[];
+  effectiveness?: IHazardEffectiveness; // set once assessed (manual or sweep)
+  closedAt?: Date;
+  closedBy?: Types.ObjectId;
+  closureNote?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 // ── Event-Driven Architecture types ──────────────────────────────────────────
 
 // Domain events published to the durable outbox. Type = SCREAMING_SNAKE.

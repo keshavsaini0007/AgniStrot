@@ -7,6 +7,7 @@ import { resolveAssignee, departmentForSource } from "./ruleEngine.js";
 import { getSlaSnapshot } from "./slaPolicyService.js";
 import { emitOutboxEvent } from "./outboxService.js";
 import { detectRecurringPatterns } from "./recurringHazards.js";
+import { checkControlEffectiveness } from "./hazardService.js";
 import type { RecurrenceRecord } from "./recurringHazards.js";
 import { INSPECTION_INTERVALS, ALERT_DEADLINES } from "../types/index.js";
 import type {
@@ -29,6 +30,9 @@ import WorkflowState from "../models/WorkflowState.js";
 //   - REPEAT_VIOLATION        : same rule fired 3+ times for a site in 30 days
 //   - RECURRING_HAZARD        : same canonical hazard, same zone, ≥3 reports from
 //                               ≥2 distinct reporters across ≥2 dates (feature 04)
+//   - hazard control sweep    : register hazards whose implemented control was
+//                               followed by a post-control recurrence are marked
+//                               ineffective (feature 06 — checkControlEffectiveness)
 //
 // Alert creation is atomic + idempotent via the ruleKey sparse unique index.
 
@@ -413,5 +417,8 @@ export async function runBatchRules(): Promise<void> {
   await checkAttendanceAnomaly();
   await checkRepeatViolations();
   await checkRecurringHazards();
+  // Feature 06 D: post-control recurrence sweep — controls proven ineffective
+  // by a pattern re-sighting after implementation are downgraded empirically.
+  await checkControlEffectiveness();
   console.log("[batchRules] Batch rule pass complete.");
 }
