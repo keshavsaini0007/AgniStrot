@@ -5,6 +5,7 @@ export { attendanceApiRepository } from './attendanceApiRepository';
 export { alertApiRepository } from './alertApiRepository';
 export { auditApiRepository } from './auditApiRepository';
 export { reportApiRepository } from './reportApiRepository';
+  export { exportApiRepository } from './exportApiRepository';
 export { gisApiRepository } from './gisApiRepository';
 export { documentApiRepository } from './documentApiRepository';
 export { evidenceApiRepository } from './evidenceApiRepository';

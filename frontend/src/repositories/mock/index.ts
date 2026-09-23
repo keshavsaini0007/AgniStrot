@@ -6,6 +6,7 @@ export { attendanceMockRepository } from './attendanceMockRepository';
 export { alertMockRepository } from './alertMockRepository';
 export { auditMockRepository } from './auditMockRepository';
 export { reportMockRepository } from './reportMockRepository';
+  export { exportMockRepository } from './exportMockRepository';
 export { gisMockRepository } from './gisMockRepository';
 export { documentMockRepository } from './documentMockRepository';
 export { evidenceMockRepository } from './evidenceMockRepository';

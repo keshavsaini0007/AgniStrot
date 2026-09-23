@@ -427,6 +427,13 @@ export interface StatutoryReportQuery {
   to: string;
 }
 
+/** Query for `GET /exports/attendance.csv` (site + date-window filters). */
+export interface AttendanceExportQuery {
+  siteId?: string;
+  from?: string;
+  to?: string;
+}
+
 /** Risk intelligence payload from `GET /ai/*` (explainable, rule-based). */
 export interface RiskAssessment {
   siteId: string;

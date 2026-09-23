@@ -1,7 +1,10 @@
 import { useState } from 'react';
-import { CalendarDays, LogIn, LogOut, Search, SlidersHorizontal, Users2, MapPin, ChevronRight } from 'lucide-react';
+import { CalendarDays, LogIn, LogOut, Search, SlidersHorizontal, Users2, MapPin, ChevronRight, Download } from 'lucide-react';
 import { useAttendance } from '@/hooks/useAttendance';
 import { useLiveRecords } from '@/hooks/useLiveRecords';
+import { Button } from '@/components/ui/Button';
+import { exportService } from '@/services/exportService';
+import { sanitizeErrorMessage } from '@/utils/security';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
@@ -31,6 +34,29 @@ export const AttendancePage = () => {
     checkType: checkFilter || undefined,
   });
   const { version, newRowId, clearRowId } = useLiveRecords(['attendance']);
+
+  // Feature 09 — role-scoped attendance register CSV export.
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
+  const handleExportCsv = async () => {
+    setIsExporting(true);
+    setExportError(null);
+    try {
+      const blob = await exportService.downloadAttendanceCsv();
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = 'attendance-register.csv';
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setExportError(sanitizeErrorMessage(err instanceof Error ? err.message : 'Export failed'));
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   if (error) return <ErrorState onRetry={refetch} />;
 
@@ -103,6 +129,15 @@ export const AttendancePage = () => {
             value={checkFilter}
             onChange={(event) => { setCheckFilter(event.target.value); setPage(1); }}
           />
+          <Button
+            data-testid="export-attendance-csv"
+            variant="secondary"
+            leftIcon={<Download className="h-4 w-4" />}
+            onClick={handleExportCsv}
+            disabled={isExporting}
+          >
+            {isExporting ? 'Exporting…' : 'Export CSV'}
+          </Button>
         </div>
         <CardContent className="p-0">
           {isLoading ? (
@@ -111,6 +146,14 @@ export const AttendancePage = () => {
             <EmptyState title="No attendance records" description="Records appear once devices sync." />
           ) : (
             <>
+              {exportError && (
+                <div
+                  data-testid="export-error"
+                  className="border-b border-[#FF4D4F]/40 bg-[#FF4D4F]/10 px-4 py-3 text-sm text-[#FFB3B5]"
+                >
+                  {exportError}
+                </div>
+              )}
               <div className="hidden overflow-x-auto md:block">
                 <div className="min-w-[760px]">
                   <div className="grid grid-cols-[1.4fr_1.2fr_1fr_1.4fr_0.8fr_32px] gap-4 border-b border-[#1E3545] px-5 py-3 text-[9px] uppercase tracking-[0.16em] text-[#78919F]">

@@ -37,6 +37,10 @@ export const API_ENDPOINTS = {
   REPORTS: {
     STATUTORY: '/reports/statutory',
   },
+  EXPORTS: {
+    USERS_CSV: '/exports/users.csv',
+    ATTENDANCE_CSV: '/exports/attendance.csv',
+  },
   GIS: {
     MARKERS: '/gis/markers',
   },

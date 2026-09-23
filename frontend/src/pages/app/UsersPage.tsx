@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Plus, X, UsersRound } from 'lucide-react';
+import { Plus, X, UsersRound, Download } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -22,6 +22,7 @@ import { useDashboardSummary } from '@/hooks/useDashboard';
 import { useUpdateUser, useUsers } from '@/hooks/useUsers';
 import { queryKeys } from '@/hooks/useMines';
 import { authService } from '@/services/authService';
+import { exportService } from '@/services/exportService';
 import { ROLE_CONFIG } from '@/utils/roles';
 import { formatDate } from '@/utils/date';
 import { sanitizeErrorMessage } from '@/utils/security';
@@ -75,6 +76,17 @@ const statusFilterOptions = [
   { value: 'inactive', label: 'Inactive' },
 ];
 
+const downloadBlob = (blob: Blob, filename: string) => {
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
+};
+
 export const UsersPage = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -91,6 +103,22 @@ export const UsersPage = () => {
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [isEditSubmitting, setIsEditSubmitting] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
+
+  // Feature 09 — register CSV export (corporate-only endpoint).
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
+  const handleExportCsv = async () => {
+    setIsExporting(true);
+    setExportError(null);
+    try {
+      const blob = await exportService.downloadUsersCsv();
+      downloadBlob(blob, 'users-register.csv');
+    } catch (err) {
+      setExportError(sanitizeErrorMessage(err instanceof Error ? err.message : 'Export failed'));
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   const { data: dashboard } = useDashboardSummary();
 
@@ -198,11 +226,31 @@ export const UsersPage = () => {
         subtitle="Provision platform access (role-based)"
         backgroundImage={usersHeaderImg}
         action={
-          <Button variant="primary" leftIcon={<Plus className="w-4 h-4" />} onClick={() => setIsOpen(true)}>
-            Add User
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              data-testid="export-users-csv"
+              variant="secondary"
+              leftIcon={<Download className="w-4 h-4" />}
+              onClick={handleExportCsv}
+              disabled={isExporting}
+            >
+              {isExporting ? 'Exporting…' : 'Export CSV'}
+            </Button>
+            <Button variant="primary" leftIcon={<Plus className="w-4 h-4" />} onClick={() => setIsOpen(true)}>
+              Add User
+            </Button>
+          </div>
         }
       />
+
+      {exportError && (
+        <div
+          data-testid="export-error"
+          className="rounded-lg border border-[#FF4D4F]/40 bg-[#FF4D4F]/10 px-4 py-3 text-sm text-[#FFB3B5]"
+        >
+          {exportError}
+        </div>
+      )}
 
       <FilterBar>
         <div className="w-full sm:w-56">
