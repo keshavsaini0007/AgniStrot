@@ -67,6 +67,7 @@ export const listAlertsSchema = z.object({
     "REPEAT_VIOLATION",
     "OVERDUE_INSPECTION",
     "ATTENDANCE_ANOMALY",
+    "RECURRING_HAZARD",
   ]).optional(),
   status: z.enum(["open", "acknowledged", "escalated", "closed"]).optional(),
   limit:  z.coerce.number().int().min(1).max(100).default(50),

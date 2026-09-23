@@ -17,6 +17,8 @@ import Inspection from "../models/Inspection.js";
 import { computeThisHash, GENESIS_HASH } from "../services/auditLogger.js";
 import { runEscalations } from "../services/workflowEngine.js";
 import { resolveAssignee } from "../services/ruleEngine.js";
+import { checkRecurringHazards } from "../services/batchRules.js";
+import { normalizeHazardCategory } from "../services/recurringHazards.js";
 import { ALERT_DEADLINES } from "../types/index.js";
 
 // ── Verification battery ────────────────────────────────────────────────────
@@ -1581,6 +1583,229 @@ async function realModulesBattery(
 
 // ── Runner ───────────────────────────────────────────────────────────────────
 
+// ── [F14] Recurring Problem Detection Battery ────────────────────────────────
+// Feature 04 — pattern-based hazard detection. Uses controlled probe sites so
+// every assertion is deterministic, then removes them in `finally`. Runs LAST
+// (after detailBattery) so stray detections on seeded data cannot disturb any
+// earlier battery's assertions. Detection is invoked directly via
+// checkRecurringHazards() rather than the full runBatchRules() to avoid firing
+// the overdue/attendance/repeat passes mid-suite.
+
+async function feature04RecurringBattery(amitToken: string): Promise<void> {
+  console.log("\n== [F14] Recurring Problem Detection ==");
+
+  const DAY = 24 * 60 * 60 * 1000;
+  const daysAgo = (n: number): Date => new Date(Date.now() - Math.round(n * DAY));
+  const createdSites: Types.ObjectId[] = [];
+
+  const makeSite = async (sub: string): Promise<Types.ObjectId> => {
+    const s = await Site.create({
+      name: `F04 Probe ${sub} ${randomUUID().slice(0, 8)}`,
+      subsidiary: "Verify F04 Probes",
+      location: { lat: 23.7, lng: 86.4 },
+      expectedWorkers: 50,
+    });
+    const id = s._id as Types.ObjectId;
+    createdSites.push(id);
+    return id;
+  };
+
+  const makeInspection = (
+    siteId: Types.ObjectId, reporterId: Types.ObjectId, capturedAt: Date,
+    item: string, lat: number, lng: number
+  ): Record<string, unknown> => ({
+    clientUuid: `f04-${randomUUID()}`,
+    siteId,
+    inspectorId: reporterId,
+    type: "safety",
+    checklist: [{ item, result: "fail", notes: "" }],
+    photoUrls: [],
+    location: { lat, lng },
+    capturedAt,
+    syncedAt: capturedAt,
+  });
+
+  const recurringFor = (siteId: Types.ObjectId): Promise<Array<Record<string, unknown>>> =>
+    Alert.find({ siteId, ruleCode: "RECURRING_HAZARD" }).lean() as unknown as Promise<Array<Record<string, unknown>>>;
+
+  try {
+    // ── 0. Normalization unit checks (edge case B) ───────────────────────────
+    check("normalize 'Safety Barrier' → SAFETY_BARRICADE", normalizeHazardCategory("Safety Barrier") === "SAFETY_BARRICADE", normalizeHazardCategory("Safety Barrier"));
+    check("normalize 'Barricade Damage' → SAFETY_BARRICADE", normalizeHazardCategory("Barricade Damage") === "SAFETY_BARRICADE", normalizeHazardCategory("Barricade Damage"));
+    check("normalize 'Damaged Safety Barrier' → SAFETY_BARRICADE", normalizeHazardCategory("Damaged Safety Barrier") === "SAFETY_BARRICADE", normalizeHazardCategory("Damaged Safety Barrier"));
+    check("normalize 'PPE gloves missing' → PERSONAL_PROTECTIVE_EQUIPMENT", normalizeHazardCategory("PPE gloves missing") === "PERSONAL_PROTECTIVE_EQUIPMENT", normalizeHazardCategory("PPE gloves missing"));
+
+    const u1 = new Types.ObjectId();
+    const u2 = new Types.ObjectId();
+    const u3 = new Types.ObjectId();
+
+    // ── 1. Positive probe: localized pattern, 3 inspectors / 3 dates ────────
+    const p1 = await makeSite("Localized");
+    await Inspection.insertMany([
+      makeInspection(p1, u1, daysAgo(6), "Safety Barrier", 28.12345, 83.12345),
+      makeInspection(p1, u2, daysAgo(4), "Barricade Damage", 28.12352, 83.12339),
+      makeInspection(p1, u3, daysAgo(2), "Damaged Safety Barrier", 28.1234, 83.1235),
+    ]);
+
+    await checkRecurringHazards();
+    let p1Alerts = await recurringFor(p1);
+    check("P1: exactly one RECURRING_HAZARD alert", p1Alerts.length === 1, `${p1Alerts.length}`);
+    const a1 = p1Alerts[0] ?? {};
+    check("P1: category normalized to SAFETY_BARRICADE", a1.category === "SAFETY_BARRICADE", `${a1.category}`);
+    check("P1: scope localized", a1.scope === "localized", `${a1.scope}`);
+    check("P1: severity high", a1.severity === "high", `${a1.severity}`);
+    check("P1: reportCount 3 (distinct reports)", a1.reportCount === 3, `${a1.reportCount}`);
+    check("P1: uniqueReporters 3 (3/3 evidence)", a1.uniqueReporters === 3, `${a1.uniqueReporters}`);
+    check("P1: zoneCount 1 (GPS radius cluster, ~8 m apart)", a1.zoneCount === 1, `${a1.zoneCount}`);
+    check("P1: evidence has 3 source records", (a1.evidence as unknown[] | undefined)?.length === 3, `${(a1.evidence as unknown[] | undefined)?.length}`);
+
+    // API exposure of the recurrence fields (list endpoint)
+    const list = await get(amitToken, `/alerts?siteId=${p1.toString()}&ruleCode=RECURRING_HAZARD`);
+    const row = (list.body as AnyJson)?.data?.[0] as AnyJson | undefined;
+    check("list API exposes scope + evidence + reportCount",
+      list.status === 200 && !!row && row.scope === "localized" && Array.isArray(row.evidence) && row.reportCount === 3,
+      JSON.stringify(row ?? null).slice(0, 160));
+
+    // ── 2. Idempotency + REPEAT-vs-UNRESOLVED (edge case A) ──────────────────
+    await checkRecurringHazards(); // identical data → reinforce in place, no duplicate
+    p1Alerts = await recurringFor(p1);
+    check("P1: idempotent rerun → still one alert", p1Alerts.length === 1, `${p1Alerts.length}`);
+    check("P1: reinforcedCount bumped to 1", (p1Alerts[0]?.reinforcedCount ?? -1) === 1, `${p1Alerts[0]?.reinforcedCount}`);
+
+    // Same issue still OPEN — new reports must reinforce, never spawn a new alert
+    await Inspection.insertMany([
+      makeInspection(p1, u1, daysAgo(1), "Barrier down", 28.1235, 83.1234),
+      makeInspection(p1, u2, daysAgo(0.5), "Barricade damaged", 28.12344, 83.12346),
+    ]);
+    await checkRecurringHazards();
+    p1Alerts = await recurringFor(p1);
+    check("P1: UNRESOLVED reinforcement keeps one alert", p1Alerts.length === 1, `${p1Alerts.length}`);
+    check("P1: reportCount grew to 5", (p1Alerts[0]?.reportCount ?? -1) === 5, `${p1Alerts[0]?.reportCount}`);
+    check("P1: reinforcedCount grew to 2", (p1Alerts[0]?.reinforcedCount ?? -1) === 2, `${p1Alerts[0]?.reinforcedCount}`);
+    const p1Repeat = await Alert.countDocuments({ siteId: p1, ruleCode: "REPEAT_VIOLATION" });
+    check("P1: no REPEAT_VIOLATION stacked on RECURRING_HAZARD", p1Repeat === 0, `${p1Repeat}`);
+
+    // ── 3. Site-wide scope (edge case E): same category in 2 zones ───────────
+    const p2 = await makeSite("Sitewide");
+    await Inspection.insertMany([
+      makeInspection(p2, u1, daysAgo(5), "Housekeeping clutter", 28.2, 83.2),
+      makeInspection(p2, u2, daysAgo(3), "Debris on walkway", 28.2005, 83.2005),
+      makeInspection(p2, u3, daysAgo(1), "Housekeeping", 28.1998, 83.2002),
+      makeInspection(p2, u2, daysAgo(4), "Debris near conveyor", 28.21, 83.21),
+      makeInspection(p2, u1, daysAgo(2), "Housekeeping clutter", 28.2104, 83.2098),
+    ]);
+    await checkRecurringHazards();
+    const p2Alerts = await recurringFor(p2);
+    check("P2: one site-wide alert (not three localized)", p2Alerts.length === 1, `${p2Alerts.length}`);
+    check("P2: scope site-wide", p2Alerts[0]?.scope === "site-wide", `${p2Alerts[0]?.scope}`);
+    check("P2: severity high", p2Alerts[0]?.severity === "high", `${p2Alerts[0]?.severity}`);
+    check("P2: zoneCount 2 (two ~1.5 km clusters)", p2Alerts[0]?.zoneCount === 2, `${p2Alerts[0]?.zoneCount}`);
+    check("P2: reportCount 5", p2Alerts[0]?.reportCount === 5, `${p2Alerts[0]?.reportCount}`);
+
+    // ── 4. Category-wide scope (edge case E): same category at 2 sites ───────
+    const p3a = await makeSite("CatWide A");
+    const p3b = await makeSite("CatWide B");
+    await Inspection.insertMany([
+      makeInspection(p3a, u1, daysAgo(6), "Fire extinguisher empty", 28.3, 83.3),
+      makeInspection(p3a, u2, daysAgo(4), "Fire hazard near conveyor", 28.3005, 83.3005),
+      makeInspection(p3a, u3, daysAgo(2), "Fire", 28.2998, 83.3002),
+      makeInspection(p3b, u1, daysAgo(5), "Fire", 28.31, 83.31),
+      makeInspection(p3b, u2, daysAgo(3), "Fire extinguisher empty", 28.3105, 83.3105),
+      makeInspection(p3b, u3, daysAgo(1), "Fire hazard near conveyor", 28.3098, 83.3102),
+    ]);
+    await checkRecurringHazards();
+    const p3aAlerts = await recurringFor(p3a);
+    const p3bAlerts = await recurringFor(p3b);
+    check("P3: category-wide alert on both sites",
+      p3aAlerts.length === 1 && p3bAlerts.length === 1, `${p3aAlerts.length}/${p3bAlerts.length}`);
+    check("P3: scope category-wide on both",
+      p3aAlerts[0]?.scope === "category-wide" && p3bAlerts[0]?.scope === "category-wide",
+      `${p3aAlerts[0]?.scope}/${p3bAlerts[0]?.scope}`);
+    check("P3: severity critical on both",
+      p3aAlerts[0]?.severity === "critical" && p3bAlerts[0]?.severity === "critical",
+      `${p3aAlerts[0]?.severity}/${p3bAlerts[0]?.severity}`);
+    check("P3: sitesAffected 2", p3aAlerts[0]?.sitesAffected === 2, `${p3aAlerts[0]?.sitesAffected}`);
+
+    // ── 5. Negative probes: below report/reporter/date thresholds ────────────
+    const p4a = await makeSite("Neg Few");
+    await Inspection.insertMany([
+      makeInspection(p4a, u1, daysAgo(3), "Barricade", 28.4, 83.4),
+      makeInspection(p4a, u2, daysAgo(1), "Barrier", 28.4005, 83.4005),
+    ]);
+    const p4b = await makeSite("Neg OneReporter");
+    await Inspection.insertMany([
+      makeInspection(p4b, u1, daysAgo(5), "Barricade", 28.41, 83.41),
+      makeInspection(p4b, u1, daysAgo(3), "Barrier", 28.4105, 83.4105),
+      makeInspection(p4b, u1, daysAgo(1), "Safety barrier", 28.4098, 83.4102),
+    ]);
+    const p4c = await makeSite("Neg OneDate");
+    await Inspection.insertMany([
+      makeInspection(p4c, u1, daysAgo(1), "Barricade", 28.42, 83.42),
+      makeInspection(p4c, u2, daysAgo(1), "Barrier", 28.4205, 83.4205),
+      makeInspection(p4c, u3, daysAgo(1), "Safety barrier", 28.4198, 83.4202),
+    ]);
+    await checkRecurringHazards();
+    const negCounts = await Promise.all([
+      Alert.countDocuments({ siteId: p4a, ruleCode: "RECURRING_HAZARD" }),
+      Alert.countDocuments({ siteId: p4b, ruleCode: "RECURRING_HAZARD" }),
+      Alert.countDocuments({ siteId: p4c, ruleCode: "RECURRING_HAZARD" }),
+    ]);
+    check("NEG: 2 reports → no alert", negCounts[0] === 0, `${negCounts[0]}`);
+    check("NEG: 3 reports / 1 reporter (3/1) → no alert", negCounts[1] === 0, `${negCounts[1]}`);
+    check("NEG: 3 reports / 1 date → no alert", negCounts[2] === 0, `${negCounts[2]}`);
+
+    // ── 6. Dedup before detection (edge case G) ──────────────────────────────
+    // Uses the LIGHTING category (not SAFETY_BARRICADE) on purpose — P1's
+    // localized probe must not share a category with this site, otherwise the
+    // engine would re-classify P1 as category-wide (≥2 sites) by the time the
+    // risk probe runs.
+    const p5 = await makeSite("Dedup");
+    const dupUuid = `f04-dup-${randomUUID()}`;
+    try {
+      await Inspection.insertMany([
+        { ...makeInspection(p5, u1, daysAgo(3), "Lighting failure", 28.5, 83.5), clientUuid: dupUuid },
+        { ...makeInspection(p5, u2, daysAgo(2), "Illumination lamp broken", 28.5, 83.5), clientUuid: dupUuid }, // duplicate → rejected
+        makeInspection(p5, u2, daysAgo(2), "Lamp not working", 28.5, 83.5005),
+        makeInspection(p5, u3, daysAgo(1), "Lamp damaged", 28.5005, 83.5005),
+      ], { ordered: false });
+    } catch { /* duplicate key on the shared clientUuid — expected */ }
+    const p5InspCount = await Inspection.countDocuments({ siteId: p5 });
+    check("DEDUP: duplicate clientUuid collapsed to 3 records", p5InspCount === 3, `${p5InspCount}`);
+    await checkRecurringHazards();
+    const p5Alerts = await recurringFor(p5);
+    check("DEDUP: one alert, 3 evidence records (dup never counted)",
+      p5Alerts.length === 1 && (p5Alerts[0]?.evidence as unknown[] | undefined)?.length === 3,
+      `${p5Alerts.length}/${(p5Alerts[0]?.evidence as unknown[] | undefined)?.length}`);
+
+    // ── 7. Risk contribution (commit 2) ─────────────────────────────────────
+    const risk = await get(amitToken, `/ai/risk-score/${p1.toString()}`);
+    const riskData = (risk.body as AnyJson)?.data as AnyJson | undefined;
+    check("RISK: 200 + recurrence fields present",
+      risk.status === 200 && typeof riskData?.breakdown?.recurringHazardBonus === "number" && typeof riskData?.metrics?.recurringHazards === "number",
+      JSON.stringify(riskData?.breakdown ?? null).slice(0, 120));
+    check("RISK: localized open hazard adds +3", (riskData?.breakdown?.recurringHazardBonus ?? -1) === 3, `${riskData?.breakdown?.recurringHazardBonus}`);
+    check("RISK: metrics.recurringHazards === 1", (riskData?.metrics?.recurringHazards ?? -1) === 1, `${riskData?.metrics?.recurringHazards}`);
+
+    const trends = await get(amitToken, `/ai/trends/${p1.toString()}`);
+    const contributors = (trends.body as AnyJson)?.data?.contributors as Array<{ key: string }> | undefined;
+    check("TREND: recurring_hazards contributor present",
+      Array.isArray(contributors) && contributors.some((c) => c.key === "recurring_hazards"),
+      JSON.stringify(contributors ?? null).slice(0, 160));
+  } finally {
+    // Remove every probe site + its records/alerts/workflows.
+    const siteIds = createdSites;
+    const alertIds = (await Alert.find({ siteId: { $in: siteIds } }).select("_id").lean())
+      .map((a) => a._id as Types.ObjectId);
+    await WorkflowState.deleteMany({ alertId: { $in: alertIds } });
+    await Inspection.deleteMany({ siteId: { $in: siteIds } });
+    await Incident.deleteMany({ siteId: { $in: siteIds } });
+    await Alert.deleteMany({ siteId: { $in: siteIds } });
+    await Site.deleteMany({ _id: { $in: siteIds } });
+    const leftover = await Alert.countDocuments({ siteId: { $in: siteIds } });
+    check("CLEANUP: probe sites fully removed (no leftover alerts)", leftover === 0, `${leftover}`);
+  }
+}
+
 async function main(): Promise<void> {
   killPort(PORT);
   runSeed();
@@ -1670,6 +1895,9 @@ async function main(): Promise<void> {
         inspSD: asId(inspSD),
       },
     );
+    // Feature 04 — runs last so stray detections on seeded data can never
+    // disturb an earlier battery's assertions; its probes self-clean in finally.
+    await feature04RecurringBattery(tokens.amit);
   } finally {
     stopServer(server);
   }

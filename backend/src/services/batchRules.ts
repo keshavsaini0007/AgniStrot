@@ -325,7 +325,7 @@ function mergeEvidence(
     .slice(0, cap);
 }
 
-async function checkRecurringHazards(): Promise<void> {
+export async function checkRecurringHazards(): Promise<void> {
   const patterns = await detectRecurringPatterns();
 
   for (const pattern of patterns) {
