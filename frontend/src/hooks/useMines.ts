@@ -29,6 +29,7 @@ export const queryKeys = {
   },
   gis: {
     all: ['gis'] as const,
+    riskLayers: ['gis', 'risk-layers'] as const,
   },
   documents: {
     all: ['documents'] as const,

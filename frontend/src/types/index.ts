@@ -419,6 +419,45 @@ export interface MapMarker {
   timestamp?: string;
 }
 
+/** Signed contributor to a site's risk score (positive ⇒ adds risk, negative ⇒ relief). */
+export interface RiskContributor {
+  key: string;
+  label: string;
+  /** Score points this factor contributes (negative = reduces risk). */
+  points: number;
+  /** Count of contributing items (alerts, failed inspections, open hazards…). */
+  count: number;
+  kind: 'risk' | 'relief';
+}
+
+/** backend `gis/risk-layers` payload — one aggregate per site. */
+export interface RiskLayer {
+  siteId: string;
+  siteName: string;
+  subsidiary: string;
+  location: { lat: number; lng: number };
+  riskLevel: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  score: number;
+  breakdown: {
+    alertScore: number;
+    inspectionScore: number;
+    incidentScore: number;
+    resolutionBonus: number;
+    recurringHazardBonus: number;
+    openHazardBonus: number;
+  };
+  metrics: {
+    totalAlerts: number;
+    unresolvedAlerts: number;
+    failedInspections: number;
+    criticalIncidents: number;
+    resolutionRate: number;
+    recurringHazards: number;
+    openHazards: number;
+  };
+  topContributors: RiskContributor[];
+}
+
 /** Query for `GET /reports/statutory`. */
 export interface StatutoryReportQuery {
   siteId: string;

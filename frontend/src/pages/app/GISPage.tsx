@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useMapMarkers } from '@/hooks/useMapMarkers';
+import { useRiskLayers } from '@/hooks/useRiskLayers';
 import { CardSkeleton } from '@/components/ui/Skeleton';
 import { ErrorState } from '@/components/ui/ErrorState';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -10,6 +11,7 @@ import gisHeaderImg from '../../../assets/images/GIS.png';
 
 export const GISPage = () => {
   const { data: markers, isLoading, error, refetch } = useMapMarkers();
+  const { data: riskLayers } = useRiskLayers();
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   if (isLoading) {
@@ -39,7 +41,7 @@ export const GISPage = () => {
 
       <div className="grid lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
-          <MineMap markers={markers ?? []} onMarkerClick={setSelectedId} />
+          <MineMap markers={markers ?? []} riskLayers={riskLayers ?? []} onMarkerClick={setSelectedId} />
         </div>
 
         <div>

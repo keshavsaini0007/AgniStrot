@@ -43,6 +43,7 @@ export const API_ENDPOINTS = {
   },
   GIS: {
     MARKERS: '/gis/markers',
+    RISK_LAYERS: '/gis/risk-layers',
   },
   AI: {
     RISK_SCORE: (siteId: string) => `/ai/risk-score/${siteId}`,
