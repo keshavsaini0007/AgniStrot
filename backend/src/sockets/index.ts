@@ -1,7 +1,9 @@
 import type { Server as HttpServer } from "http";
 import { Server } from "socket.io";
+import { Types } from "mongoose";
 import type { JwtPayload } from "../types/index.js";
 import { verifyToken } from "../middleware/auth.js";
+import User from "../models/User.js";
 
 // ── Socket.io layer ─────────────────────────────────────────────────────────
 // Live push for the alert/workflow engine:
@@ -18,7 +20,7 @@ export function initSocket(httpServer: HttpServer): Server {
     cors: { origin: "*", methods: ["GET", "POST"] },
   });
 
-  io.use((socket, next) => {
+  io.use(async (socket, next) => {
     const authToken =
       (socket.handshake.auth?.token as string | undefined) ??
       (socket.handshake.auth?.authorization as string | undefined)
@@ -26,6 +28,16 @@ export function initSocket(httpServer: HttpServer): Server {
 
     const user = authToken ? verifyToken(authToken) : null;
     if (!user) return next(new Error("Unauthorized"));
+
+    // Live deactivation gate (feature 07): a deactivated account's handshake is
+    // rejected even with a still-valid JWT. Non-leaky — same message as a bad
+    // token, so account state is never disclosed to the wire.
+    try {
+      const active = await User.exists({ _id: new Types.ObjectId(user.id), isActive: true });
+      if (!active) return next(new Error("Unauthorized"));
+    } catch {
+      return next(new Error("Unauthorized"));
+    }
 
     socket.data.user = user;
     next();

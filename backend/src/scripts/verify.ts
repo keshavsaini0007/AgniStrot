@@ -2402,6 +2402,96 @@ async function hazardRegisterBattery(
   }
 }
 
+// ── [F19] Admin user management battery ──────────────────────────────────────
+// Feature 07: corporate can re-role / re-site / deactivate any OTHER user, and
+// the DB-gated `authenticate` middleware makes those changes take effect on
+// already-issued tokens (claims are re-read from the DB every request):
+//   - role + site changes apply to live sessions immediately
+//   - deactivation blocks NEW logins AND revokes current sessions (HTTP + socket)
+//   - self-edit is forbidden; regulator / field_officer cannot manage users
+// The probe is created through the real register API and deleted in `finally`
+// (the terminal reseed would wipe it anyway — the explicit delete keeps the
+// in-run DB canonical for the final audit-chain validation).
+
+async function usersManagementBattery(
+  t: { amit: string; priya: string; meena: string; rahul: string },
+  sites: { SJ: string; SD: string }
+): Promise<void> {
+  console.log("\n== [F19] Admin user management ==");
+  let probeId = "";
+
+  try {
+    const probeEmail = `verify.probe.${randomUUID().slice(0, 8)}@agnistrot.com`;
+    const reg = await post(t.amit, "/auth/register", {
+      name: "Verify Probe Officer",
+      email: probeEmail,
+      password: "password123",
+      role: "mine_official",
+      siteId: sites.SD,
+    });
+    probeId = String((reg.body as { id?: string }).id ?? "");
+    check("corporate registers probe (mine_official @ SD) → 201", reg.status === 201 && probeId.length > 0, `${reg.status}`);
+
+    // ── fresh token reflects DB claims (mine_official @ SD) ───────────────
+    const t0 = await login(probeEmail);
+    check("probe login → 200 (mine_official)", !!t0);
+    check("mine_official blocked from /users → 403", (await get(t0, "/users")).status === 403);
+
+    const inspSD = (await get(t0, "/inspections")).body as { data: Array<{ siteId: string }> };
+    check("probe sees only SD inspections", inspSD.data.length > 0 && inspSD.data.every((r) => r.siteId === sites.SD), `rows=${inspSD.data.length}`);
+
+    // ── live site move on an existing token ───────────────────────────────
+    const move = await api(`/users/${probeId}`, { token: t.amit, method: "PATCH", body: { siteId: sites.SJ } });
+    check("PATCH siteId SD→SJ → 200", move.status === 200, `${move.status}`);
+    const inspSJ = (await get(t0, "/inspections")).body as { data: Array<{ siteId: string }> };
+    check("same token re-scoped to SJ immediately", inspSJ.data.length > 0 && inspSJ.data.every((r) => r.siteId === sites.SJ), `rows=${inspSJ.data.length}`);
+
+    // ── live role change on the same token ────────────────────────────────
+    const promote = await api(`/users/${probeId}`, { token: t.amit, method: "PATCH", body: { role: "corporate_manager" } });
+    const promoteBody = promote.body as { role?: string; siteId?: string | null };
+    check("PATCH role → corporate_manager → 200 + site cleared", promote.status === 200 && promoteBody.role === "corporate_manager" && promoteBody.siteId === null, `${promote.status}`);
+    check("same token lists /users now (live role apply)", (await get(t0, "/users")).status === 200);
+
+    const byRole = (await get(t.amit, "/users?role=corporate_manager")).body as { data: Array<{ id: string }> };
+    check("?role=corporate_manager includes probe", byRole.data.some((r) => r.id === probeId), `rows=${byRole.data.length}`);
+
+    // ── deactivation: blocks login AND revokes the live session ───────────
+    const deact = await api(`/users/${probeId}`, { token: t.amit, method: "PATCH", body: { status: "inactive" } });
+    check("PATCH status inactive → 200", deact.status === 200 && (deact.body as { status?: string }).status === "inactive", `${deact.status}`);
+
+    const blockedLogin = await api("/auth/login", { method: "POST", body: { email: probeEmail, password: "password123" } });
+    check("deactivated login → 403 w/ message", blockedLogin.status === 403 && /deactivated/i.test(String((blockedLogin.body as { error?: string }).error ?? "")), `${blockedLogin.status}`);
+    check("pre-issued token now revoked → 401", (await get(t0, "/users")).status === 401);
+
+    const byStatus = (await get(t.amit, "/users?status=inactive")).body as { data: Array<{ id: string; status: string }> };
+    check("?status=inactive includes probe", byStatus.data.some((r) => r.id === probeId && r.status === "inactive"), `rows=${byStatus.data.length}`);
+
+    // ── reactivation restores access ──────────────────────────────────────
+    const react = await api(`/users/${probeId}`, { token: t.amit, method: "PATCH", body: { status: "active" } });
+    check("PATCH status active → 200", react.status === 200, `${react.status}`);
+    const t1 = await login(probeEmail);
+    check("reactivated login works again", !!t1 && (await get(t1, "/users")).status === 200);
+
+    // ── guards ────────────────────────────────────────────────────────────
+    const dir = (await get(t.amit, "/users")).body as { data: Array<{ id: string; email: string }> };
+    const amitId = dir.data.find((u) => u.email === "amit@agnistrot.com")?.id ?? "";
+    check("self-edit → 400", (await api(`/users/${amitId}`, { token: t.amit, method: "PATCH", body: { status: "inactive" } })).status === 400, amitId);
+    check("site-scoped role without siteId → 400", (await api(`/users/${probeId}`, { token: t.amit, method: "PATCH", body: { role: "mine_official" } })).status === 400);
+    check("invalid role → 400", (await api(`/users/${probeId}`, { token: t.amit, method: "PATCH", body: { role: "superuser" } })).status === 400);
+    check("malformed id → 400", (await api("/users/not-an-id", { token: t.amit, method: "PATCH", body: { status: "active" } })).status === 400);
+    check("unknown id → 404", (await api(`/users/${new Types.ObjectId().toString()}`, { token: t.amit, method: "PATCH", body: { status: "active" } })).status === 404);
+    check("regulator PATCH → 403", (await api(`/users/${probeId}`, { token: t.meena, method: "PATCH", body: { status: "inactive" } })).status === 403);
+    check("field_officer PATCH → 403", (await api(`/users/${probeId}`, { token: t.rahul, method: "PATCH", body: { status: "inactive" } })).status === 403);
+
+    // ── email immutable (schema strips unknown fields) ────────────────────
+    const emailInj = await api(`/users/${probeId}`, { token: t.amit, method: "PATCH", body: { email: "hacked@agnistrot.com", name: "Verify Probe Renamed" } });
+    const injBody = emailInj.body as { email?: string; name?: string };
+    check("email injection ignored, name applied → 200", emailInj.status === 200 && injBody.email === probeEmail && injBody.name === "Verify Probe Renamed", JSON.stringify(emailInj.body).slice(0, 100));
+  } finally {
+    if (probeId) await User.deleteOne({ _id: new Types.ObjectId(probeId) });
+  }
+}
+
 async function main(): Promise<void> {
   killPort(PORT);
   runSeed();
@@ -2499,6 +2589,10 @@ async function main(): Promise<void> {
     await evidenceIntegrityBattery(tokens, { SJ, SD });
     // Feature 06 — terminal battery; hazard + pattern-alert fixtures self-clean.
     await hazardRegisterBattery(tokens, { SJ, SD });
+    // Feature 07 — runs last so the live-enforcement probes (role/site changes,
+    // deactivation revocation) can never disturb an earlier battery's claims;
+    // the probe user is deleted in its finally block.
+    await usersManagementBattery(tokens, { SJ, SD });
   } finally {
     stopServer(server);
   }

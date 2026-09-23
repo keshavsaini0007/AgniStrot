@@ -24,6 +24,15 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
+    // Deactivated accounts must not sign in (feature 07). The message is only
+    // reachable after a correct password, so it does not leak account existence.
+    if (user.isActive === false) {
+      res.status(403).json({
+        error: "Account has been deactivated. Contact a corporate manager.",
+      });
+      return;
+    }
+
     const secret = process.env.JWT_SECRET;
     const expiresIn = process.env.JWT_EXPIRES_IN ?? "7d";
 
@@ -103,6 +112,7 @@ export const register = async (req: Request, res: Response): Promise<void> => {
     res.status(201).json({
       id: user._id,
       name: user.name,
+      email: user.email,
       role: user.role,
     });
   } catch (err) {
