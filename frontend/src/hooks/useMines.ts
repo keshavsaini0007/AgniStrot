@@ -37,6 +37,11 @@ export const queryKeys = {
     all: ['evidence'] as const,
     dashboard: ['evidence', 'dashboard'] as const,
   },
+  hazards: {
+    all: ['hazards'] as const,
+    detail: (id: string) => ['hazards', id] as const,
+    dashboard: ['hazards', 'dashboard'] as const,
+  },
   dashboard: {
     all: ['dashboard'] as const,
   },

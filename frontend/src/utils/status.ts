@@ -148,6 +148,37 @@ export const STATUS_CONFIG = {
     dot: 'bg-gray-400',
   },
 
+  // ── Hazard Register & control effectiveness (feature 06) ────────────────
+  // Lifecycle: open → mitigating (first control implemented) → controlled
+  // (effectiveness == effective) → closed (only from controlled). Verdicts are
+  // server-derived via the hierarchy-of-controls engine; a post-control pattern
+  // re-sighting forces `ineffective` (recurrence override).
+  mitigating: {
+    label: 'Mitigating',
+    color: 'text-amber-400',
+    dot: 'bg-amber-400',
+  },
+  controlled: {
+    label: 'Controlled',
+    color: 'text-green-400',
+    dot: 'bg-green-400',
+  },
+  effective: {
+    label: 'Effective',
+    color: 'text-green-400',
+    dot: 'bg-green-400',
+  },
+  partially_effective: {
+    label: 'Partially Effective',
+    color: 'text-amber-400',
+    dot: 'bg-amber-400',
+  },
+  ineffective: {
+    label: 'Ineffective',
+    color: 'text-red-400',
+    dot: 'bg-red-400',
+  },
+
   // ── Evidence integrity (feature 05) ────────────────────────────────────
   // verified is defined above (green MATCH state). These cover the rest of
   // the integrity lifecycle; `unverified` doubles as the legacy "no baseline

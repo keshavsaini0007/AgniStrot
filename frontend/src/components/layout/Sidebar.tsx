@@ -19,6 +19,7 @@ import {
   Users,
   X,
   Fingerprint,
+  ShieldAlert,
 } from 'lucide-react';
 import { useUIStore } from '@/store/uiStore';
 import { useAuth } from '@/hooks/useAuth';
@@ -43,6 +44,7 @@ const workspaceNav = [
   { name: 'Reports', href: '/app/reports', icon: FileBarChart, permission: 'reports.read' },
   { name: 'Documents', href: '/app/documents', icon: FolderOpen, permission: 'documents.read' },
   { name: 'Evidence Integrity', href: '/app/evidence', icon: Fingerprint, permission: 'evidence.read' },
+  { name: 'Hazard Register', href: '/app/hazards', icon: ShieldAlert, permission: 'hazards.read' },
   { name: 'Audit Logs', href: '/app/audit-logs', icon: History, permission: 'audit.read' },
   { name: 'Settings', href: '/app/settings', icon: Settings, permission: 'settings.read' },
 ];

@@ -9,6 +9,7 @@ export { reportMockRepository } from './reportMockRepository';
 export { gisMockRepository } from './gisMockRepository';
 export { documentMockRepository } from './documentMockRepository';
 export { evidenceMockRepository } from './evidenceMockRepository';
+export { hazardMockRepository } from './hazardMockRepository';
 export { dashboardMockRepository } from './dashboardMockRepository';
 export { aiMockRepository } from './aiMockRepository';
 export { correctiveActionMockRepository } from './correctiveActionMockRepository';

@@ -8,6 +8,7 @@ export { reportApiRepository } from './reportApiRepository';
 export { gisApiRepository } from './gisApiRepository';
 export { documentApiRepository } from './documentApiRepository';
 export { evidenceApiRepository } from './evidenceApiRepository';
+export { hazardApiRepository } from './hazardApiRepository';
 export { dashboardApiRepository } from './dashboardApiRepository';
 export { aiApiRepository } from './aiApiRepository';
 export { usersApiRepository } from './usersApiRepository';

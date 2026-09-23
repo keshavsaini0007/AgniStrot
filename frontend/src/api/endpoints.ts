@@ -65,4 +65,12 @@ export const API_ENDPOINTS = {
     VERIFY: (id: string) => `/evidence/${id}/verify`,
     VERIFY_ALL: '/evidence/verify-all',
   },
+  HAZARDS: {
+    BASE: '/hazards',
+    DASHBOARD: '/hazards/dashboard',
+    CONTROLS: (id: string) => `/hazards/${id}/controls`,
+    IMPLEMENT: (id: string, controlId: string) => `/hazards/${id}/controls/${controlId}/implement`,
+    EFFECTIVENESS: (id: string) => `/hazards/${id}/effectiveness`,
+    CLOSE: (id: string) => `/hazards/${id}/close`,
+  },
 } as const;

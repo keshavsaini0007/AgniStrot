@@ -34,6 +34,8 @@ const ROLE_PERMISSIONS: Record<string, string[]> = {
     'documents.read',     // OCR documents for own site
     'documents.create',   // Ingest documents
     'evidence.read',      // Evidence integrity (own site)
+    'hazards.read',       // Hazard register (own site)
+    'hazards.write',      // Register hazards + manage controls (own site)
     'mines.read',         // Own-site directory
     'correctiveactions.read', // Derived feed (own site)
     'compliance.read',        // Derived compliance (own site)
@@ -54,6 +56,8 @@ const ROLE_PERMISSIONS: Record<string, string[]> = {
     'documents.confirm',  // Confirm OCR extractions
     'evidence.read',      // Evidence integrity (all sites)
     'evidence.verifyAll', // Site-wide verification pass
+    'hazards.read',       // Hazard register (all sites)
+    'hazards.write',      // Register hazards + manage controls (all sites)
     'mines.read',         // Mine directory
     'correctiveactions.read', // Derived feed (all sites)
     'compliance.read',        // Derived compliance (all sites)
@@ -75,6 +79,7 @@ const ROLE_PERMISSIONS: Record<string, string[]> = {
     'documents.read',     // Documents read-only
     'evidence.read',      // Evidence integrity (all sites)
     'evidence.verifyAll', // Site-wide verification pass
+    'hazards.read',       // Hazard register (read-only oversight)
     'mines.read',         // Mine directory
     'correctiveactions.read', // Derived feed (all sites)
     'compliance.read',        // Derived compliance (all sites)

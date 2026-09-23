@@ -12,6 +12,7 @@ export { CorrectiveActionDetailPage } from './CorrectiveActionDetailPage';
 export { CompliancePage } from './CompliancePage';
 export { DocumentsPage } from './DocumentsPage';
 export { EvidencePage } from './EvidencePage';
+export { HazardPage } from './HazardPage';
 export { AnalyticsPage } from './AnalyticsPage';
 export { GISPage } from './GISPage';
 export { ReportsPage } from './ReportsPage';

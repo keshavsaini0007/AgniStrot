@@ -11,6 +11,7 @@ import {
   gisMockRepository,
   documentMockRepository,
   evidenceMockRepository,
+  hazardMockRepository,
   dashboardMockRepository,
   aiMockRepository,
   usersMockRepository,
@@ -29,6 +30,7 @@ import {
   gisApiRepository,
   documentApiRepository,
   evidenceApiRepository,
+  hazardApiRepository,
   dashboardApiRepository,
   aiApiRepository,
   usersApiRepository,
@@ -55,6 +57,7 @@ export const reportRepository = useMockApi ? reportMockRepository : reportApiRep
 export const gisRepository = useMockApi ? gisMockRepository : gisApiRepository;
 export const documentRepository = useMockApi ? documentMockRepository : documentApiRepository;
 export const evidenceRepository = useMockApi ? evidenceMockRepository : evidenceApiRepository;
+export const hazardRepository = useMockApi ? hazardMockRepository : hazardApiRepository;
 export const dashboardRepository = useMockApi ? dashboardMockRepository : dashboardApiRepository;
 export const aiRepository = useMockApi ? aiMockRepository : aiApiRepository;
 

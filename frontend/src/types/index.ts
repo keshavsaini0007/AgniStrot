@@ -275,6 +275,122 @@ export interface VerifyAllSummary {
   failed: number;
 }
 
+// ─── Feature 06: Hazard Register & Control Effectiveness ────────────────────
+
+export type HazardStatus = 'open' | 'mitigating' | 'controlled' | 'closed';
+
+export type HazardRiskLevel = 'low' | 'medium' | 'high' | 'critical';
+
+export type HazardControlType =
+  | 'elimination'
+  | 'substitution'
+  | 'engineering'
+  | 'administrative'
+  | 'ppe';
+
+export type HazardControlStatus = 'effective' | 'partially_effective' | 'ineffective';
+
+export type HazardSourceType = 'manual' | 'alert';
+
+/** One hierarchy-of-controls measure attached to a hazard. */
+export interface HazardControl {
+  id: string;
+  description: string;
+  controlType: HazardControlType;
+  ownerId: string | null;
+  targetDate: string | null;
+  implemented: boolean;
+  implementedAt: string | null;
+  implementedById: string | null;
+  createdAt: string;
+}
+
+/** Server-derived effectiveness verdict (never client-supplied). */
+export interface HazardEffectiveness {
+  status: HazardControlStatus;
+  reduction: number;
+  residualLikelihood: number;
+  residualConsequence: number;
+  residualRiskScore: number;
+  residualRiskLevel: HazardRiskLevel;
+  /** Post-control pattern re-sighting forces ineffective regardless of tier. */
+  recurrenceOverride: boolean;
+  assessedAt: string;
+  assessedBy: string;
+  note: string | null;
+}
+
+/** backend `Hazard` row — lifecycle open → mitigating → controlled → closed. */
+export interface Hazard {
+  id: string;
+  siteId: string;
+  siteName: string | null;
+  category: string;
+  title: string;
+  description: string;
+  location: { lat: number; lng: number } | null;
+  sourceType: HazardSourceType;
+  sourceAlertId: string | null;
+  registeredBy: string;
+  registeredByName: string | null;
+  registeredAt: string;
+  likelihood: number;
+  consequence: number;
+  riskScore: number;
+  riskLevel: HazardRiskLevel;
+  status: HazardStatus;
+  controls: HazardControl[];
+  effectiveness: HazardEffectiveness | null;
+  closedAt: string | null;
+  closedBy: string | null;
+  closureNote: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** `GET /hazards/dashboard` counts. */
+export interface HazardDashboard {
+  total: number;
+  open: number;
+  mitigating: number;
+  controlled: number;
+  closed: number;
+  high: number;
+  critical: number;
+}
+
+/** `POST /hazards` — drivers only; risk is recomputed server-side. */
+export interface RegisterHazardInput {
+  siteId: string;
+  title: string;
+  description: string;
+  likelihood: number;
+  consequence: number;
+  sourceAlertId?: string;
+  location?: { lat: number; lng: number };
+}
+
+/** `POST /hazards/:id/controls`. */
+export interface AddHazardControlInput {
+  description: string;
+  controlType: HazardControlType;
+}
+
+/** `PATCH /hazards/:id` — drivers + description, risk recomputed. */
+export type UpdateHazardInput = Partial<{
+  title: string;
+  description: string;
+  likelihood: number;
+  consequence: number;
+  location: { lat: number; lng: number };
+}>;
+
+/** `GET /hazards` query filters (super-set of FilterParams). */
+export type HazardListParams = FilterParams & {
+  riskLevel?: HazardRiskLevel;
+  category?: string;
+};
+
 /** backend `gis/markers` payload. */
 export interface MapMarker {
   id: string;
