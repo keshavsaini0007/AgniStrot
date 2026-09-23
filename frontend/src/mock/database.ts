@@ -873,6 +873,33 @@ export const mockAlerts: Alert[] = [
     assignedTo: 'usr-002',
     createdAt: '2026-09-03T00:00:00.000Z',
   },
+  {
+    // Feature 04 — pattern-based recurrence: same hazard category across 2
+    // zones, reinforced twice while open (REPEAT vs UNRESOLVED).
+    id: 'alert-007',
+    siteId: 'mine-001',
+    sourceType: 'inspection',
+    ruleKey: 'recurring:mine-001:SAFETY_BARRICADE:gen2',
+    ruleCode: 'RECURRING_HAZARD',
+    severity: 'high',
+    status: 'open',
+    assignedTo: 'usr-002',
+    category: 'SAFETY_BARRICADE',
+    scope: 'site-wide',
+    reportCount: 6,
+    uniqueReporters: 4,
+    reinforcedCount: 2,
+    zoneCount: 2,
+    sitesAffected: 1,
+    firstReportedAt: '2026-08-20T08:12:00.000Z',
+    lastReportedAt: '2026-09-05T14:40:00.000Z',
+    evidence: [
+      { sourceType: 'inspection', sourceId: 'insp-024', reporterId: 'usr-011', capturedAt: '2026-09-05T14:40:00.000Z' },
+      { sourceType: 'inspection', sourceId: 'insp-018', reporterId: 'usr-007', capturedAt: '2026-09-02T09:05:00.000Z' },
+      { sourceType: 'incident', sourceId: 'inc-017', reporterId: 'usr-012', capturedAt: '2026-08-28T10:30:00.000Z' },
+    ],
+    createdAt: '2026-08-20T08:15:00.000Z',
+  },
 ];
 
 export const mockAttendance: Attendance[] = [

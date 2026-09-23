@@ -46,7 +46,8 @@ export type RuleCode =
   | 'MISSING_MANDATORY_FIELD'
   | 'REPEAT_VIOLATION'
   | 'OVERDUE_INSPECTION'
-  | 'ATTENDANCE_ANOMALY';
+  | 'ATTENDANCE_ANOMALY'
+  | 'RECURRING_HAZARD';
 
 export const ALERT_DEADLINE_MS: Record<AlertSeverity, number> = {
   critical: 2 * 60 * 60 * 1000, // 2 hours
@@ -156,6 +157,25 @@ export interface Alert {
   createdAt: string;
   resolvedAt?: string;
   workflow?: WorkflowLog[];
+  // ── Feature 04: Recurring Problem Detection (RECURRING_HAZARD only) ────────
+  category?: string;
+  scope?: 'localized' | 'site-wide' | 'category-wide';
+  reportCount?: number;
+  uniqueReporters?: number;
+  reinforcedCount?: number;
+  zoneCount?: number;
+  sitesAffected?: number;
+  firstReportedAt?: string;
+  lastReportedAt?: string;
+  evidence?: AlertEvidence[];
+}
+
+/** One source record behind a RECURRING_HAZARD alert (identity snapshot). */
+export interface AlertEvidence {
+  sourceType: SourceType;
+  sourceId: string;
+  reporterId?: string;
+  capturedAt: string;
 }
 
 /** backend `WorkflowState` — audit of the alert's escalation lifecycle. */
@@ -223,6 +243,8 @@ export interface RiskAssessment {
   explanation: string;
   recommendations: string[];
   generatedAt: string;
+  /** Feature 04 — open recurring-hazard patterns in the window (risk chip). */
+  recurringHazards?: number;
 }
 
 /** Normalized 30-day trend point for the risk-intelligence chart. */

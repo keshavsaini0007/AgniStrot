@@ -47,6 +47,11 @@ export const RiskScoreCard = ({ siteId, assessment }: RiskScoreCardProps) => {
         <span className={`text-2xl font-bold ${colors.text}`}>{assessment.riskScore}</span>
       </div>
       <p className={`text-[10px] uppercase tracking-[0.16em] mb-2 ${colors.text}`}>{assessment.riskLevel} risk</p>
+      {assessment.recurringHazards ? (
+        <p className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-[#F5B942] bg-[#07121C]/60 px-2 py-0.5 text-[10px] font-medium text-[#F5B942]">
+          {assessment.recurringHazards} recurring hazard{assessment.recurringHazards === 1 ? '' : 's'} open
+        </p>
+      ) : null}
       <div className="w-full bg-[#435057] rounded-full h-2 mb-3">
         <div
           className={`h-2 rounded-full ${colors.bg}`}

@@ -4,10 +4,11 @@ import type { RiskAssessment, SiteTrend, AiSummary } from '@/types';
 export const aiMockRepository = {
   getRiskScore: async (siteId: string): Promise<RiskAssessment> => {
     await delay(600);
-    const demo: Record<string, { score: number; level: RiskAssessment['riskLevel']; factors: RiskAssessment['factors'] }> = {
+    const demo: Record<string, { score: number; level: RiskAssessment['riskLevel']; factors: RiskAssessment['factors']; recurringHazards?: number }> = {
       'mine-001': {
         score: 72,
         level: 'high',
+        recurringHazards: 1, // matches mock alert-007 (RECURRING_HAZARD)
         factors: [
           { label: 'Safety checklist failures', score: 62, severity: 'high' },
           { label: 'Critical incidents reported', score: 85, severity: 'high' },
@@ -30,6 +31,7 @@ export const aiMockRepository = {
       riskScore: entry.score,
       riskLevel: entry.level,
       factors: entry.factors,
+      recurringHazards: entry.recurringHazards,
       explanation: 'Rule-based composite of alerts, checklist failures and incident severity over the last 30 days.',
       recommendations: entry.score >= 60 ? ['Prioritise critical alerts', 'Re-run safety inspection'] : [],
       generatedAt: new Date().toISOString(),

@@ -30,6 +30,31 @@ const severityIcon: Record<AlertSeverity, { icon: LucideIcon; color: string }> =
   low: { icon: Info, color: 'text-[#4DA3FF]' },
 };
 
+// Human-readable labels for every rule code (raw code stays visible below).
+const RULE_LABELS: Record<string, string> = {
+  SAFETY_CHECKLIST_FAIL: 'Safety checklist fail',
+  CRITICAL_INCIDENT: 'Critical incident',
+  MISSING_MANDATORY_FIELD: 'Missing mandatory field',
+  REPEAT_VIOLATION: 'Repeat violation',
+  OVERDUE_INSPECTION: 'Overdue inspection',
+  ATTENDANCE_ANOMALY: 'Attendance anomaly',
+  RECURRING_HAZARD: 'Recurring hazard',
+};
+const ruleLabel = (code: string): string => RULE_LABELS[code] ?? code;
+
+// Feature 04 — compact pattern summary line for RECURRING_HAZARD alerts:
+// "3 reports · 2 reporters · site-wide".
+const patternSummary = (alert: Alert): string | null => {
+  if (alert.ruleCode !== 'RECURRING_HAZARD') return null;
+  return [
+    alert.reportCount ? `${alert.reportCount} report${alert.reportCount === 1 ? '' : 's'}` : null,
+    alert.uniqueReporters ? `${alert.uniqueReporters} reporter${alert.uniqueReporters === 1 ? '' : 's'}` : null,
+    alert.scope ?? null,
+  ]
+    .filter((x): x is string => !!x)
+    .join(' · ');
+};
+
 const deadlineFor = (alert: Alert): string | null => {
   const ms = ALERT_DEADLINE_MS[alert.severity];
   if (!ms) return null;
@@ -255,7 +280,7 @@ export const AlertsPage = () => {
           <div className="space-y-4">
             <div className="rounded-lg border border-[#21415A] bg-[#0D1C28] p-3 text-xs text-[#A9BBC4]">
               <p>
-                <span className="font-semibold text-[#E8F0F3]">{resolveTarget.id}</span> · {resolveTarget.ruleCode}
+                <span className="font-semibold text-[#E8F0F3]">{resolveTarget.id}</span> · {ruleLabel(resolveTarget.ruleCode)}
               </p>
               <p className="mt-1 text-[10px] text-[#78919F]">
                 {resolveTarget.sourceType} · {resolveTarget.siteId} · created {formatRelativeTime(resolveTarget.createdAt)}
@@ -337,7 +362,13 @@ const AlertRow = ({ alert, onAcknowledge, onResolve, onEscalate }: {
         <p className="mt-1 truncate text-[10px] text-[#78919F]">{formatRelativeTime(alert.createdAt)} · {alert.sourceType} · {alert.siteId}</p>
       </td>
       <td className="px-3 py-3"><Badge status={alert.severity} /></td>
-      <td className="truncate px-3 py-3 font-mono text-[10px] text-[#A9BBC4]">{alert.ruleCode}</td>
+      <td className="px-3 py-3">
+        <p className="truncate text-[11px] font-medium text-[#E8F0F3]">{ruleLabel(alert.ruleCode)}</p>
+        <p className="mt-0.5 truncate font-mono text-[9px] text-[#78919F]">{alert.ruleCode}</p>
+        {patternSummary(alert) && (
+          <p className="mt-0.5 truncate text-[9px] font-medium text-[#F5B942]">{patternSummary(alert)}</p>
+        )}
+      </td>
       <td className="px-3 py-3"><Badge status={alert.status} /></td>
       <td className={`whitespace-nowrap px-3 py-3 text-xs ${dl?.tone ?? ''}`}>{dl?.text ?? '—'}</td>
       <td className="whitespace-nowrap px-3 py-3">
@@ -371,7 +402,9 @@ const AlertMobileCard = ({ alert, onAcknowledge, onResolve, onEscalate }: {
           <span className="w-fit"><Badge status={alert.status} /></span>
         </div>
       </div>
-      <p className="mt-2 font-mono text-[10px] text-[#A9BBC4]">{alert.ruleCode} · {formatRelativeTime(alert.createdAt)}</p>
+      <p className="mt-2 text-[11px] font-medium text-[#E8F0F3]">{ruleLabel(alert.ruleCode)}</p>
+      <p className="mt-0.5 font-mono text-[10px] text-[#A9BBC4]">{alert.ruleCode} · {formatRelativeTime(alert.createdAt)}</p>
+      {patternSummary(alert) && <p className="mt-0.5 text-[9px] font-medium text-[#F5B942]">{patternSummary(alert)}</p>}
       <p className="mt-2 text-[10px] text-[#78919F]">{alert.sourceType} · {alert.siteId}</p>
       <p className={`mt-2 text-xs ${dl?.tone ?? ''}`}>{dl?.text ?? ''}</p>
       <div className="mt-3 border-t border-[#21415A] pt-3">

@@ -20,6 +20,7 @@ interface BackendRiskScore {
     inspectionScore: number;
     incidentScore: number;
     resolutionBonus: number;
+    recurringHazardBonus?: number;
   };
   metrics: {
     totalAlerts: number;
@@ -27,6 +28,7 @@ interface BackendRiskScore {
     failedInspections: number;
     criticalIncidents: number;
     resolutionRate: number;
+    recurringHazards?: number;
   };
 }
 
@@ -47,24 +49,36 @@ const FACTOR_LABELS: Array<{ label: string; key: keyof BackendRiskScore['breakdo
   { label: 'Checklist failures', key: 'inspectionScore' },
   { label: 'Incident severity', key: 'incidentScore' },
   { label: 'Resolution bonus', key: 'resolutionBonus' },
+  { label: 'Recurring hazards', key: 'recurringHazardBonus' },
 ];
 
-const toRiskAssessment = (input: BackendRiskScore): RiskAssessment => ({
-  siteId: String(input.siteId),
-  riskScore: input.score,
-  riskLevel: input.riskLevel.toLowerCase() as RiskAssessment['riskLevel'],
-  factors: FACTOR_LABELS.map(({ label, key }) => ({
-    label,
-    score: input.breakdown[key],
-    severity: input.breakdown[key] >= 80 ? 'high' : input.breakdown[key] >= 40 ? 'medium' : 'low',
-  })),
-  explanation: `${input.metrics.failedInspections} failed inspection(s), ${input.metrics.criticalIncidents} critical incident(s), ${input.metrics.resolutionRate}% alert resolution over the window.`,
-  recommendations:
-    input.metrics.failedInspections > 0
-      ? ['Review failing checklist items', 'Re-run safety inspection on site']
-      : ['Maintain current inspection cadence'],
-  generatedAt: new Date().toISOString(),
-});
+const toRiskAssessment = (input: BackendRiskScore): RiskAssessment => {
+  const recurringBump = input.breakdown.recurringHazardBonus ?? 0;
+  const recurringHazards = input.metrics.recurringHazards ?? 0;
+  return {
+    siteId: String(input.siteId),
+    riskScore: input.score,
+    riskLevel: input.riskLevel.toLowerCase() as RiskAssessment['riskLevel'],
+    factors: FACTOR_LABELS
+      .filter(({ key }) => key !== 'recurringHazardBonus' || recurringBump > 0)
+      .map(({ label, key }) => ({
+        label,
+        score: input.breakdown[key] ?? 0,
+        severity: (input.breakdown[key] ?? 0) >= 80 ? 'high' : (input.breakdown[key] ?? 0) >= 40 ? 'medium' : 'low',
+      })),
+    explanation: `${input.metrics.failedInspections} failed inspection(s), ${input.metrics.criticalIncidents} critical incident(s), ${input.metrics.resolutionRate}% alert resolution over the window.${
+      recurringHazards > 0 ? ` ${recurringHazards} recurring hazard pattern(s) open.` : ''
+    }`,
+    recommendations:
+      recurringHazards > 0
+        ? [`Investigate recurring hazard(s): ${recurringHazards} open pattern(s)`, ...(input.metrics.failedInspections > 0 ? ['Review failing checklist items'] : [])]
+        : input.metrics.failedInspections > 0
+          ? ['Review failing checklist items', 'Re-run safety inspection on site']
+          : ['Maintain current inspection cadence'],
+    recurringHazards,
+    generatedAt: new Date().toISOString(),
+  };
+};
 
 export const aiApiRepository = {
   getRiskScore: async (siteId: string): Promise<RiskAssessment> => {
