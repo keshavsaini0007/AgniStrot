@@ -21,7 +21,7 @@ test.describe('reports', () => {
     await dates.nth(1).fill('2026-12-01');
 
     const downloadPromise = page.waitForEvent('download');
-    await page.getByRole('button', { name: /download report/i }).click();
+    await page.getByRole('button', { name: 'Generate Report' }).click();
     const download = await downloadPromise;
     expect(download.suggestedFilename()).toMatch(/\.pdf$/);
 
