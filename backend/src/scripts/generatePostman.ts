@@ -3293,6 +3293,168 @@ const collection: PostmanCollection = {
         },
       ],
     },
+    {
+      name: "17. Risk Heatmap Layers",
+      description:
+        "Feature — role-scoped risk heatmap aggregation for the GIS page. Each layer carries a site's risk band (LOW/MEDIUM/HIGH/CRITICAL), score, metrics and the top contributing factors; the aggregate is deterministic and matches /ai/risk-score/:siteId. Field officers are blocked; mine officials see exactly their assigned site.",
+      item: [
+        {
+          name: "Get Risk Layers - Regulator (Multi-site Heatmap)",
+          request: {
+            method: "GET",
+            auth: bearerAuth("{{token_reg}}"),
+            header: [],
+            url: parseUrl("{{baseUrl}}/gis/risk-layers"),
+          },
+          event: [
+            {
+              listen: "test",
+              script: {
+                type: "text/javascript",
+                exec: [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const res = pm.response.json();",
+                  "const bands = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];",
+                  "pm.test('Regulator receives risk layers for every site', function () {",
+                  "    pm.expect(res.data).to.be.an('array');",
+                  "    pm.expect(res.data.length).to.be.greaterThan(0);",
+                  "});",
+                  "",
+                  "pm.test('Each layer is a complete heatmap aggregate', function () {",
+                  "    res.data.forEach(function (l) {",
+                  "        pm.expect(l).to.have.property('siteId');",
+                  "        pm.expect(l).to.have.property('siteName');",
+                  "        pm.expect(l).to.have.property('riskLevel');",
+                  "        pm.expect(bands).to.include(l.riskLevel);",
+                  "        pm.expect(l.score).to.be.a('number').that.is.within(0, 100);",
+                  "        pm.expect(l.location).to.have.property('lat');",
+                  "        pm.expect(l.location).to.have.property('lng');",
+                  "        pm.expect(l.topContributors).to.be.an('array');",
+                  "        pm.expect(l.topContributors.length).to.be.greaterThan(0);",
+                  "    });",
+                  "});",
+                  "",
+                  "pm.test('Layers are sorted by score descending', function () {",
+                  "    for (var i = 1; i < res.data.length; i++) {",
+                  "        pm.expect(res.data[i - 1].score).to.be.at.least(res.data[i].score);",
+                  "    }",
+                  "});",
+                ],
+              },
+            },
+          ],
+        },
+        {
+          name: "Get Risk Layers - Mine Official (Scoped to Own Site)",
+          request: {
+            method: "GET",
+            auth: bearerAuth("{{token_mo}}"),
+            header: [],
+            url: parseUrl("{{baseUrl}}/gis/risk-layers"),
+          },
+          event: [
+            {
+              listen: "test",
+              script: {
+                type: "text/javascript",
+                exec: [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const res = pm.response.json();",
+                  "const sj = pm.environment.get('siteId_jharia');",
+                  "pm.test('Mine official sees exactly their assigned site layer', function () {",
+                  "    pm.expect(res.data).to.be.an('array').with.lengthOf(1);",
+                  "    if (res.data.length === 1 && sj) {",
+                  "        pm.expect(res.data[0].siteId).to.eql(sj);",
+                  "    }",
+                  "});",
+                ],
+              },
+            },
+          ],
+        },
+        {
+          name: "Get Risk Layers - Corporate Filtered by siteId",
+          request: {
+            method: "GET",
+            auth: bearerAuth("{{token_cm}}"),
+            header: [],
+            url: parseUrl("{{baseUrl}}/gis/risk-layers?siteId={{siteId_jharia}}"),
+          },
+          event: [
+            {
+              listen: "test",
+              script: {
+                type: "text/javascript",
+                exec: [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const res = pm.response.json();",
+                  "const sj = pm.environment.get('siteId_jharia');",
+                  "pm.test('Filter returns only the requested site layer', function () {",
+                  "    pm.expect(res.data).to.be.an('array').with.lengthOf(1);",
+                  "    if (res.data.length === 1 && sj) {",
+                  "        pm.expect(res.data[0].siteId).to.eql(sj);",
+                  "    }",
+                  "});",
+                ],
+              },
+            },
+          ],
+        },
+        {
+          name: "Get Risk Layers - Field Officer Blocked (RBAC 403)",
+          request: {
+            method: "GET",
+            auth: bearerAuth("{{token_fo}}"),
+            header: [],
+            url: parseUrl("{{baseUrl}}/gis/risk-layers"),
+          },
+          event: [
+            {
+              listen: "test",
+              script: {
+                type: "text/javascript",
+                exec: [
+                  "pm.test('Field officer is blocked with 403', function () {",
+                  "    pm.response.to.have.status(403);",
+                  "});",
+                ],
+              },
+            },
+          ],
+        },
+        {
+          name: "Get Risk Layers - Malformed siteId (400)",
+          request: {
+            method: "GET",
+            auth: bearerAuth("{{token_cm}}"),
+            header: [],
+            url: parseUrl("{{baseUrl}}/gis/risk-layers?siteId=bad-id"),
+          },
+          event: [
+            {
+              listen: "test",
+              script: {
+                type: "text/javascript",
+                exec: [
+                  "pm.test('Malformed siteId is rejected with 400', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                ],
+              },
+            },
+          ],
+        },
+      ],
+    },
   ],
 };
 

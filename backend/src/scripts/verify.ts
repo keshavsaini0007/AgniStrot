@@ -3050,6 +3050,114 @@ async function geofenceBattery(t: { rahul: string }): Promise<void> {
   }
 }
 
+// ── [F24] Risk heatmap layers battery ────────────────────────────────────────
+// GET /gis/risk-layers — role-scoped per-site aggregate (band, score, metrics,
+// top contributors). Determinism is proven by cross-checking the layer score
+// against /ai/risk-score/:siteId for the same site at the same instant. Runs
+// after the geofence battery (which self-cleans its probe sites) so the seeded
+// 3-site canonical state is what gets aggregated.
+
+interface F24Layer {
+  siteId: string;
+  siteName: string;
+  subsidiary: string;
+  location?: { lat: number; lng: number };
+  riskLevel: string;
+  score: number;
+  breakdown?: Record<string, number>;
+  metrics?: Record<string, number>;
+  topContributors?: Array<{ key: string; label: string; points: number; count: number; kind: string }>;
+}
+
+async function riskLayerBattery(
+  t: { priya: string; meena: string; amit: string; rahul: string },
+  sites: { SJ: string; SD: string }
+): Promise<void> {
+  console.log("\n== [F24] Risk heatmap layers (GIS) ==");
+
+  const layersOf = (r: { body: AnyJson }): F24Layer[] =>
+    ((r.body ?? {}) as { data?: unknown[] }).data?.map((l) => l as F24Layer) ?? [];
+
+  // 1. Unauthenticated → 401
+  const noAuth = await api("/gis/risk-layers");
+  check("F24: unauthenticated risk-layers → 401", noAuth.status === 401);
+
+  // 2. Field officer → 403
+  const fo = await get(t.rahul, "/gis/risk-layers");
+  check("F24: field_officer risk-layers → 403", fo.status === 403);
+
+  // 3. Regulator → all seeded sites, correct shape + deterministic ordering
+  const reg = await get(t.meena, "/gis/risk-layers");
+  check("F24: regulator risk-layers → 200", reg.status === 200);
+  const layers = layersOf(reg);
+  check("F24: regulator sees all seeded sites (3+)", layers.length >= 3, `count=${layers.length}`);
+  const ids = layers.map((l) => l.siteId);
+  check(
+    "F24: seeded sites both present",
+    ids.includes(sites.SJ) && ids.includes(sites.SD),
+    `SJ=${ids.includes(sites.SJ)} SD=${ids.includes(sites.SD)}`
+  );
+
+  const first = layers[0];
+  check(
+    "F24: layer shape (band/score/location/contributors)",
+    !!first &&
+      typeof first.siteName === "string" &&
+      typeof first.riskLevel === "string" &&
+      typeof first.score === "number" &&
+      typeof first.location?.lat === "number" &&
+      typeof first.location?.lng === "number" &&
+      Array.isArray(first.topContributors),
+    first ? JSON.stringify(Object.keys(first)) : "no layers"
+  );
+
+  const validBands = new Set(["LOW", "MEDIUM", "HIGH", "CRITICAL"]);
+  check("F24: every layer has a valid risk band", layers.every((l) => validBands.has(l.riskLevel)), layers.map((l) => l.riskLevel).join(","));
+  check("F24: scores within 0-100", layers.every((l) => l.score >= 0 && l.score <= 100));
+  check(
+    "F24: layers sorted by score desc",
+    layers.every((l, i) => i === 0 || layers[i - 1]!.score >= l.score),
+    layers.map((l) => l.score).join(",")
+  );
+  check(
+    "F24: contributors present and shaped",
+    layers.every((l) => (l.topContributors ?? []).length >= 1 && l.topContributors!.every((c) => typeof c.label === "string" && typeof c.points === "number" && c.points !== 0 && (c.kind === "risk" || c.kind === "relief")))
+  );
+
+  // 4. Cross-endpoint determinism — layer aggregate === /ai/risk-score/:siteId
+  const sjLayer = layers.find((l) => l.siteId === sites.SJ);
+  const risk = await get(t.meena, `/ai/risk-score/${sites.SJ}`);
+  const riskData = ((risk.body ?? {}) as { data?: { score: number; riskLevel: string } }).data;
+  check(
+    "F24: layer score matches /ai/risk-score",
+    !!sjLayer && !!riskData && sjLayer.score === riskData.score && sjLayer.riskLevel === riskData.riskLevel,
+    sjLayer && riskData ? `layer=${sjLayer.score}/${sjLayer.riskLevel} ai=${riskData.score}/${riskData.riskLevel}` : "missing data"
+  );
+
+  // 5. Mine official → own site only
+  const mo = await get(t.priya, "/gis/risk-layers");
+  check("F24: mine_official risk-layers → 200", mo.status === 200);
+  const moLayers = layersOf(mo);
+  check(
+    "F24: mine_official sees only own site",
+    moLayers.length === 1 && moLayers[0]?.siteId === sites.SJ,
+    JSON.stringify(moLayers.map((l) => l.siteId))
+  );
+
+  // 6. Corporate siteId filter → only that site
+  const filt = await get(t.amit, `/gis/risk-layers?siteId=${sites.SD}`);
+  check("F24: corporate filtered risk-layers → 200", filt.status === 200);
+  const filtLayers = layersOf(filt);
+  check(
+    "F24: siteId filter returns only SD",
+    filtLayers.length === 1 && filtLayers[0]?.siteId === sites.SD,
+    JSON.stringify(filtLayers.map((l) => l.siteId))
+  );
+
+  // 7. Malformed siteId → 400
+  check("F24: malformed siteId → 400", (await get(t.amit, "/gis/risk-layers?siteId=bad-id")).status === 400);
+}
+
 async function main(): Promise<void> {
   killPort(PORT);
   runSeed();
@@ -3163,6 +3271,13 @@ async function main(): Promise<void> {
     );
     // Geofencing battery — probe site + records self-clean in finally.
     await geofenceBattery({ rahul: tokens.rahul });
+    // Risk heatmap layers battery — read-only aggregation of the canonical
+    // seeded state (geofence probes are gone by now); asserts cross-endpoint
+    // determinism against /ai/risk-score/:siteId.
+    await riskLayerBattery(
+      { priya: tokens.priya, meena: tokens.meena, amit: tokens.amit, rahul: tokens.rahul },
+      { SJ, SD }
+    );
   } finally {
     stopServer(server);
   }
