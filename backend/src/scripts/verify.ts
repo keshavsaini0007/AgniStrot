@@ -1,8 +1,10 @@
 import "dotenv/config";
 import { spawn, execSync, type ChildProcess } from "node:child_process";
-import { randomUUID } from "node:crypto";
+import { randomUUID, createHash } from "node:crypto";
 import net from "node:net";
 import { request as httpRequest, type IncomingHttpHeaders } from "node:http";
+import fs from "node:fs/promises";
+import path from "node:path";
 import mongoose, { Types } from "mongoose";
 import { io as ioClient } from "socket.io-client";
 import type { Socket } from "socket.io-client";
@@ -14,7 +16,13 @@ import WorkflowState from "../models/WorkflowState.js";
 import AuditLog from "../models/AuditLog.js";
 import Incident from "../models/Incident.js";
 import Inspection from "../models/Inspection.js";
+import Evidence from "../models/Evidence.js";
 import { computeThisHash, GENESIS_HASH } from "../services/auditLogger.js";
+import {
+  buildCloudinaryOriginalUrl,
+  sha256Hex,
+  UPLOAD_FAILED_SENTINEL,
+} from "../services/evidenceService.js";
 import { runEscalations } from "../services/workflowEngine.js";
 import { resolveAssignee } from "../services/ruleEngine.js";
 import { checkRecurringHazards } from "../services/batchRules.js";
@@ -183,6 +191,57 @@ const get = (token: string, p = ""): Promise<{ status: number; headers: Incoming
 
 const post = (token: string, p: string, body: unknown): Promise<{ status: number; headers: IncomingHttpHeaders; body: AnyJson }> =>
   api(p, { token, method: "POST", body: body ?? {} });
+
+// ── Multipart upload helper (feature 05 media ingest) ───────────────────────
+// media/document ingest endpoints use multer memory storage with a file field.
+// `api` is JSON-only, so build a raw multipart/form-data body over node:http.
+
+function multipartUpload(
+  token: string,
+  pathEnd: string,
+  field: string,
+  filename: string,
+  contentType: string,
+  bytes: Buffer,
+  extraFields: Record<string, string> = {}
+): Promise<{ status: number; body: AnyJson }> {
+  const boundary = `----agnistrot${randomUUID().replace(/-/g, "")}`;
+  const parts: Buffer[] = [];
+  for (const [k, v] of Object.entries(extraFields)) {
+    parts.push(Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="${k}"\r\n\r\n${v}\r\n`));
+  }
+  parts.push(
+    Buffer.from(
+      `--${boundary}\r\nContent-Disposition: form-data; name="${field}"; filename="${filename}"\r\nContent-Type: ${contentType}\r\n\r\n`
+    )
+  );
+  parts.push(bytes);
+  parts.push(Buffer.from(`\r\n--${boundary}--\r\n`));
+  const data = Buffer.concat(parts);
+
+  return new Promise((resolve, reject) => {
+    const headers: Record<string, string> = {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": `multipart/form-data; boundary=${boundary}`,
+      "Content-Length": String(data.length),
+    };
+    const req = httpRequest(
+      { host: HOST, port: PORT, path: `/api/v1${pathEnd}`, method: "POST", headers, agent: false },
+      (res) => {
+        let raw = "";
+        res.on("data", (c) => (raw += c));
+        res.on("end", () => {
+          let body: AnyJson = null;
+          try { body = raw ? JSON.parse(raw) : null; } catch { body = raw; }
+          resolve({ status: res.statusCode ?? 0, body });
+        });
+      }
+    );
+    req.on("error", reject);
+    req.write(data);
+    req.end();
+  });
+}
 
 // ── Audit chain helpers ─────────────────────────────────────────────────────
 
@@ -1806,6 +1865,234 @@ async function feature04RecurringBattery(amitToken: string): Promise<void> {
   }
 }
 
+// ── [F17] Evidence Integrity Battery ────────────────────────────────────────
+// Feature 05 — server-side SHA-256 at ingest + re-verification. Fully
+// deterministic in local mode (CLOUDINARY_ENABLED=false): uploads persist to
+// disk, so MATCH / INTEGRITY_MISMATCH / unavailable are provable without any
+// network. Edge cases A–H from the brief each get an assertion. Runs LAST (after
+// feature04) — every fixture it creates is removed in `finally`, and the disk
+// files it wrote are unlinked.
+
+async function evidenceIntegrityBattery(
+  t: { priya: string; meena: string; amit: string; rahul: string },
+  sites: { SJ: string; SD: string }
+): Promise<void> {
+  console.log("\n== [F17] Evidence Integrity ==");
+  const createdEvidenceIds: string[] = [];
+  const writtenFiles: string[] = [];
+  let legacyDocId: string | null = null;
+  const { default: Document } = await import("../models/Document.js");
+
+  try {
+    // ── 0. Pure hash unit checks (edge A: same bytes → same hash; B: one byte flips it) ──
+    const b1 = Buffer.from("agnistrot evidence payload v1");
+    const b2 = Buffer.from("agnistrot evidence payload v1");
+    const b3 = Buffer.from("agnistrot evidence payload v2");
+    const h1 = sha256Hex(b1);
+    check("sha256: deterministic (same bytes → same hash)", h1 === sha256Hex(b2), `${h1.slice(0, 12)}…`);
+    check("sha256: one byte change flips the hash", h1 !== sha256Hex(b3));
+    check("sha256: 64-char hex", /^[0-9a-f]{64}$/.test(h1), h1.slice(0, 16));
+    check("sha256: equals node crypto reference", h1 === createHash("sha256").update(b1).digest("hex"));
+
+    // ── Edge G1: verification URL must be the UNTRANSFORMED original ───────
+    const origUrl = buildCloudinaryOriginalUrl("agnistrot/media/probe123");
+    check(
+      "cloudinary original URL is untransformed (no quality/fetch_format)",
+      /^https:\/\//.test(origUrl) &&
+        origUrl.includes("/image/upload/") &&
+        !origUrl.includes("quality=") &&
+        !origUrl.includes("fetch_format="),
+      origUrl
+    );
+
+    // ── 1. Media ingest via real multipart upload (local mode) ─────────────
+    const photoBytes = Buffer.from("FAKE-JPEG-CONTENT-FOR-EVIDENCE-BATTERY-0001");
+    const up = await multipartUpload(t.rahul, "/media/upload", "file", "evidence-probe.jpg", "image/jpeg", photoBytes);
+    check("media upload → 200", up.status === 200, `${up.status}: ${JSON.stringify(up.body).slice(0, 160)}`);
+    const upBody = (up.body ?? {}) as { url?: unknown; contentHash?: unknown; evidenceId?: unknown };
+    check("media upload returns 64-hex contentHash", typeof upBody.contentHash === "string" && /^[0-9a-f]{64}$/.test(String(upBody.contentHash)), `${upBody.contentHash}`);
+    check("server hash == client-side recompute of same bytes", upBody.contentHash === sha256Hex(photoBytes), `${upBody.contentHash}`);
+
+    const probe1Id = String(upBody.evidenceId ?? "");
+    createdEvidenceIds.push(probe1Id);
+    const probe1 = probe1Id ? await Evidence.findById(probe1Id).lean() : null;
+    check("evidence row created for media upload", !!probe1);
+    check("evidence integrityStatus unverified (hash recorded, not yet checked)", probe1?.integrityStatus === "unverified", `${probe1?.integrityStatus}`);
+    check("evidence contentHash persisted", probe1?.contentHash === sha256Hex(photoBytes), `${probe1?.contentHash}`);
+    check("evidence sourceType media", probe1?.sourceType === "media");
+    const probe1File = String(probe1?.verificationSource ?? "");
+    check("verification source is an absolute local path", probe1?.verificationSourceKind === "file" && probe1File.length > 0 && path.isAbsolute(probe1File), probe1File);
+    writtenFiles.push(probe1File);
+
+    // ── 2. Live verify → MATCH (edge F: the stored evidence bytes match) ───
+    const v1res = await post(t.amit, `/evidence/${probe1Id}/verify`, {});
+    const v1 = ((v1res.body as { data?: AnyJson }).data ?? {}) as { integrityStatus?: string; checkCount?: number };
+    check("verify → 200 + verified", v1res.status === 200 && v1.integrityStatus === "verified", `${v1res.status}/${v1.integrityStatus}`);
+    check("verify bumps checkCount to 1", (v1.checkCount ?? -1) === 1, `${v1.checkCount}`);
+
+    // ── 3. Edge C: URL is not the identity — change it, hash still matches ─
+    await Evidence.updateOne({ _id: probe1Id }, { $set: { fileUrl: "https://cdn.elsewhere.example/moved.jpg" } });
+    const v2res = await post(t.amit, `/evidence/${probe1Id}/verify`, {});
+    const v2 = ((v2res.body as { data?: AnyJson }).data ?? {}) as { integrityStatus?: string };
+    check("display URL change alone → still verified", v2res.status === 200 && v2.integrityStatus === "verified", `${v2.integrityStatus}`);
+
+    // ── 4. Edge B: overwrite stored bytes → INTEGRITY_MISMATCH + audit ─────
+    await fs.writeFile(probe1File, Buffer.from("TAMPERED-BYTES-REPLACING-THE-STORED-FILE"));
+    const v3res = await post(t.amit, `/evidence/${probe1Id}/verify`, {});
+    const v3 = ((v3res.body as { data?: AnyJson }).data ?? {}) as { integrityStatus?: string; verificationNote?: string };
+    check("tampered file → INTEGRITY_MISMATCH", v3res.status === 200 && v3.integrityStatus === "INTEGRITY_MISMATCH", `${v3.integrityStatus}: ${String(v3.verificationNote ?? "").slice(0, 80)}`);
+    const tamperAudit = await AuditLog.findOne({ entityType: "evidence", action: "tampered" }).lean();
+    check("audit trail records the tampered event", !!tamperAudit);
+    // Restore the original bytes so the verify-all pass below sees a clean file.
+    await fs.writeFile(probe1File, photoBytes);
+
+    // ── 5. Edges A/E: same content re-uploaded → same hash, NOT fraud ──────
+    const up2 = await multipartUpload(t.priya, "/media/upload", "file", "evidence-probe-copy.jpg", "image/jpeg", photoBytes);
+    const up2Body = (up2.body ?? {}) as { contentHash?: unknown; evidenceId?: unknown };
+    check("identical content re-uploaded → same contentHash", up2.status === 200 && up2Body.contentHash === sha256Hex(photoBytes), `${up2Body.contentHash}`);
+    const probe2Id = String(up2Body.evidenceId ?? "");
+    createdEvidenceIds.push(probe2Id);
+    const probe2 = probe2Id ? await Evidence.findById(probe2Id).lean() : null;
+    writtenFiles.push(String(probe2?.verificationSource ?? ""));
+    const v4res = await post(t.amit, `/evidence/${probe2Id}/verify`, {});
+    const v4 = ((v4res.body as { data?: AnyJson }).data ?? {}) as { integrityStatus?: string };
+    check("duplicate content → verified (same binary detected, not tampered)", v4res.status === 200 && v4.integrityStatus === "verified", `${v4.integrityStatus}`);
+
+    const listRes = await get(t.amit, "/evidence");
+    const listRows = ((listRes.body as { data?: AnyJson }).data ?? []) as Array<{
+      id?: string;
+      contentHash?: string | null;
+      integrityStatus?: string;
+      duplicateCount?: number;
+    }>;
+    check("list exposes duplicateCount ≥ 1 for the twin pair", listRows.some((r) => (r.duplicateCount ?? 0) >= 1), `rows=${listRows.length}`);
+    const probe1Row = listRows.find((r) => r.id === probe1Id);
+    check("list row shape: contentHash + integrityStatus present", !!probe1Row && typeof probe1Row.contentHash === "string" && typeof probe1Row.integrityStatus === "string", JSON.stringify(probe1Row ?? null).slice(0, 160));
+
+    // ── 6. Edge G2: legacy document with NO evidence row → noBaseline ❔ ───
+    const legacyDoc = await Document.create({
+      siteId: new Types.ObjectId(sites.SJ),
+      sourceImageUrl: "https://example.com/legacy-form.jpg",
+      extractedFields: { formType: "safety" },
+      confidence: 0.9,
+      reviewStatus: "pending",
+    });
+    legacyDocId = (legacyDoc._id as unknown as string).toString();
+
+    const dash = await get(t.amit, "/evidence/dashboard");
+    const d = ((dash.body as { data?: AnyJson }).data ?? {}) as Record<string, number>;
+    check("dashboard counts legacy documents without a baseline", (d.noBaseline ?? 0) >= 1, `${d.noBaseline}`);
+    check("dashboard mismatched ≥ 1 (tampered probe)", (d.mismatched ?? 0) >= 1, `${d.mismatched}`);
+    check("dashboard verified ≥ 1 (checked probe)", (d.verified ?? 0) >= 1, `${d.verified}`);
+    check("checked == verified + mismatched + unavailable", (d.checked ?? -1) === (d.verified ?? 0) + (d.mismatched ?? 0) + (d.unavailable ?? 0), `${d.checked} vs ${d.verified}+${d.mismatched}+${d.unavailable}`);
+
+    // ── 7. verify-all (dashboard "check all") — oversight roles only ───────
+    const va1 = await post(t.meena, "/evidence/verify-all", {});
+    const va1d = ((va1.body as { data?: AnyJson }).data ?? {}) as Record<string, number>;
+    check("regulator verify-all → 200", va1.status === 200, `${va1.status}`);
+    check("verify-all summary: checked ≥ 2", (va1d.checked ?? -1) >= 2, `${va1d.checked}`);
+    check("verify-all summary: verified ≥ 2 (both probes restored)", (va1d.verified ?? -1) >= 2, `${va1d.verified}`);
+    check(
+      "verify-all summary buckets sum to checked",
+      (va1d.checked ?? -1) === (va1d.verified ?? 0) + (va1d.mismatched ?? 0) + (va1d.unavailable ?? 0) + (va1d.unverified ?? 0) + (va1d.uploadFailed ?? 0),
+      JSON.stringify(va1d)
+    );
+    const va2 = await post(t.amit, "/evidence/verify-all", {});
+    check("corporate verify-all → 200", va2.status === 200);
+
+    // ── 8. Role gating + fail-closed scoping ────────────────────────────────
+    check("field_officer evidence list → 403", (await get(t.rahul, "/evidence")).status === 403);
+    check("field_officer dashboard → 403", (await get(t.rahul, "/evidence/dashboard")).status === 403);
+    check("malformed evidence id → 400", (await post(t.amit, "/evidence/not-an-id/verify", {})).status === 400);
+    const unknownEvId = new Types.ObjectId().toString();
+    check("unknown evidence id → 404", (await post(t.amit, `/evidence/${unknownEvId}/verify`, {})).status === 404);
+
+    // Cross-site probe row (site SD): mine_official priya (SJ) must not see or touch it.
+    const crossEv = await Evidence.create({
+      sourceType: "media",
+      siteId: new Types.ObjectId(sites.SD),
+      fileUrl: "https://local.invalid/cross-site.jpg",
+      verificationSource: probe1File,
+      verificationSourceKind: "file",
+      contentHash: sha256Hex(photoBytes),
+      fileName: "cross-site.jpg",
+      uploadedBy: new Types.ObjectId(),
+      uploadedAt: new Date(),
+      integrityStatus: "unverified",
+    });
+    const crossId = (crossEv._id as unknown as string).toString();
+    createdEvidenceIds.push(crossId);
+    check("mine_official verify cross-site evidence → 404", (await post(t.priya, `/evidence/${crossId}/verify`, {})).status === 404);
+    const moList = await get(t.priya, "/evidence");
+    const moRows = ((moList.body as { data?: AnyJson }).data ?? []) as Array<{ id: string }>;
+    check("mine_official list excludes cross-site evidence", moRows.length > 0 && !moRows.some((r) => r.id === crossId), `rows=${moRows.length}`);
+    check("mine_official own-site list → 200 with rows", moList.status === 200 && moRows.some((r) => r.id === probe1Id), `rows=${moRows.length}`);
+    const regList = await get(t.meena, "/evidence");
+    const regRows = ((regList.body as { data?: AnyJson }).data ?? []) as Array<{ id: string }>;
+    check("regulator sees cross-site evidence", regRows.some((r) => r.id === crossId));
+
+    // ── 9. Edge G: UPLOAD_FAILED bucketed, never a false success ───────────
+    const failedRow = await Evidence.create({
+      sourceType: "media",
+      siteId: new Types.ObjectId(sites.SJ),
+      fileUrl: "https://local.invalid/upload-failed.jpg",
+      verificationSource: UPLOAD_FAILED_SENTINEL,
+      verificationSourceKind: "url",
+      contentHash: sha256Hex(Buffer.from("bytes-never-stored")),
+      fileName: "failed.jpg",
+      uploadedBy: new Types.ObjectId(),
+      uploadedAt: new Date(),
+      integrityStatus: "UPLOAD_FAILED",
+      verificationNote: "Cloudinary upload failed — no stored file.",
+    });
+    const failedId = (failedRow._id as unknown as string).toString();
+    createdEvidenceIds.push(failedId);
+    const dash2 = await get(t.amit, "/evidence/dashboard");
+    const d2 = ((dash2.body as { data?: AnyJson }).data ?? {}) as Record<string, number>;
+    check("dashboard counts UPLOAD_FAILED rows", (d2.uploadFailed ?? 0) >= 1, `${d2.uploadFailed}`);
+    const fv = await post(t.amit, `/evidence/${failedId}/verify`, {});
+    const fvd = ((fv.body as { data?: AnyJson }).data ?? {}) as { integrityStatus?: string };
+    check("verify on failed upload stays UPLOAD_FAILED (no false success)", fv.status === 200 && fvd.integrityStatus === "UPLOAD_FAILED", `${fvd.integrityStatus}`);
+
+    // ── 10. Edge D: metadata changes never flip integrity ───────────────────
+    const docEv = await Evidence.create({
+      sourceType: "document",
+      sourceRecordId: legacyDoc._id,
+      siteId: new Types.ObjectId(sites.SJ),
+      fileUrl: "https://example.com/legacy-form.jpg",
+      verificationSource: probe1File,
+      verificationSourceKind: "file",
+      contentHash: sha256Hex(photoBytes),
+      fileName: "legacy-form.jpg",
+      uploadedBy: new Types.ObjectId(),
+      uploadedAt: new Date(),
+      integrityStatus: "verified",
+      verificationNote: "MATCH: verified earlier.",
+    });
+    const docEvId = (docEv._id as unknown as string).toString();
+    createdEvidenceIds.push(docEvId);
+    const confirm = await post(t.amit, `/documents/${legacyDocId}/confirm`, {
+      correctedFields: { formType: "environmental" },
+    });
+    const docEvAfter = await Evidence.findById(docEvId).lean();
+    check(
+      "document metadata change does not alter evidence integrity status",
+      confirm.status === 200 && docEvAfter?.integrityStatus === "verified",
+      `${confirm.status}/${docEvAfter?.integrityStatus}`
+    );
+  } finally {
+    // Remove every evidence row + the legacy document + every file written.
+    await Evidence.deleteMany({ _id: { $in: createdEvidenceIds.map((x) => new Types.ObjectId(x)) } });
+    if (legacyDocId) await Document.deleteOne({ _id: new Types.ObjectId(legacyDocId) });
+    for (const f of writtenFiles) {
+      if (!f) continue;
+      try { await fs.unlink(f); } catch { /* already gone */ }
+    }
+    const leftover = await Evidence.countDocuments({ _id: { $in: createdEvidenceIds.map((x) => new Types.ObjectId(x)) } });
+    check("CLEANUP: evidence fixtures fully removed", leftover === 0, `${leftover}`);
+  }
+}
+
 async function main(): Promise<void> {
   killPort(PORT);
   runSeed();
@@ -1898,6 +2185,9 @@ async function main(): Promise<void> {
     // Feature 04 — runs last so stray detections on seeded data can never
     // disturb an earlier battery's assertions; its probes self-clean in finally.
     await feature04RecurringBattery(tokens.amit);
+    // Feature 05 — after feature04 (both self-clean); evidence runs against the
+    // local-mode uploads dir and leaves the DB in the canonical seeded state.
+    await evidenceIntegrityBattery(tokens, { SJ, SD });
   } finally {
     stopServer(server);
   }

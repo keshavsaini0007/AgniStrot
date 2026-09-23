@@ -106,3 +106,23 @@ export const gisMarkersSchema = z.object({
 
 export type GisMarkersQuery = z.infer<typeof gisMarkersSchema>;
 
+// ── Evidence list query (feature 05) ────────────────────────────────────────
+
+export const listEvidenceSchema = z.object({
+  siteId: z.string().regex(objectIdRegex, "Invalid siteId").optional(),
+  status: z
+    .enum([
+      "UPLOAD_PENDING",
+      "UPLOAD_FAILED",
+      "unverified",
+      "verified",
+      "INTEGRITY_MISMATCH",
+      "unavailable",
+    ])
+    .optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+});
+
+export type ListEvidenceQuery = z.infer<typeof listEvidenceSchema>;
+

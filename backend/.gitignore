@@ -11,6 +11,9 @@ dist/
 *.log
 npm-debug.log*
 
+# Local-mode evidence uploads (feature 05) — persisted upload buffers
+uploads/
+
 # OS
 .DS_Store
 Thumbs.db

@@ -44,6 +44,48 @@ export type SourceType = "inspection" | "incident" | "attendance";
 
 export type DocumentReviewStatus = "pending" | "confirmed" | "rejected";
 
+// ── Feature 05: Evidence Integrity types ─────────────────────────────────────
+
+// What kind of source record an evidence row is attached to.
+export type EvidenceSourceType = "document" | "media";
+
+// Lifecycle of an evidence record's integrity attestation:
+//   UPLOAD_PENDING → UPLOAD_FAILED | unverified → verified | INTEGRITY_MISMATCH | unavailable
+//   verified           recomputed bytes == contentHash (MATCH)
+//   INTEGRITY_MISMATCH recomputed bytes != contentHash (edge case B)
+//   unavailable        verify attempted but source bytes could not be read
+//                      (cloud down / 404 — edge case G)
+//   unverified         hash never recorded (hash error — edge case H) or verify
+//                      never run / legacy no baseline — NEVER mismatch
+//   UPLOAD_PENDING / UPLOAD_FAILED  upload lifecycle cloud-outage states
+//                      (edge case G) — no stored file, no false success
+export type IntegrityStatus =
+  | "UPLOAD_PENDING"
+  | "UPLOAD_FAILED"
+  | "unverified"
+  | "verified"
+  | "INTEGRITY_MISMATCH"
+  | "unavailable";
+
+export interface IEvidence {
+  _id: Types.ObjectId;
+  sourceType: EvidenceSourceType;
+  sourceRecordId?: Types.ObjectId; // document _id for sourceType "document" (media has no persisted source record)
+  siteId: Types.ObjectId;
+  fileUrl: string;                 // display URL (Cloudinary secure_url or local-mode placeholder) — NOT the integrity identity (edge C)
+  verificationSource: string;      // where the stored bytes live: untransformed Cloudinary original URL ("url") or absolute local disk path ("file")
+  verificationSourceKind: "url" | "file";
+  contentHash?: string;            // SHA-256 of the STORED evidence bytes (edge F). Absent = hashing failed → stays unverified (edge H).
+  fileName?: string;
+  uploadedBy: Types.ObjectId;
+  uploadedAt: Date;
+  integrityStatus: IntegrityStatus;
+  verificationNote?: string;       // why a row is unverified / unavailable / mismatch
+  checkCount: number;              // live verification attempts
+  lastVerifiedAt?: Date;
+  createdAt: Date;
+}
+
 // ── Feature 04: Recurring Problem Detection types ────────────────────────────
 // An alert's pattern classification (edge case E) — the same category can be:
 //   localized       one zone cluster at a site

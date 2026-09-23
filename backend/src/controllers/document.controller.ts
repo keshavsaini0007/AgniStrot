@@ -7,6 +7,12 @@ import Site from "../models/Site.js";
 import { extractFormFields } from "../services/ocrService.js";
 import { logAction } from "../services/auditLogger.js";
 import {
+  buildCloudinaryOriginalUrl,
+  createEvidence,
+  persistLocalFile,
+  sha256Hex,
+} from "../services/evidenceService.js";
+import {
   emitOutboxEvent,
   processOutboxEvents,
   runInTransaction,
@@ -77,6 +83,10 @@ export const ingestDocument = async (
       return;
     }
 
+    // Snapshot the filename once — `req.file` can't be narrowed inside the
+    // transaction closure below (feature 05 evidence uses it too).
+    const originalFileName = req.file.originalname;
+
     // Extract and validate siteId from request body. The caller's assigned site
     // (from the JWT) is used as a default when the body omits it — the web client
     // always knows its own site, so field officers/mine officials can ingest
@@ -113,14 +123,30 @@ export const ingestDocument = async (
     // CLOUDINARY_ENABLED=false makes the flow fully self-contained for demos and
     // tests: OCR runs straight from the upload buffer and a local:// reference is
     // stored instead of a hosted URL.
+    //
+    // Feature 05 (evidence integrity): the SHA-256 of the EXACT bytes received
+    // (edge F/G3) is computed here, before storage, and the evidence row is
+    // created inside the same transaction as the Document — a document can never
+    // exist without its evidence attestation.
+    const evidenceId = new Types.ObjectId();
+    const contentHash = sha256Hex(req.file.buffer);
     let sourceImageUrl: string;
     let ocrTarget: string | Buffer;
+    let verificationSource = "";
+    let verificationSourceKind: "url" | "file" = "url";
 
     if (process.env.CLOUDINARY_ENABLED === "false") {
       // Sanitize + namespace the original filename so the placeholder is stable.
-      const safeName = req.file.originalname.replace(/[^\w.-]/g, "_");
+      const safeName = originalFileName.replace(/[^\w.-]/g, "_");
       sourceImageUrl = `local://${Date.now().toString(36)}-${safeName}`;
       ocrTarget = req.file.buffer;
+      // Persist the exact buffer — verification re-reads the SAME bytes later.
+      verificationSource = await persistLocalFile(
+        evidenceId,
+        req.file.buffer,
+        originalFileName
+      );
+      verificationSourceKind = "file";
       console.log(`Running OCR on uploaded buffer (local mode): ${sourceImageUrl}`);
     } else {
       // Upload image to Cloudinary
@@ -137,6 +163,8 @@ export const ingestDocument = async (
 
       sourceImageUrl = cloudinaryResult.secure_url;
       ocrTarget = sourceImageUrl;
+      // Verify against the untransformed ORIGINAL, not the delivered URL (edge G1).
+      verificationSource = buildCloudinaryOriginalUrl(cloudinaryResult.public_id);
       console.log(`Running OCR on image: ${sourceImageUrl}`);
     }
 
@@ -173,6 +201,25 @@ export const ingestDocument = async (
             confidence: ocrResult.confidence,
             reviewStatus: "pending",
           },
+        },
+        session
+      );
+
+      // Feature 05: document + evidence attestation commit atomically — a
+      // document can never exist without its integrity record (edge G).
+      await createEvidence(
+        {
+          _id: evidenceId,
+          sourceType: "document",
+          sourceRecordId: doc._id,
+          siteId: new Types.ObjectId(siteId),
+          fileUrl: sourceImageUrl,
+          verificationSource,
+          verificationSourceKind,
+          contentHash,
+          fileName: originalFileName,
+          uploadedBy: new Types.ObjectId(req.user.id),
+          integrityStatus: "unverified",
         },
         session
       );
@@ -352,4 +399,5 @@ export const confirmDocument = async (
 
 interface CloudinaryUploadResult {
   secure_url: string;
+  public_id: string;
 }
