@@ -42,6 +42,7 @@ export interface MineRiskScore {
     inspectionScore: number;
     incidentScore: number;
     resolutionBonus: number;
+    recurringHazardBonus: number; // feature 04 — open recurring-hazard patterns add risk
   };
   metrics: {
     totalAlerts: number;
@@ -49,6 +50,7 @@ export interface MineRiskScore {
     failedInspections: number;
     criticalIncidents: number;
     resolutionRate: number;
+    recurringHazards: number; // feature 04 — open RECURRING_HAZARD alerts in the window
   };
   dataSufficiency: {
     hasSufficientData: boolean;
@@ -452,7 +454,22 @@ function deriveContributors(input: {
     });
   }
 
-  // 2. Overdue corrective actions — open alerts past the SLA resolution deadline
+  // 2. Recurring hazards (feature 04 pattern detection)
+  const recurring = alerts.filter((a) => a.ruleCode === "RECURRING_HAZARD").length;
+  const prevRecurring = prevAlerts.filter((a) => a.ruleCode === "RECURRING_HAZARD").length;
+  if (recurring > 0) {
+    const dir = recurring > prevRecurring ? "increasing" : recurring < prevRecurring ? "decreasing" : "stable";
+    out.push({
+      key: "recurring_hazards",
+      label: "Recurring hazards",
+      direction: dir,
+      magnitude: bumpMagnitude(recurring >= 2 ? "high" : "medium", dir),
+      count: recurring,
+      detail: `${recurring} recurring-hazard pattern${recurring === 1 ? "" : "s"} in the last 30 days${prevRecurring > 0 ? ` (was ${prevRecurring})` : " — new activity"}.`,
+    });
+  }
+
+  // 3. Overdue corrective actions — open alerts past the SLA resolution deadline
   const overdue = alerts.filter(
     (a) => a.status !== "closed" && a.resolutionDeadline && new Date(a.resolutionDeadline).getTime() < now
   );
@@ -595,11 +612,32 @@ export async function calculateMineRiskScore(
   const resolutionRate = alerts.length > 0 ? closedAlerts / alerts.length : 1;
   const resolutionBonus = Math.floor(resolutionRate * 20);
 
+  // ── Recurring Hazard Bonus (feature 04, + up to 15 points) ─────────────────
+  // Each OPEN RECURRING_HAZARD pattern adds risk, weighted by its scope — a
+  // multi-site (category-wide) problem weighs far more than a single-zone one.
+  // Additive and explainable: the score delta is exposed in the breakdown and
+  // the pattern count in metrics, so the bump is never a black box.
+  const RECURRING_SCOPE_POINTS: Record<string, number> = {
+    localized: 3,
+    "site-wide": 5,
+    "category-wide": 8,
+  };
+  const openRecurringHazards = alerts.filter(
+    (a) => a.ruleCode === "RECURRING_HAZARD" && a.status !== "closed"
+  );
+  const recurringHazardBonus = Math.min(
+    openRecurringHazards.reduce(
+      (sum, a) => sum + (RECURRING_SCOPE_POINTS[a.scope ?? "localized"] ?? 3),
+      0
+    ),
+    15
+  );
+
   // ── BUG FIX #4: Data Sufficiency Check ─────────────────────────────────────
   const hasSufficientData = inspections.length >= 1 || alerts.length >= 1;
 
   // ── Final Score Calculation ────────────────────────────────────────────────
-  let finalScore = alertScore + inspectionScore + incidentScore - resolutionBonus;
+  let finalScore = alertScore + inspectionScore + incidentScore - resolutionBonus + recurringHazardBonus;
 
   // If insufficient data, floor risk at MEDIUM (31) to avoid false "safe" signal
   if (!hasSufficientData && finalScore < 31) {
@@ -627,6 +665,7 @@ export async function calculateMineRiskScore(
       inspectionScore,
       incidentScore,
       resolutionBonus,
+      recurringHazardBonus,
     },
     metrics: {
       totalAlerts: alerts.length,
@@ -634,6 +673,7 @@ export async function calculateMineRiskScore(
       failedInspections: failedInspectionCount_,
       criticalIncidents: criticalIncidentCount,
       resolutionRate: Math.round(resolutionRate * 100),
+      recurringHazards: openRecurringHazards.length,
     },
     dataSufficiency: {
       hasSufficientData,
