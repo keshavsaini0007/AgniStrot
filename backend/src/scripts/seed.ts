@@ -28,18 +28,37 @@ const SITES = [
     subsidiary: "Bharat Coking Coal Ltd",
     location: { lat: 23.7461, lng: 86.4123 },
     expectedWorkers: 50,
+    // Geofence ring: ~2 km square centred on the site location.
+    boundary: [
+      { lat: 23.7301, lng: 86.3963 },
+      { lat: 23.7301, lng: 86.4283 },
+      { lat: 23.7621, lng: 86.4283 },
+      { lat: 23.7621, lng: 86.3963 },
+    ],
   },
   {
     name: "Rajpur Opencast Mine",
     subsidiary: "Northern Coalfields Ltd",
     location: { lat: 24.1845, lng: 82.6774 },
     expectedWorkers: 45,
+    boundary: [
+      { lat: 24.1705, lng: 82.6634 },
+      { lat: 24.1705, lng: 82.6914 },
+      { lat: 24.1985, lng: 82.6914 },
+      { lat: 24.1985, lng: 82.6634 },
+    ],
   },
   {
     name: "Dhanbad Coal Mine",
     subsidiary: "Central Coalfields Ltd",
     location: { lat: 23.7957, lng: 86.4304 },
     expectedWorkers: 60,
+    boundary: [
+      { lat: 23.7797, lng: 86.4144 },
+      { lat: 23.7797, lng: 86.4464 },
+      { lat: 23.8117, lng: 86.4464 },
+      { lat: 23.8117, lng: 86.4144 },
+    ],
   },
 ];
 

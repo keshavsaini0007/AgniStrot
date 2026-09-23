@@ -273,6 +273,9 @@ export interface ISite {
   };
   expectedWorkers: number;
   createdAt: Date;
+  /** Geofence ring — lat/lng vertices of the site boundary. When present, sync
+   *  captures carrying coordinates must fall inside (GEOFENCE_VIOLATION). */
+  boundary?: Array<{ lat: number; lng: number }>;
 }
 
 export interface IUser {

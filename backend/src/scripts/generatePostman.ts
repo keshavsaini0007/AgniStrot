@@ -3154,6 +3154,145 @@ const collection: PostmanCollection = {
         },
       ],
     },
+    {
+      name: "16. Geofencing - Point in Polygon",
+      description:
+        "Feature — hand-rolled point-in-polygon geofencing on the sync write paths. A sync record that carries coordinates must fall inside its target site's boundary ring: in-bound captures are accepted, out-of-bound captures are rejected per-record with a GEOFENCE_VIOLATION reason and never persisted. Runs against the seeded Jharia boundary.",
+      item: [
+        {
+          name: "Sync Attendance - In-Bound Accepted",
+          request: {
+            method: "POST",
+            auth: bearerAuth("{{token_fo}}"),
+            header: [
+              { key: "Content-Type", value: "application/json" },
+            ],
+            body: {
+              mode: "raw",
+              raw: JSON.stringify({
+                records: [
+                  {
+                    clientUuid: "{{$guid}}",
+                    siteId: "{{siteId_jharia}}",
+                    workerRef: "postman-geo-in",
+                    checkType: "in",
+                    location: { lat: 23.7461, lng: 86.4123 },
+                    capturedAt: "2026-09-24T10:00:00.000Z",
+                  },
+                ],
+              }),
+              options: { raw: { language: "json" } },
+            },
+            url: parseUrl("{{baseUrl}}/attendance/sync"),
+          },
+          event: [
+            {
+              listen: "test",
+              script: {
+                type: "text/javascript",
+                exec: [
+                  "pm.test('In-bound attendance is accepted', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    const res = pm.response.json();",
+                  "    pm.expect(res.accepted).to.be.an('array').with.lengthOf(1);",
+                  "    pm.expect(res.rejected).to.have.lengthOf(0);",
+                  "});",
+                ],
+              },
+            },
+          ],
+        },
+        {
+          name: "Sync Attendance - Out-of-Bound Rejected",
+          request: {
+            method: "POST",
+            auth: bearerAuth("{{token_fo}}"),
+            header: [
+              { key: "Content-Type", value: "application/json" },
+            ],
+            body: {
+              mode: "raw",
+              raw: JSON.stringify({
+                records: [
+                  {
+                    clientUuid: "{{$guid}}",
+                    siteId: "{{siteId_jharia}}",
+                    workerRef: "postman-geo-out",
+                    checkType: "in",
+                    location: { lat: 23.7461, lng: 87.0 },
+                    capturedAt: "2026-09-24T10:00:00.000Z",
+                  },
+                ],
+              }),
+              options: { raw: { language: "json" } },
+            },
+            url: parseUrl("{{baseUrl}}/attendance/sync"),
+          },
+          event: [
+            {
+              listen: "test",
+              script: {
+                type: "text/javascript",
+                exec: [
+                  "pm.test('Out-of-bound attendance is rejected with GEOFENCE_VIOLATION', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    const res = pm.response.json();",
+                  "    pm.expect(res.accepted).to.have.lengthOf(0);",
+                  "    pm.expect(res.rejected).to.have.lengthOf(1);",
+                  "    pm.expect(res.rejected[0].reason).to.include('GEOFENCE_VIOLATION');",
+                  "});",
+                ],
+              },
+            },
+          ],
+        },
+        {
+          name: "Sync Incident - Out-of-Bound Rejected",
+          request: {
+            method: "POST",
+            auth: bearerAuth("{{token_fo}}"),
+            header: [
+              { key: "Content-Type", value: "application/json" },
+            ],
+            body: {
+              mode: "raw",
+              raw: JSON.stringify({
+                records: [
+                  {
+                    clientUuid: "{{$guid}}",
+                    siteId: "{{siteId_jharia}}",
+                    severity: "low",
+                    category: "safety",
+                    description: "Out-of-bound capture probe for the geofence gate.",
+                    location: { lat: 25.0, lng: 86.4123 },
+                    capturedAt: "2026-09-24T10:00:00.000Z",
+                  },
+                ],
+              }),
+              options: { raw: { language: "json" } },
+            },
+            url: parseUrl("{{baseUrl}}/incidents/sync"),
+          },
+          event: [
+            {
+              listen: "test",
+              script: {
+                type: "text/javascript",
+                exec: [
+                  "pm.test('Out-of-bound incident is rejected with GEOFENCE_VIOLATION', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    const res = pm.response.json();",
+                  "    pm.expect(res.accepted).to.have.lengthOf(0);",
+                  "    pm.expect(res.rejected).to.have.lengthOf(1);",
+                  "    pm.expect(res.rejected[0].reason).to.include('GEOFENCE_VIOLATION');",
+                  "});",
+                ],
+              },
+            },
+          ],
+        },
+      ],
+    },
   ],
 };
 

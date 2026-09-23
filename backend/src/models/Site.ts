@@ -23,6 +23,17 @@ const siteSchema = new Schema<ISite>(
       min: [1, "Expected workers must be at least 1."],
       default: 50,
     },
+    // Geofence ring — open polygon (lat/lng vertices). Sites without a boundary
+    // skip containment checks, so this is purely additive for existing sites.
+    boundary: {
+      type: [
+        {
+          lat: { type: Number, required: true },
+          lng: { type: Number, required: true },
+        },
+      ],
+      default: undefined,
+    },
   },
   {
     timestamps: { createdAt: true, updatedAt: false }, // we only need createdAt for sites

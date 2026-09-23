@@ -37,6 +37,7 @@ import { runEscalations } from "../services/workflowEngine.js";
 import { resolveAssignee } from "../services/ruleEngine.js";
 import { checkRecurringHazards, checkAttendanceAnomaly } from "../services/batchRules.js";
 import { normalizeHazardCategory } from "../services/recurringHazards.js";
+import { pointInPolygon } from "../utils/geometry.js";
 import { ALERT_DEADLINES } from "../types/index.js";
 
 // ── Verification battery ────────────────────────────────────────────────────
@@ -2875,6 +2876,180 @@ async function exportBattery(
   check("audit logs exported entries (users + attendance)", exported >= 2, `count=${exported}`);
 }
 
+// ── [F23] Geofencing battery ─────────────────────────────────────────────────
+// Feature — hand-rolled point-in-polygon geofencing. Pure geometry probes run
+// first (rectangle, concave notch, edge/vertex tolerance, degenerate ring),
+// then the sync write paths are exercised against a throwaway probe site with
+// a small square boundary: in-bound records are accepted, out-of-bound records
+// are rejected with GEOFENCE_VIOLATION and never persisted. A boundary-less
+// probe proves the ring is fully opt-in. Self-cleans in finally; the terminal
+// reseed wipes any outbox/audit noise from accepted probe records.
+
+async function geofenceBattery(t: { rahul: string }): Promise<void> {
+  console.log("\n== [F23] Geofencing (point-in-polygon) ==");
+
+  // ── 1. Pure geometry probes (direct calls — deterministic) ─────────────
+  const rect = [
+    { lat: 0, lng: 0 },
+    { lat: 0, lng: 10 },
+    { lat: 10, lng: 10 },
+    { lat: 10, lng: 0 },
+  ];
+  check("PIP: rectangle center inside", pointInPolygon(5, 5, rect), "center");
+  check("PIP: rectangle outside", !pointInPolygon(5, 11, rect), "outside");
+  check("PIP: edge point counts inside (tolerance)", pointInPolygon(5, 0, rect), "edge");
+  check("PIP: vertex counts inside (tolerance)", pointInPolygon(0, 0, rect), "vertex");
+
+  const concave = [
+    { lat: 0, lng: 0 },
+    { lat: 0, lng: 10 },
+    { lat: 5, lng: 6 },
+    { lat: 10, lng: 10 },
+    { lat: 10, lng: 0 },
+  ];
+  check("PIP: concave notch pocket is outside", !pointInPolygon(5, 9, concave), "notch");
+  check("PIP: concave body point inside", pointInPolygon(2, 2, concave), "body");
+
+  const degenerate = [{ lat: 1, lng: 1 }, { lat: 1, lng: 1 }];
+  check("PIP: degenerate ring (<3) never inside", !pointInPolygon(1, 1, degenerate), "degenerate");
+
+  // ── 2. Sync write-path enforcement ─────────────────────────────────────
+  const syncBody = (r: { body: AnyJson }): { accepted: string[]; rejected: { clientUuid: string; reason: string }[] } =>
+    (r.body ?? {}) as unknown as { accepted: string[]; rejected: { clientUuid: string; reason: string }[] };
+  const probe = await Site.create({
+    name: "Geofence Probe Mine",
+    subsidiary: "Probe Ltd",
+    location: { lat: 12.05, lng: 77.05 },
+    expectedWorkers: 5,
+    boundary: [
+      { lat: 12.0, lng: 77.0 },
+      { lat: 12.0, lng: 77.1 },
+      { lat: 12.1, lng: 77.1 },
+      { lat: 12.1, lng: 77.0 },
+    ],
+  });
+  const pid = (probe._id as unknown as Types.ObjectId).toString();
+  const now = new Date().toISOString();
+  try {
+    const attIn = await post(t.rahul, "/attendance/sync", {
+      records: [
+        {
+          clientUuid: randomUUID(),
+          siteId: pid,
+          workerRef: "probe-1",
+          checkType: "in",
+          location: { lat: 12.05, lng: 77.05 },
+          capturedAt: now,
+        },
+      ],
+    });
+    check(
+      "F23: attendance in-bound accepted",
+      syncBody(attIn).accepted.length === 1 && syncBody(attIn).rejected.length === 0,
+      JSON.stringify(attIn.body)
+    );
+
+    const attOut = await post(t.rahul, "/attendance/sync", {
+      records: [
+        {
+          clientUuid: randomUUID(),
+          siteId: pid,
+          workerRef: "probe-2",
+          checkType: "in",
+          location: { lat: 13.05, lng: 77.05 }, // ~110 km south — outside
+          capturedAt: now,
+        },
+      ],
+    });
+    const attOutBody = syncBody(attOut);
+    const attOutReason = attOutBody.rejected[0]?.reason ?? "";
+    check(
+      "F23: attendance out-of-bound rejected + GEOFENCE_VIOLATION",
+      attOutBody.accepted.length === 0 && attOutBody.rejected.length === 1 && attOutReason.includes("GEOFENCE_VIOLATION"),
+      attOutReason
+    );
+
+    const attCount = await Attendance.countDocuments({ siteId: probe._id });
+    check("F23: rejected attendance never persisted", attCount === 1, `count=${attCount}`);
+
+    const insOut = await post(t.rahul, "/inspections/sync", {
+      records: [
+        {
+          clientUuid: randomUUID(),
+          siteId: pid,
+          type: "safety",
+          checklist: [{ item: "guard rails", result: "fail" }],
+          location: { lat: 12.05, lng: 78.05 }, // ~95 km east — outside
+          capturedAt: now,
+        },
+      ],
+    });
+    const insOutReason = syncBody(insOut).rejected[0]?.reason ?? "";
+    check(
+      "F23: inspection out-of-bound rejected",
+      syncBody(insOut).accepted.length === 0 && syncBody(insOut).rejected.length === 1 && insOutReason.includes("GEOFENCE_VIOLATION"),
+      insOutReason
+    );
+    const insCount = await Inspection.countDocuments({ siteId: probe._id });
+    check("F23: rejected inspection never persisted", insCount === 0, `count=${insCount}`);
+
+    const incIn = await post(t.rahul, "/incidents/sync", {
+      records: [
+        {
+          clientUuid: randomUUID(),
+          siteId: pid,
+          severity: "low",
+          category: "safety",
+          description: "Slip hazard on the probe bench — needs a guard rail.",
+          location: { lat: 12.05, lng: 77.05 },
+          capturedAt: now,
+        },
+      ],
+    });
+    check(
+      "F23: incident in-bound accepted",
+      syncBody(incIn).accepted.length === 1 && syncBody(incIn).rejected.length === 0,
+      JSON.stringify(incIn.body)
+    );
+
+    // Boundary-less site → no enforcement (records accepted regardless).
+    const unbound = await Site.create({
+      name: "Unenforced Probe Mine",
+      subsidiary: "Probe Ltd",
+      location: { lat: 1, lng: 1 },
+      expectedWorkers: 5,
+    });
+    const uid2 = (unbound._id as unknown as Types.ObjectId).toString();
+    try {
+      const far = await post(t.rahul, "/attendance/sync", {
+        records: [
+          {
+            clientUuid: randomUUID(),
+            siteId: uid2,
+            workerRef: "probe-3",
+            checkType: "out",
+            location: { lat: 40, lng: 90 }, // absurdly far — but no ring
+            capturedAt: now,
+          },
+        ],
+      });
+      check(
+        "F23: boundary-less site unenforced (accepted)",
+        syncBody(far).accepted.length === 1,
+        JSON.stringify(far.body)
+      );
+      await Attendance.deleteMany({ siteId: unbound._id });
+    } finally {
+      await Site.deleteMany({ _id: unbound._id });
+    }
+  } finally {
+    await Attendance.deleteMany({ siteId: probe._id });
+    await Inspection.deleteMany({ siteId: probe._id });
+    await Incident.deleteMany({ siteId: probe._id });
+    await Site.deleteMany({ _id: probe._id });
+  }
+}
+
 async function main(): Promise<void> {
   killPort(PORT);
   runSeed();
@@ -2986,6 +3161,8 @@ async function main(): Promise<void> {
       { amit: tokens.amit, priya: tokens.priya, meena: tokens.meena, rahul: tokens.rahul },
       { SJ }
     );
+    // Geofencing battery — probe site + records self-clean in finally.
+    await geofenceBattery({ rahul: tokens.rahul });
   } finally {
     stopServer(server);
   }

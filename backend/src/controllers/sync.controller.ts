@@ -4,6 +4,8 @@ import type { ZodSchema } from "zod";
 import Inspection from "../models/Inspection.js";
 import Incident from "../models/Incident.js";
 import Attendance from "../models/Attendance.js";
+import Site from "../models/Site.js";
+import { isPointWithinBoundary, type GeoRingPoint } from "../utils/geometry.js";
 import {
   emitOutboxEvent,
   processOutboxEvents,
@@ -39,6 +41,43 @@ const EVENT_TYPE_BY_SOURCE: Record<SourceType, EventType> = {
   attendance: "ATTENDANCE_SYNCED",
 };
 
+// ── Geofencing ────────────────────────────────────────────────────────────────
+// Sites may define a `boundary` ring (stored on the Site document). Every sync
+// record that carries coordinates is checked against its target site's ring —
+// an out-of-bounds capture is rejected per-record (reason GEOFENCE_VIOLATION)
+// and never written. Sites without a boundary are unenforced (backward compat).
+
+interface GeofenceSite {
+  name: string;
+  boundary: GeoRingPoint[] | null;
+}
+
+async function loadSiteBoundaries(
+  siteIds: string[]
+): Promise<Map<string, GeofenceSite>> {
+  const map = new Map<string, GeofenceSite>();
+  if (siteIds.length === 0) return map;
+  const sites = await Site.find({ _id: { $in: siteIds } })
+    .select("name boundary")
+    .lean();
+  for (const s of sites) {
+    map.set((s._id as unknown as Types.ObjectId).toString(), {
+      name: s.name,
+      boundary: (s.boundary as unknown as GeoRingPoint[] | undefined) ?? null,
+    });
+  }
+  return map;
+}
+
+function collectSiteIds(records: unknown[]): string[] {
+  const ids = new Set<string>();
+  for (const raw of records) {
+    const siteId = (raw as Record<string, unknown>)?.siteId;
+    if (typeof siteId === "string") ids.add(siteId);
+  }
+  return [...ids];
+}
+
 /* eslint-disable @typescript-eslint/no-explicit-any */
 async function processRecord(
   rawRecord: unknown,
@@ -47,6 +86,7 @@ async function processRecord(
   Model: Model<any>,
   sourceType: SourceType,
   userId: string,
+  geofences: Map<string, GeofenceSite>,
   results: SyncResult
 ): Promise<void> {
   // Step 1: validate record shape
@@ -64,11 +104,29 @@ async function processRecord(
   const validated = parsed.data as Record<string, unknown>;
   const uuid = validated.clientUuid as string;
 
-  // Step 2: build the safe document — only whitelisted fields, server-set values override client
+  // Step 2: geofence containment — rejects out-of-bounds captures BEFORE the
+  // transactional write, so a violation never touches the entity/outbox.
+  const location = validated.location as { lat: number; lng: number } | undefined;
+  if (location) {
+    const site = geofences.get(validated.siteId as string);
+    if (
+      site?.boundary &&
+      site.boundary.length >= 3 &&
+      !isPointWithinBoundary(location, site.boundary)
+    ) {
+      results.rejected.push({
+        clientUuid: uuid,
+        reason: `GEOFENCE_VIOLATION: outside ${site.name} boundary`,
+      });
+      return;
+    }
+  }
+
+  // Step 3: build the safe document — only whitelisted fields, server-set values override client
   const safeDoc = buildSafeDoc(validated, userId);
   const siteId = new Types.ObjectId(validated.siteId as string);
 
-  // Step 3: transactional outbox (edges A + F) — entity + event commit together.
+  // Step 4: transactional outbox (edges A + F) — entity + event commit together.
   await runInTransaction(async (session) => {
     const result: any = await Model.findOneAndUpdate(
       { clientUuid: uuid },
@@ -120,6 +178,7 @@ export const syncInspections = async (req: Request, res: Response): Promise<void
     const { records } = req.body as { records: unknown[] };
     const userId = req.user!.id;
     const results: SyncResult = { accepted: [], rejected: [] };
+    const geofences = await loadSiteBoundaries(collectSiteIds(records));
 
     for (const raw of records) {
       await processRecord(
@@ -139,6 +198,7 @@ export const syncInspections = async (req: Request, res: Response): Promise<void
         Inspection,
         "inspection",
         userId,
+        geofences,
         results
       );
     }
@@ -158,6 +218,7 @@ export const syncIncidents = async (req: Request, res: Response): Promise<void> 
     const { records } = req.body as { records: unknown[] };
     const userId = req.user!.id;
     const results: SyncResult = { accepted: [], rejected: [] };
+    const geofences = await loadSiteBoundaries(collectSiteIds(records));
 
     for (const raw of records) {
       await processRecord(
@@ -179,6 +240,7 @@ export const syncIncidents = async (req: Request, res: Response): Promise<void> 
         Incident,
         "incident",
         userId,
+        geofences,
         results
       );
     }
@@ -198,6 +260,7 @@ export const syncAttendance = async (req: Request, res: Response): Promise<void>
     const { records } = req.body as { records: unknown[] };
     const userId = req.user!.id;
     const results: SyncResult = { accepted: [], rejected: [] };
+    const geofences = await loadSiteBoundaries(collectSiteIds(records));
 
     for (const raw of records) {
       await processRecord(
@@ -215,6 +278,7 @@ export const syncAttendance = async (req: Request, res: Response): Promise<void>
         Attendance,
         "attendance",
         userId,
+        geofences,
         results
       );
     }
