@@ -51,6 +51,22 @@ export const listAlerts = async (
         severity: r.severity,
         status: r.status,
         assignedToName: (r.assignedTo as unknown as { name: string })?.name ?? "Unassigned",
+        // ── Feature 04: recurrence pattern enrichment ────────────────────────
+        category: r.category,
+        scope: r.scope,
+        reportCount: r.reportCount,
+        uniqueReporters: r.uniqueReporters,
+        reinforcedCount: r.reinforcedCount,
+        zoneCount: r.zoneCount,
+        sitesAffected: r.sitesAffected,
+        firstReportedAt: r.firstReportedAt,
+        lastReportedAt: r.lastReportedAt,
+        evidence: (r.evidence ?? []).map((e) => ({
+          sourceType: e.sourceType,
+          sourceId: e.sourceId.toString(),
+          reporterId: e.reporterId ? e.reporterId.toString() : undefined,
+          capturedAt: e.capturedAt,
+        })),
         createdAt: r.createdAt,
       };
     });

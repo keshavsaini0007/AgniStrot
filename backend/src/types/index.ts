@@ -44,6 +44,23 @@ export type SourceType = "inspection" | "incident" | "attendance";
 
 export type DocumentReviewStatus = "pending" | "confirmed" | "rejected";
 
+// ── Feature 04: Recurring Problem Detection types ────────────────────────────
+// An alert's pattern classification (edge case E) — the same category can be:
+//   localized       one zone cluster at a site
+//   site-wide       ≥2 zones at the same site
+//   category-wide   same category qualifying at ≥2 sites
+export type RecurringHazardScope = "localized" | "site-wide" | "category-wide";
+
+// One record (failed inspection item or incident) that contributed evidence to
+// a RECURRING_HAZARD alert. Snapshot of record identity at detection time —
+// never used as a foreign-key guarantee, only for traceability.
+export interface IAlertEvidence {
+  sourceType: SourceType;
+  sourceId: Types.ObjectId;
+  reporterId?: Types.ObjectId; // inspectorId (inspection) or reportedBy (incident)
+  capturedAt: Date;
+}
+
 // ── Event-Driven Architecture types ──────────────────────────────────────────
 
 // Domain events published to the durable outbox. Type = SCREAMING_SNAKE.
@@ -91,7 +108,9 @@ export type RuleCode =
   | "MISSING_MANDATORY_FIELD"    // sync: inspection checklist has an item with no result
   | "REPEAT_VIOLATION"           // batch: same rule fired 3+ times for same site in 30 days
   | "OVERDUE_INSPECTION"         // batch: required inspection type not done within mandated interval
-  | "ATTENDANCE_ANOMALY";        // batch: today's attendance deviates >30% from 14-day average
+  | "ATTENDANCE_ANOMALY"         // batch: today's attendance deviates >30% from 14-day average
+  | "RECURRING_HAZARD";          // batch: same canonical hazard (category) recurs in a zone;
+                                 //   ≥3 reports from ≥2 unique reporters across ≥2 dates (feature 04)
 
 // ── JWT Payload (what gets signed into the token) ────────────────────────────
 
@@ -211,6 +230,17 @@ export interface IAlert {
   lastEscalatedAt: Date | null;    // most recent escalation timestamp
   acknowledgedAt: Date | null;     // when someone acknowledged (for ack-SLA compliance)
   department?: Department;         // responsibility area captured at creation (edge H)
+  // ── Feature 04: Recurring Problem Detection (RECURRING_HAZARD only) ────────
+  category?: string;               // canonical hazard category (normalized key, edge case B)
+  scope?: RecurringHazardScope;    // localized | site-wide | category-wide (edge case E)
+  evidence?: IAlertEvidence[];     // source records proving the pattern (capped, newest first)
+  reportCount?: number;            // total reports in the current detection window
+  uniqueReporters?: number;        // distinct inspector/reporter ids (edge case D)
+  reinforcedCount?: number;        // times a still-open alert absorbed new reports (REPEAT vs UNRESOLVED, edge A)
+  zoneCount?: number;              // distinct radius clusters behind this pattern (edge case C/E)
+  sitesAffected?: number;          // distinct sites with the same category (edge case E)
+  firstReportedAt?: Date;          // earliest capturedAt in the window
+  lastReportedAt?: Date;           // latest capturedAt in the window
   createdAt: Date;
   resolvedAt?: Date;          // timestamp when alert was closed
 }
