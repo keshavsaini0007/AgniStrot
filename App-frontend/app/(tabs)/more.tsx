@@ -14,21 +14,33 @@ export default function MoreScreen() {
   const { user, logout } = useAuth();
   const roleConfig = user ? getRoleConfig(user.role) : null;
 
-  const menuItems = [
-    { icon: 'sync', title: 'Sync & Offline', screen: '/capture/sync' as const },
-    { icon: 'inspection', title: 'New Inspection', screen: '/capture/inspection' as const },
-    { icon: 'report-incident', title: 'Report Incident', screen: '/capture/incident' as const },
-    { icon: 'attendance', title: 'Attendance', screen: '/capture/attendance' as const },
-    { icon: 'wrench', title: 'Corrective Actions', screen: '/(tabs)/corrective-actions' as const },
-    { icon: 'compliance', title: 'Compliance', screen: '/(tabs)/compliance' as const },
-    { icon: 'notification', title: 'Notifications', screen: '/(tabs)/notifications' as const },
-    { icon: 'file-text', title: 'Documents', screen: '/(tabs)/documents' as const },
-    { icon: 'analytics', title: 'Analytics', screen: '/(tabs)/analytics' as const },
-    { icon: 'map', title: 'GIS Map', screen: '/(tabs)/gis' as const },
-    { icon: 'map-pin', title: 'My Live Location', screen: '/(tabs)/live-location' as const },
-    { icon: 'report', title: 'Reports', screen: '/(tabs)/reports' as const },
-    { icon: 'setting', title: 'Settings', screen: '/(tabs)/settings' as const },
-  ] as const satisfies { icon: PngIconName; title: string; screen: string }[];
+  const baseMenuItems = [
+    { icon: 'sync', title: 'Sync & Offline', screen: '/capture/sync' },
+    { icon: 'inspection', title: 'New Inspection', screen: '/capture/inspection' },
+    { icon: 'report-incident', title: 'Report Incident', screen: '/capture/incident' },
+    { icon: 'attendance', title: 'Attendance', screen: '/capture/attendance' },
+    { icon: 'wrench', title: 'Corrective Actions', screen: '/(tabs)/corrective-actions' },
+    { icon: 'compliance', title: 'Compliance', screen: '/(tabs)/compliance' },
+    { icon: 'notification', title: 'Notifications', screen: '/(tabs)/notifications' },
+    { icon: 'file-text', title: 'Documents', screen: '/(tabs)/documents' },
+    { icon: 'analytics', title: 'Analytics', screen: '/(tabs)/analytics' },
+    { icon: 'map', title: 'GIS Map', screen: '/(tabs)/gis' },
+    { icon: 'map-pin', title: 'My Live Location', screen: '/(tabs)/live-location' },
+    { icon: 'report', title: 'Reports', screen: '/(tabs)/reports' },
+    { icon: 'setting', title: 'Settings', screen: '/(tabs)/settings' },
+  ] as const satisfies readonly { icon: PngIconName; title: string; screen: string }[];
+
+  // Feature 07 parity — the user directory is corporate-only (route guard).
+  const corporateEntry = {
+    icon: 'user-check',
+    title: 'Users',
+    screen: '/(tabs)/users',
+  } as const;
+
+  const menuItems =
+    user?.role === 'corporate_manager'
+      ? [...baseMenuItems, corporateEntry]
+      : baseMenuItems;
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>

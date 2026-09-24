@@ -2,23 +2,23 @@ import { authMockRepository } from './mock/authMockRepository';
 import { mineMockRepository } from './mock/mineMockRepository';
 import { inspectionMockRepository } from './mock/inspectionMockRepository';
 import { observationMockRepository } from './mock/observationMockRepository';
-import { correctiveActionMockRepository } from './mock/correctiveActionMockRepository';
 import { complianceMockRepository } from './mock/complianceMockRepository';
 import { notificationMockRepository } from './mock/notificationMockRepository';
 import { analyticsMockRepository } from './mock/analyticsMockRepository';
-import { userMockRepository } from './mock/userMockRepository';
 import { documentMockRepository } from './mock/documentMockRepository';
 import { auditLogMockRepository } from './mock/auditLogMockRepository';
 import { authApiRepository } from './api/authApiRepository';
+import { userApiRepository } from './api/userApiRepository';
+import { correctiveActionApiRepository } from './api/correctiveActionApiRepository';
 import { inspectionApiRepository } from './api/inspectionApiRepository';
 import { incidentApiRepository } from './api/incidentApiRepository';
 import { attendanceApiRepository } from './api/attendanceApiRepository';
 import { mediaApiRepository } from './api/mediaApiRepository';
 
-// When live = true, auth + inspections talk to the real backend (/backend).
-// Screens without a live backend endpoint (mines, observations, notifications,
-// analytics, reports, audit, users, documents, corrective actions, compliance)
-// continue to resolve against the mock repositories — there is no API to hit.
+// Live mode: auth + inspections + attendance + media already talk to the real
+// backend (/backend). Feature 07/08 parity switches the user directory and the
+// corrective-actions feed to the real API too (both were mock-locked). The live
+// site list powers the manage-user modal's site picker.
 const useMockApi = false;
 
 export const authRepository = useMockApi ? authMockRepository : authApiRepository;
@@ -30,9 +30,7 @@ export const attendanceRepository = attendanceApiRepository; // Always use API r
 export const observationRepository = useMockApi
   ? observationMockRepository
   : observationMockRepository;
-export const correctiveActionRepository = useMockApi
-  ? correctiveActionMockRepository
-  : correctiveActionMockRepository;
+export const correctiveActionRepository = correctiveActionApiRepository;
 export const complianceRepository = useMockApi
   ? complianceMockRepository
   : complianceMockRepository;
@@ -42,7 +40,7 @@ export const notificationRepository = useMockApi
 export const analyticsRepository = useMockApi
   ? analyticsMockRepository
   : analyticsMockRepository;
-export const userRepository = useMockApi ? userMockRepository : userMockRepository;
+export const userRepository = userApiRepository;
 export const documentRepository = useMockApi
   ? documentMockRepository
   : documentMockRepository;
@@ -51,3 +49,6 @@ export const auditLogRepository = useMockApi
   : auditLogMockRepository;
 
 export { inspectionApiRepository, incidentApiRepository, attendanceApiRepository, mediaApiRepository };
+
+/** Live sites for the manage-user modal picker (always API-backed). */
+export { siteApiRepository as siteRepository } from './api/siteApiRepository';

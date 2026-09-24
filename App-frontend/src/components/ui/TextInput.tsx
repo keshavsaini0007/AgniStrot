@@ -14,6 +14,9 @@ interface TextInputProps {
   keyboardType?: 'default' | 'email-address' | 'numeric' | 'phone-pad';
   autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
   autoCorrect?: boolean;
+  multiline?: boolean;
+  numberOfLines?: number;
+  testID?: string;
   style?: ViewStyle;
 }
 

@@ -1,5 +1,5 @@
 import { correctiveActionRepository } from '@/repositories';
-import type { CorrectiveAction, FilterParams, PaginatedResponse } from '@/types';
+import type { CorrectiveAction, CorrectiveCloseout, FilterParams, PaginatedResponse } from '@/types';
 
 export const correctiveActionService = {
   getCorrectiveActions: async (params?: FilterParams): Promise<PaginatedResponse<CorrectiveAction>> => {
@@ -8,10 +8,17 @@ export const correctiveActionService = {
   getCorrectiveActionById: async (id: string): Promise<CorrectiveAction> => {
     return await correctiveActionRepository.getCorrectiveActionById(id);
   },
-  createCorrectiveAction: async (data: Omit<CorrectiveAction, 'id' | 'createdAt' | 'updatedAt'>): Promise<CorrectiveAction> => {
-    return await correctiveActionRepository.createCorrectiveAction(data);
+  // ── Feature 08: close-out loop ────────────────────────────────────────────
+  submitCloseout: async (
+    id: string,
+    input: { recommendation: string; effectiveness: string; evidenceNote?: string }
+  ): Promise<CorrectiveCloseout> => {
+    return await correctiveActionRepository.submitCloseout(id, input);
   },
-  updateCorrectiveAction: async (id: string, data: Partial<CorrectiveAction>): Promise<CorrectiveAction> => {
-    return await correctiveActionRepository.updateCorrectiveAction(id, data);
+  approveCloseout: async (id: string, reviewNote?: string): Promise<CorrectiveCloseout> => {
+    return await correctiveActionRepository.approveCloseout(id, reviewNote);
+  },
+  rejectCloseout: async (id: string, reviewNote?: string): Promise<CorrectiveCloseout> => {
+    return await correctiveActionRepository.rejectCloseout(id, reviewNote);
   },
 };

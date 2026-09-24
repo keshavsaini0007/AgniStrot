@@ -5,12 +5,23 @@ export interface User {
   role: UserRole;
   department?: string;
   mineId?: string;
+  /**
+   * Real-backend site binding (feature 07 parity). Legacy mock rows only have
+   * mineId; the live directory returns siteId (ObjectId string) or null.
+   */
+  siteId?: string | null;
   status: 'active' | 'inactive';
   createdAt: string;
   updatedAt: string;
 }
 
+// Backend vocabulary first (auth/login returns these), legacy demo roles kept
+// for the mock screens that still resolve against the mock database.
 export type UserRole =
+  | 'mine_official'
+  | 'corporate_manager'
+  | 'regulator'
+  | 'field_officer'
   | 'system_admin'
   | 'mine_officer'
   | 'field_inspector'
@@ -19,6 +30,14 @@ export type UserRole =
   | 'corporate_management'
   | 'regulatory_authority'
   | 'auditor';
+
+/** Admin user-management patch (feature 07) — email is immutable, never sent. */
+export interface UpdateUserInput {
+  name?: string;
+  role?: UserRole;
+  siteId?: string | null;
+  status?: 'active' | 'inactive';
+}
 
 export interface Mine {
   id: string;
@@ -83,18 +102,35 @@ export interface CorrectiveAction {
   id: string;
   observationId: string;
   mineId: string;
+  /** Human-readable site name (real feed) — optional for legacy mock rows. */
+  siteName?: string;
   assignedTo?: string;
   department?: string;
   title: string;
   description: string;
   priority: 'low' | 'medium' | 'high' | 'urgent';
   dueDate: string;
-  status: 'reported' | 'assigned' | 'in_progress' | 'resolved' | 'verified' | 'closed';
+  status: 'reported' | 'assigned' | 'in_progress' | 'resolved' | 'verified' | 'rejected' | 'closed';
   resolutionNote?: string;
   verifiedBy?: string;
   verifiedAt?: string;
+  /** Feature 08 — persistent close-out record (1:1 with the corrective action). */
+  closeout?: CorrectiveCloseout;
   createdAt: string;
   updatedAt: string;
+}
+
+/** Feature 08 — close-out record returned by /corrective-actions/:id. */
+export interface CorrectiveCloseout {
+  status: 'submitted' | 'approved' | 'rejected';
+  recommendation: string;
+  effectiveness: string;
+  evidenceNote?: string;
+  submittedBy?: string;
+  submittedAt: string;
+  reviewedBy?: string;
+  reviewedAt?: string;
+  reviewNote?: string;
 }
 
 export interface ComplianceRequirement {

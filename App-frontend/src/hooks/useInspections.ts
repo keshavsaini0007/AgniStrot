@@ -22,6 +22,7 @@ export const useInspection = (id: string) => {
 export const useCreateInspection = () => {
   const queryClient = useQueryClient();
   return useMutation({
+    networkMode: 'always',
     mutationFn: (record: Record<string, unknown>) =>
       inspectionService.createInspectionRecord(record),
     onSuccess: async () => {

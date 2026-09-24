@@ -7,6 +7,7 @@ import { queryKeys } from './useMines';
 export const useQueueAttendance = () => {
   const queryClient = useQueryClient();
   return useMutation({
+    networkMode: 'always',
     mutationFn: (record: Record<string, unknown>) => attendanceService.queueAttendance(record),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: syncKeys.status });

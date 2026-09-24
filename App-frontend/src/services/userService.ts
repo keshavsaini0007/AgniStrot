@@ -1,5 +1,5 @@
 import { userRepository } from '@/repositories';
-import type { User, FilterParams, PaginatedResponse } from '@/types';
+import type { User, FilterParams, PaginatedResponse, UpdateUserInput } from '@/types';
 
 export const userService = {
   getUsers: async (params?: FilterParams): Promise<PaginatedResponse<User>> => {
@@ -7,5 +7,8 @@ export const userService = {
   },
   getUserById: async (id: string): Promise<User> => {
     return await userRepository.getUserById(id);
+  },
+  updateUser: async (id: string, data: UpdateUserInput): Promise<User> => {
+    return await userRepository.updateUser(id, data);
   },
 };

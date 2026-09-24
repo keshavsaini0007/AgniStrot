@@ -34,6 +34,9 @@ export const queryKeys = {
     all: ['users'] as const,
     detail: (id: string) => ['users', id] as const,
   },
+  sites: {
+    all: ['sites'] as const,
+  },
   documents: {
     all: ['documents'] as const,
     detail: (id: string) => ['documents', id] as const,

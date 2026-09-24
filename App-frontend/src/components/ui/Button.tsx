@@ -15,6 +15,7 @@ interface ButtonProps {
   disabled?: boolean;
   icon?: React.ReactNode;
   style?: ViewStyle;
+  testID?: string;
 }
 
 export function Button({
@@ -26,6 +27,7 @@ export function Button({
   disabled = false,
   icon,
   style,
+  testID,
 }: ButtonProps) {
   const theme = useTheme();
 
@@ -63,6 +65,7 @@ export function Button({
     <Pressable
       onPress={onPress}
       disabled={disabled || loading}
+      testID={testID}
       style={({ pressed }) => [
         styles.button,
         variantStyle.container,

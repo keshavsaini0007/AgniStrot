@@ -25,6 +25,52 @@ In the output, you'll find options to open the app in a
 
 You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
 
+## Running against the real backend
+
+The app resolves the API base from `EXPO_PUBLIC_API_URL`. The checked-in `.env`
+contains a stale tunnel URL — don't rely on it. Boot with an override:
+
+```bash
+EXPO_PUBLIC_API_URL=http://localhost:5000/api/v1 npx expo start --web --port 8081
+```
+
+Backend E2E stack: start a local single-node MongoDB replica set
+(`mongod --replSet rs0 --port 27018 --dbpath <tempdir>`), then boot the backend
+with `MONGO_URI=mongodb://127.0.0.1:27018/agnistrot` (the transactional outbox
+requires a replica set) and seed it (`npm run seed` in `backend/`).
+
+## Verification gates
+
+```bash
+npm run verify:app   # typecheck + expo lint + expo export --platform web
+```
+
+Expo-web Playwright suite (run from `../frontend`): `npx playwright test --project=expo-web`.
+
+## Mobile device smoke checklist (Phase 7)
+
+Seed accounts: `amit@agnistrot.com` (corporate) · `priya@agnistrot.com` (mine official) ·
+`rahul@agnistrot.com` (field officer) · `meena@agnistrot.com` (regulator) — all `password123`.
+
+1. **f07 users — Manage modal (corporate).** Sign in as `amit@…` → Users tab → Manage a
+   user → change role → Save → row reflects the new role. Deactivate → row flips to
+   Inactive → that user can no longer sign in (message shown, stays on login).
+   Reactivate → access restored.
+2. **f07 RBAC.** Sign in as `rahul@…` (field officer) → no Users entry in More; direct
+   navigation to the Users screen shows the corporate-only guard.
+3. **f08 corrective close-out.** Sign in as `priya@…` → open a non-closed corrective
+   action (detail from the list) → resolve the alert via the alert lifecycle → the
+   close-out panel appears → fill recommendation/effectiveness/evidence → Submit →
+   status VERIFIED. Sign in as `amit@…` → open the same action → Review note → Approve →
+   status CLOSED with review evidence. As `rahul@…`, the close-out submit is denied (403).
+4. **Offline-first capture → sync.** Sign in as `rahul@…` → put the device offline
+   (airplane mode) → capture an attendance Check In → Sync screen shows it queued →
+   reconnect → Sync Now (or wait for auto-sync) → the row appears in the backend
+   attendance feed; queue shows All synced.
+5. **General smoke.** Dashboards render per role, capture forms (inspection/incident/
+   attendance) save and sync, corrective-actions list reflects the live feeds,
+   dark/light theme toggle works.
+
 ## Get a fresh project
 
 When you're ready, run:
