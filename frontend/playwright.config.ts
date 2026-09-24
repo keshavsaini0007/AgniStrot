@@ -7,6 +7,13 @@ import { defineConfig, devices } from '@playwright/test';
  * which starts the backend, runs the idempotent seed to restore canonical
  * data, then launches the Vite dev server in real-API mode on :3000.
  *
+ * The `expo-web` project targets the Expo web build of the mobile app on
+ * :8081. Expo is booted MANUALLY (never spawned by Playwright — see the
+ * official gate run in the roadmap): `cd App-frontend && npm run verify:app`
+ * then `CI=1 npx expo start --web --port 8081`. Mobile specs also need the
+ * same backend+seed stack on :5000 (the web `webServer` reuse covers it when
+ * the chromium suite runs; for a mobile-only run, boot e2e-server.mjs first).
+ *
  * Run with: npm run test:e2e          (first: npm run test:e2e:install)
  */
 export default defineConfig({
@@ -27,5 +34,16 @@ export default defineConfig({
     reuseExistingServer: true,
     timeout: 150_000,
   },
-  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+  projects: [
+    {
+      name: 'chromium',
+      use: { ...devices['Desktop Chrome'] },
+      testIgnore: /mobile-.*\.spec\.ts$/,
+    },
+    {
+      name: 'expo-web',
+      testMatch: /mobile-.*\.spec\.ts$/,
+      use: { ...devices['Desktop Chrome'], baseURL: 'http://localhost:8081' },
+    },
+  ],
 });
