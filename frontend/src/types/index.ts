@@ -304,7 +304,7 @@ export type HazardControlType =
 
 export type HazardControlStatus = 'effective' | 'partially_effective' | 'ineffective';
 
-export type HazardSourceType = 'manual' | 'alert';
+export type HazardSourceType = 'manual' | 'alert' | 'ocr';
 
 /** One hierarchy-of-controls measure attached to a hazard. */
 export interface HazardControl {
@@ -345,6 +345,8 @@ export interface Hazard {
   location: { lat: number; lng: number } | null;
   sourceType: HazardSourceType;
   sourceAlertId: string | null;
+  /** Scanned Document the entry was auto-captured from (sourceType 'ocr'). */
+  sourceDocumentId: string | null;
   registeredBy: string;
   registeredByName: string | null;
   registeredAt: string;

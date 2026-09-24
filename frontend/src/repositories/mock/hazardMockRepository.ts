@@ -208,6 +208,7 @@ function seedRow(partial: Partial<Hazard> & { id: string; siteId: string; siteNa
     location: null,
     sourceType: 'manual',
     sourceAlertId: null,
+    sourceDocumentId: null,
     registeredBy: 'usr-003',
     registeredByName: 'Amit Sharma',
     registeredAt: '2026-09-12T08:00:00.000Z',

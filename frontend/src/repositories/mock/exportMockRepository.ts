@@ -14,6 +14,10 @@ const toCsv = (rows: Array<Array<unknown>>): Blob =>
     type: 'text/csv;charset=utf-8',
   });
 
+// Pretty-printed JSON twin of the CSV register blob (same row keys).
+const toJson = (rows: Array<Record<string, unknown>>): Blob =>
+  new Blob([JSON.stringify(rows, null, 2)], { type: 'application/json;charset=utf-8' });
+
 export const exportMockRepository = {
   /** Corporate-only register export (mock mode does not enforce RBAC). */
   downloadUsersCsv: async (): Promise<Blob> => {
@@ -51,5 +55,37 @@ export const exportMockRepository = {
       ]),
     ];
     return toCsv(out);
+  },
+
+  /** Corporate JSON register (mock mode does not enforce RBAC). */
+  downloadUsersJson: async (): Promise<Blob> => {
+    await delay(400);
+    const rows = mockUsers.map((u) => ({
+      Name: u.name,
+      Email: u.email,
+      Role: u.role,
+      Site: mockSites.find((s) => s.id === u.siteId)?.name ?? '',
+      Status: u.status ?? 'active',
+      Created: u.createdAt ?? '',
+    }));
+    return toJson(rows);
+  },
+
+  /** Role-scoped attendance JSON export (optional site + date window). */
+  downloadAttendanceJson: async (query?: AttendanceExportQuery): Promise<Blob> => {
+    await delay(400);
+    let rows = mockAttendance;
+    if (query?.siteId) rows = rows.filter((a) => a.siteId === query.siteId);
+    if (query?.from) rows = rows.filter((a) => new Date(a.capturedAt) >= new Date(query.from as string));
+    if (query?.to) rows = rows.filter((a) => new Date(a.capturedAt) <= new Date(query.to as string));
+    const out = rows.map((a) => ({
+      'Site ID': a.siteId,
+      Site: mockSites.find((s) => s.id === a.siteId)?.name ?? '',
+      Worker: a.workerRef,
+      'Check Type': a.checkType,
+      'Captured At': a.capturedAt,
+      'Synced At': a.syncedAt ?? '',
+    }));
+    return toJson(out);
   },
 };

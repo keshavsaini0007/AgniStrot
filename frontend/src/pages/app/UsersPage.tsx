@@ -104,7 +104,8 @@ export const UsersPage = () => {
   const [isEditSubmitting, setIsEditSubmitting] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
 
-  // Feature 09 — register CSV export (corporate-only endpoint).
+  // Feature 09 — register export (corporate-only endpoints). CSV twin kept for
+  // spreadsheet users; JSON twin added for machine consumption.
   const [isExporting, setIsExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
   const handleExportCsv = async () => {
@@ -113,6 +114,18 @@ export const UsersPage = () => {
     try {
       const blob = await exportService.downloadUsersCsv();
       downloadBlob(blob, 'users-register.csv');
+    } catch (err) {
+      setExportError(sanitizeErrorMessage(err instanceof Error ? err.message : 'Export failed'));
+    } finally {
+      setIsExporting(false);
+    }
+  };
+  const handleExportJson = async () => {
+    setIsExporting(true);
+    setExportError(null);
+    try {
+      const blob = await exportService.downloadUsersJson();
+      downloadBlob(blob, 'users-register.json');
     } catch (err) {
       setExportError(sanitizeErrorMessage(err instanceof Error ? err.message : 'Export failed'));
     } finally {
@@ -235,6 +248,15 @@ export const UsersPage = () => {
               disabled={isExporting}
             >
               {isExporting ? 'Exporting…' : 'Export CSV'}
+            </Button>
+            <Button
+              data-testid="export-users-json"
+              variant="secondary"
+              leftIcon={<Download className="w-4 h-4" />}
+              onClick={handleExportJson}
+              disabled={isExporting}
+            >
+              {isExporting ? 'Exporting…' : 'Export JSON'}
             </Button>
             <Button variant="primary" leftIcon={<Plus className="w-4 h-4" />} onClick={() => setIsOpen(true)}>
               Add User

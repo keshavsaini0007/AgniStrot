@@ -11,4 +11,14 @@ export const exportService = {
   downloadAttendanceCsv: async (query?: AttendanceExportQuery): Promise<Blob> => {
     return await exportRepository.downloadAttendanceCsv(query);
   },
+
+  /** Downloads the corporate user register JSON. */
+  downloadUsersJson: async (): Promise<Blob> => {
+    return await exportRepository.downloadUsersJson();
+  },
+
+  /** Downloads the role-scoped attendance register JSON. */
+  downloadAttendanceJson: async (query?: AttendanceExportQuery): Promise<Blob> => {
+    return await exportRepository.downloadAttendanceJson(query);
+  },
 };

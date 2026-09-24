@@ -264,6 +264,9 @@ const HazardRow = ({ row, onManage }: { row: Hazard; onManage: () => void }) => 
               {row.sourceType === 'alert' && (
                 <span className="rounded bg-[#B9A0FF]/15 px-1 py-px text-[9px] text-[#B9A0FF]">from alert</span>
               )}
+              {row.sourceType === 'ocr' && (
+                <span className="rounded bg-[#35C759]/15 px-1 py-px text-[9px] text-[#35C759]">from OCR scan</span>
+              )}
             </p>
           </div>
         </div>
@@ -524,7 +527,11 @@ const ManageHazardModal = ({
         <p className="text-[13px] leading-relaxed text-[#A4ADB2]">{hazard.description}</p>
         <p className="text-[11px] text-[#78919F]">
           Registered {formatDate(hazard.registeredAt)} · {hazard.siteName ?? hazard.siteId} ·{' '}
-          {hazard.sourceType === 'alert' ? 'raised from a recurring-hazard alert' : 'manual registration'}
+          {hazard.sourceType === 'alert'
+            ? 'raised from a recurring-hazard alert'
+            : hazard.sourceType === 'ocr'
+              ? 'extracted from a scanned document (OCR)'
+              : 'manual registration'}
         </p>
 
         {/* Effectiveness */}

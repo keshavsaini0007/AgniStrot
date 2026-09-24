@@ -35,22 +35,35 @@ export const AttendancePage = () => {
   });
   const { version, newRowId, clearRowId } = useLiveRecords(['attendance']);
 
-  // Feature 09 — role-scoped attendance register CSV export.
+  // Feature 09 — role-scoped attendance register export (CSV + JSON twins).
   const [isExporting, setIsExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
+  const saveBlob = (blob: Blob, filename: string) => {
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = filename;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+  };
   const handleExportCsv = async () => {
     setIsExporting(true);
     setExportError(null);
     try {
-      const blob = await exportService.downloadAttendanceCsv();
-      const url = URL.createObjectURL(blob);
-      const anchor = document.createElement('a');
-      anchor.href = url;
-      anchor.download = 'attendance-register.csv';
-      document.body.appendChild(anchor);
-      anchor.click();
-      anchor.remove();
-      URL.revokeObjectURL(url);
+      saveBlob(await exportService.downloadAttendanceCsv(), 'attendance-register.csv');
+    } catch (err) {
+      setExportError(sanitizeErrorMessage(err instanceof Error ? err.message : 'Export failed'));
+    } finally {
+      setIsExporting(false);
+    }
+  };
+  const handleExportJson = async () => {
+    setIsExporting(true);
+    setExportError(null);
+    try {
+      saveBlob(await exportService.downloadAttendanceJson(), 'attendance-register.json');
     } catch (err) {
       setExportError(sanitizeErrorMessage(err instanceof Error ? err.message : 'Export failed'));
     } finally {
@@ -137,6 +150,15 @@ export const AttendancePage = () => {
             disabled={isExporting}
           >
             {isExporting ? 'Exporting…' : 'Export CSV'}
+          </Button>
+          <Button
+            data-testid="export-attendance-json"
+            variant="secondary"
+            leftIcon={<Download className="h-4 w-4" />}
+            onClick={handleExportJson}
+            disabled={isExporting}
+          >
+            {isExporting ? 'Exporting…' : 'Export JSON'}
           </Button>
         </div>
         <CardContent className="p-0">

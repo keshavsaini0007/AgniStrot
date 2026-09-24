@@ -40,6 +40,8 @@ export const API_ENDPOINTS = {
   EXPORTS: {
     USERS_CSV: '/exports/users.csv',
     ATTENDANCE_CSV: '/exports/attendance.csv',
+    USERS_JSON: '/exports/users.json',
+    ATTENDANCE_JSON: '/exports/attendance.json',
   },
   GIS: {
     MARKERS: '/gis/markers',
