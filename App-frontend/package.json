@@ -53,7 +53,9 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "typecheck": "tsc --noEmit",
+    "verify:app": "npm run typecheck && npm run lint && expo export --platform web"
   },
   "overrides": {
     "@expo/ngrok": "npm:expo-cloudflared@^4.2.0"
