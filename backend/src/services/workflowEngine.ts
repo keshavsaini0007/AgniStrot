@@ -239,6 +239,7 @@ async function writeClimb(
         $set: {
           status: terminal ? "escalated" : "open",
           assignedTo: nextAssignee,
+          assignedRole: nextRole,
           currentLevel: toLevel,
           escalationCount,
           lastEscalatedAt: now,
@@ -302,6 +303,7 @@ async function writeTerminal(
       {
         $set: {
           status: "escalated",
+          assignedRole: topRole,
           escalationCount,
           lastEscalatedAt: now,
         },

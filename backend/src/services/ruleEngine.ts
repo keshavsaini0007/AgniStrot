@@ -235,6 +235,7 @@ export async function evaluateRules(
           severity: rule.severity,
           status: "open" as AlertStatus,
           assignedTo,
+          assignedRole: (snapshot.escalationChain[0]?.role ?? "mine_official") as UserRole,
           slaSnapshot: snapshot,
           ackDeadline: new Date(now + snapshot.ackSla * 60 * 1000),
           resolutionDeadline: new Date(now + snapshot.resolutionSla * 60 * 1000),

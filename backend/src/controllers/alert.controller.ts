@@ -51,6 +51,25 @@ export const listAlerts = async (
         severity: r.severity,
         status: r.status,
         assignedToName: (r.assignedTo as unknown as { name: string })?.name ?? "Unassigned",
+        // ── Feature 02: escalation ladder surfaced to the UI ─────────────────
+        assignedRole: r.assignedRole ?? null,
+        currentLevel: r.currentLevel ?? 1,
+        escalationCount: r.escalationCount ?? 0,
+        lastEscalatedAt: r.lastEscalatedAt ?? null,
+        acknowledgedAt: r.acknowledgedAt ?? null,
+        ackDeadline: r.ackDeadline ?? null,
+        resolutionDeadline: r.resolutionDeadline ?? null,
+        slaSnapshot: r.slaSnapshot
+          ? {
+              ackSla: r.slaSnapshot.ackSla,
+              resolutionSla: r.slaSnapshot.resolutionSla,
+              escalationChain: r.slaSnapshot.escalationChain.map((l) => ({
+                level: l.level,
+                role: l.role,
+                waitMinutes: l.waitMinutes,
+              })),
+            }
+          : null,
         // ── Feature 04: recurrence pattern enrichment ────────────────────────
         category: r.category,
         scope: r.scope,
@@ -283,6 +302,7 @@ export const escalateAlert = async (
         $set: {
           status: "escalated",
           currentLevel: topLevel,
+          assignedRole: chain[chain.length - 1]?.role ?? null,
           escalationCount: (alert.escalationCount ?? 0) + 1,
           lastEscalatedAt: new Date(),
         },

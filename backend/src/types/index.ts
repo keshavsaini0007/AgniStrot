@@ -358,6 +358,7 @@ export interface IAlert {
   severity: AlertSeverity;
   status: AlertStatus;
   assignedTo: Types.ObjectId; // active user in the current rung's role for that site
+  assignedRole?: UserRole | null; // role responsible at the current rung (= chain[currentLevel - 1].role)
   // ── Configurable SLA / Escalation Matrix (feature 02) ────────────────────
   slaSnapshot: ISlaSnapshot;       // policy stamped at creation (edge G) — the engine reads THIS, never the live policy
   ackDeadline: Date | null;        // acknowledge-by time = createdAt + ackSla

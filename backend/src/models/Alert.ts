@@ -153,6 +153,16 @@ const alertSchema = new Schema<IAlert>(
     escalationCount: { type: Number, default: 0, min: 0 },
     lastEscalatedAt: { type: Date, default: null },
     acknowledgedAt: { type: Date, default: null },
+    assignedRole: {
+      // role responsible at the current rung — mirrors chain[currentLevel - 1]
+      // so the UI can render the ladder without re-deriving it
+      type: String,
+      enum: {
+        values: ["mine_official", "corporate_manager", "regulator"],
+        message: "{VALUE} is not a valid escalation role.",
+      },
+      default: null,
+    },
     department: {
       type: String,
       default: "operations",

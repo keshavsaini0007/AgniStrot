@@ -581,6 +581,147 @@ async function manualEscalationBattery(
   check("audit trail records manual escalation with actor", !!audit);
 }
 
+// ── [F27] Escalation ladder surfacing (UI-ready serialization) ───────────────
+// The web Alerts page consumes rung/role/deadline/chain fields that used to be
+// stored but never serialized. This battery proves they are set at create,
+// follow the engine climb, and appear in GET /alerts — the exact shape the Web
+// Alerts page renders (Level n/n chip, role, chain, server deadlines).
+
+// Lean shape of the fields F27 asserts on — avoids mongoose's overloaded query
+// types (ReturnType<typeof Alert.find> resolves to the non-lean overload).
+interface LadderAlertDoc {
+  _id: Types.ObjectId;
+  ruleCode: string;
+  status: string;
+  assignedRole?: string | null;
+  currentLevel?: number;
+  escalationCount?: number;
+  ackDeadline?: Date | null;
+  resolutionDeadline?: Date | null;
+  slaSnapshot?: { escalationChain?: Array<{ level?: number; role?: string; waitMinutes?: number }> } | null;
+}
+
+async function escalationLadderBattery(
+  t: { priya: string; amit: string },
+  sites: { SJ: string }
+): Promise<void> {
+  console.log("\n== [F27] Escalation ladder (UI serialization) ==");
+  const { priya, amit } = t;
+  const { SJ } = sites;
+
+  // Deterministic fixture: sync a unique critical incident → the sync consumer
+  // creates a fresh CRITICAL_INCIDENT alert via ruleEngine, stamped with the
+  // chain[0] role + snapshot. Poll for it (consumer runs on the outbox).
+  const uuid = randomUUID();
+  const syncRes = await post(priya, "/incidents/sync", {
+    records: [{
+      clientUuid: uuid,
+      siteId: SJ,
+      severity: "critical",
+      category: "safety",
+      description: "F27 ladder probe: elevated machinery vibration, area isolated.",
+      location: { lat: 23.7461, lng: 86.4123 },
+      photoUrls: [],
+      capturedAt: new Date().toISOString(),
+    }],
+  });
+  check("F27 fixture sync accepted", syncRes.status === 200, JSON.stringify(syncRes.body));
+
+  let alertDoc: LadderAlertDoc | null = null;
+  for (let i = 0; i < 40 && !alertDoc; i++) {
+    await sleep(150);
+    const incident = await Incident.findOne({ clientUuid: uuid }).lean();
+    if (!incident) continue;
+    const rows = await Alert.find({ sourceId: incident._id }).lean();
+    const found = rows.find((a) => a.ruleCode === "CRITICAL_INCIDENT") ?? rows[0];
+    if (!found) continue;
+    alertDoc = {
+      _id: found._id,
+      ruleCode: found.ruleCode,
+      status: found.status,
+      assignedRole: found.assignedRole ?? null,
+      currentLevel: found.currentLevel,
+      escalationCount: found.escalationCount,
+      ackDeadline: found.ackDeadline ?? null,
+      resolutionDeadline: found.resolutionDeadline ?? null,
+      slaSnapshot: found.slaSnapshot ? { escalationChain: found.slaSnapshot.escalationChain } : null,
+    };
+  }
+  check("F27 fixture alert created", !!alertDoc);
+  if (!alertDoc) return;
+
+  const aid = alertDoc._id.toString();
+
+  // A. Create-time state: chain[0] role, level 1, full snapshot + deadlines.
+  const role0 = alertDoc.slaSnapshot?.escalationChain?.[0]?.role;
+  check("create-time assignedRole = chain[0] role", alertDoc.assignedRole === role0 && alertDoc.assignedRole === "mine_official", `assignedRole=${alertDoc.assignedRole}`);
+  check("create-time currentLevel = 1", alertDoc.currentLevel === 1, `currentLevel=${alertDoc.currentLevel}`);
+  check("snapshot has 3-rung default chain", (alertDoc.slaSnapshot?.escalationChain?.length ?? 0) === 3, `len=${alertDoc.slaSnapshot?.escalationChain?.length}`);
+  check("create-time ack/resolution deadlines stamped", alertDoc.ackDeadline instanceof Date && alertDoc.resolutionDeadline instanceof Date);
+
+  // B. GET /alerts serializes the ladder for the UI (amit = corporate, wide view).
+  const list = (await get(amit, `/alerts?siteId=${SJ}`)).body as {
+    data: Array<{
+      id: string;
+      assignedRole?: string | null;
+      currentLevel?: number;
+      escalationCount?: number;
+      ackDeadline?: string | null;
+      resolutionDeadline?: string | null;
+      slaSnapshot?: { escalationChain?: Array<{ role?: string }> } | null;
+    }>;
+  };
+  const row = list.data.find((a) => a.id === aid);
+  check("GET /alerts serializes assignedRole", row?.assignedRole === alertDoc.assignedRole, `assignedRole=${row?.assignedRole}`);
+  check("GET /alerts serializes currentLevel", row?.currentLevel === 1, `currentLevel=${row?.currentLevel}`);
+  check("GET /alerts serializes escalationCount", row?.escalationCount === 0);
+  check("GET /alerts serializes ackDeadline", typeof row?.ackDeadline === "string");
+  check("GET /alerts serializes escalationChain", (row?.slaSnapshot?.escalationChain?.length ?? 0) === 3);
+
+  // C. Engine climb keeps assignedRole aligned with the rung.
+  // Rung dues are ABSOLUTE offsets from createdAt (chain[i].waitMinutes), so
+  // backdate createdAt into a window where only the next rung is due — this
+  // lands deterministically on L2 first, then L3 (terminal). Raw collection
+  // write is REQUIRED: mongoose's updateOne with `timestamps` strips a
+  // user-supplied createdAt from $set (same note as workflowProbes).
+  const ladder = alertDoc.slaSnapshot?.escalationChain ?? [];
+  const c1 = ladder[1]?.waitMinutes ?? 240; // L2 due offset from createdAt
+  const c2 = ladder[2]?.waitMinutes ?? 480; // L3 due offset from createdAt
+  const gap = Math.max(1, Math.floor((c2 - c1) / 2));
+
+  // C1 — only the L2 rung is due → engine climbs to level 2 / corporate_manager.
+  await Alert.collection.updateOne({ _id: new Types.ObjectId(aid) }, { $set: { createdAt: new Date(Date.now() - (c1 + gap) * 60 * 1000) } });
+  await WorkflowState.updateMany({ alertId: aid, state: "assigned" }, { deadline: new Date(Date.now() - 60 * 1000) });
+  await runEscalations();
+  const lvl2 = await Alert.findById(aid).lean();
+  check("engine climb → level 2", lvl2?.currentLevel === 2, `currentLevel=${lvl2?.currentLevel}`);
+  check("engine climb → assignedRole = corporate_manager", lvl2?.assignedRole === "corporate_manager", `assignedRole=${lvl2?.assignedRole}`);
+  check("engine climb → escalationCount = 1", lvl2?.escalationCount === 1, `escalationCount=${lvl2?.escalationCount}`);
+
+  // C2 — the L3 rung is now also due → terminal climb to level 3 / regulator.
+  await Alert.collection.updateOne({ _id: new Types.ObjectId(aid) }, { $set: { createdAt: new Date(Date.now() - (c2 + 5) * 60 * 1000) } });
+  await runEscalations();
+  const lvl3 = await Alert.findById(aid).lean();
+  check("terminal rung → level 3", lvl3?.currentLevel === 3, `currentLevel=${lvl3?.currentLevel}`);
+  check("terminal rung → assignedRole = regulator", lvl3?.assignedRole === "regulator", `assignedRole=${lvl3?.assignedRole}`);
+  check("terminal rung → status escalated", lvl3?.status === "escalated", `status=${lvl3?.status}`);
+
+  // D. Manual escalate jumps assignedRole to the chain top (state restored so
+  // the endpoint accepts the transition; endpoint mirrors UI Escalate button).
+  await Alert.updateOne({ _id: aid }, { status: "open", currentLevel: 1, escalationCount: 0 });
+  const manual = await post(priya, `/alerts/${aid}/escalate`, { note: "F27 manual ladder probe" });
+  check("manual escalate → 200", manual.status === 200, `status=${manual.status}`);
+  const manualRow = await Alert.findById(aid).lean();
+  check("manual escalate → assignedRole = top rung", manualRow?.assignedRole === "regulator", `assignedRole=${manualRow?.assignedRole}`);
+  check("manual escalate → currentLevel = chain length", manualRow?.currentLevel === 3, `currentLevel=${manualRow?.currentLevel}`);
+
+  // Self-clean: drop the probe alert + its workflow rows so no other battery
+  // or the reseed sees a trace.
+  await Alert.deleteOne({ _id: aid });
+  await WorkflowState.deleteMany({ alertId: aid });
+  check("F27 probe cleaned up", true);
+}
+
 async function socketBattery(rahulToken: string, SJ: string): Promise<void> {
   console.log("\n== [SOCKET] live fan-out over the wire ==");
   const priya = await login("priya@agnistrot.com");
@@ -3579,6 +3720,7 @@ async function main(): Promise<void> {
     await socketBattery(tokens.rahul, SJ);
     await workflowProbes({ priya: tokens.priya, meena: tokens.meena }, SJ);
     await feature02SlaBattery(tokens, { SJ, SD });
+    await escalationLadderBattery({ priya: tokens.priya, amit: tokens.amit }, { SJ });
     await reportsBattery(tokens, { SJ, SD });
     await manualEscalationBattery(tokens, { SJ, SD });
     await gisBattery(tokens, { SJ, SD });
