@@ -14,6 +14,7 @@ import type {
   Attendance,
   WorkflowLog,
   ChecklistItem,
+  AlertSlaChainLevel,
 } from '@/types';
 
 export const mockUsers: User[] = [
@@ -801,6 +802,15 @@ export const mockWorkflows: WorkflowLog[] = [
   },
 ];
 
+// Feature 02 — default SLA ladder shared by the mock alert rows, mirroring the
+// backend's canonical critical/high chain (mine_official → corporate_manager →
+// regulator). Reused so the escalation chip + chain render in mock mode too.
+const mockEscalationChain: AlertSlaChainLevel[] = [
+  { level: 1, role: 'mine_official', waitMinutes: 120 },
+  { level: 2, role: 'corporate_manager', waitMinutes: 480 },
+  { level: 3, role: 'regulator', waitMinutes: 1440 },
+];
+
 export const mockAlerts: Alert[] = [
   {
     id: 'alert-001',
@@ -812,6 +822,15 @@ export const mockAlerts: Alert[] = [
     severity: 'high',
     status: 'escalated',
     assignedTo: 'usr-002',
+    // Feature 02 — rung/role/deadline snapshot (Level 3/3 · Regulator).
+    assignedRole: 'regulator',
+    currentLevel: 3,
+    escalationCount: 2,
+    lastEscalatedAt: '2026-08-31T15:10:00.000Z',
+    acknowledgedAt: null,
+    ackDeadline: '2026-08-28T17:03:00.000Z',
+    resolutionDeadline: '2026-09-04T15:03:00.000Z',
+    slaSnapshot: { ackSla: 120, resolutionSla: 10080, escalationChain: mockEscalationChain },
     createdAt: '2026-08-28T15:03:00.000Z',
     workflow: mockWorkflows.filter((wf) => wf.alertId === 'alert-001'),
   },
@@ -825,6 +844,14 @@ export const mockAlerts: Alert[] = [
     severity: 'critical',
     status: 'acknowledged',
     assignedTo: 'usr-002',
+    // Feature 02 — acknowledged at rung 1 (Level 1/3 · Mine official).
+    assignedRole: 'mine_official',
+    currentLevel: 1,
+    escalationCount: 0,
+    acknowledgedAt: '2026-08-28T15:45:00.000Z',
+    ackDeadline: '2026-08-28T17:02:00.000Z',
+    resolutionDeadline: '2026-09-04T15:02:00.000Z',
+    slaSnapshot: { ackSla: 120, resolutionSla: 10080, escalationChain: mockEscalationChain },
     createdAt: '2026-08-28T15:02:00.000Z',
     workflow: mockWorkflows.filter((wf) => wf.alertId === 'alert-002'),
   },
@@ -838,6 +865,13 @@ export const mockAlerts: Alert[] = [
     severity: 'high',
     status: 'open',
     assignedTo: 'usr-005',
+    // Feature 02 — fresh open alert at rung 1.
+    assignedRole: 'mine_official',
+    currentLevel: 1,
+    escalationCount: 0,
+    ackDeadline: '2026-09-01T13:02:00.000Z',
+    resolutionDeadline: '2026-09-08T11:02:00.000Z',
+    slaSnapshot: { ackSla: 120, resolutionSla: 10080, escalationChain: mockEscalationChain },
     createdAt: '2026-09-01T11:02:00.000Z',
   },
   {

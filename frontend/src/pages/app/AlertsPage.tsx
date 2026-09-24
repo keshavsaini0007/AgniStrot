@@ -56,9 +56,47 @@ const patternSummary = (alert: Alert): string | null => {
 };
 
 const deadlineFor = (alert: Alert): string | null => {
+  // Feature 02 — server deadlines are the single source of truth (created +
+  // ackSla/resolutionSla stamped into the alert at creation). The client
+  // constant below is only a fallback for legacy/mock payloads that carry
+  // neither field.
+  if (alert.ackDeadline) return alert.ackDeadline;
+  if (alert.resolutionDeadline) return alert.resolutionDeadline;
   const ms = ALERT_DEADLINE_MS[alert.severity];
   if (!ms) return null;
   return new Date(new Date(alert.createdAt).getTime() + ms).toISOString();
+};
+
+// ── Feature 02: escalation ladder surfacing ──────────────────────────────────
+// The rung chip ("Level 2/3 · Corporate manager") mirrors the alert's live
+// currentLevel/assignedRole; the chain line renders the full snapshot ladder
+// (mine_official → corporate_manager → regulator) on escalated alerts.
+const ROLE_LABELS: Record<string, string> = {
+  mine_official: 'Mine official',
+  corporate_manager: 'Corporate manager',
+  regulator: 'Regulator',
+};
+const roleLabel = (role?: string | null): string => (role ? (ROLE_LABELS[role] ?? role) : '—');
+
+/** Rung the alert currently sits on (1-based), clamped to its snapshot chain. */
+const currentRung = (alert: Alert): number =>
+  Math.min(Math.max(alert.currentLevel ?? 1, 1), alert.slaSnapshot?.escalationChain?.length ?? 1);
+
+const levelChip = (alert: Alert): { label: string; tone: string } | null => {
+  const chain = alert.slaSnapshot?.escalationChain;
+  if (!chain || chain.length === 0) return null;
+  const rung = currentRung(alert);
+  const role = chain[rung - 1]?.role ?? alert.assignedRole;
+  return {
+    label: `Level ${rung}/${chain.length} · ${roleLabel(role)}`,
+    tone: rung > 1 ? 'text-[#F5B942]' : 'text-[#78919F]',
+  };
+};
+
+const chainSummary = (alert: Alert): string | null => {
+  const chain = alert.slaSnapshot?.escalationChain;
+  if (!chain || chain.length === 0) return null;
+  return chain.map((l) => roleLabel(l.role)).join(' → ');
 };
 
 const deadlineLabel = (deadline: string): { text: string; tone: string } => {
@@ -352,6 +390,8 @@ const AlertRow = ({ alert, onAcknowledge, onResolve, onEscalate }: {
   const Icon = icon.icon;
   const deadline = deadlineFor(alert);
   const dl = deadline ? deadlineLabel(deadline) : null;
+  const chip = levelChip(alert);
+  const chain = alert.status === 'escalated' ? chainSummary(alert) : null;
   return (
     <tr className="group border-b border-[#1E3545] transition-colors hover:bg-[#102435]">
       <td className="px-5 py-3">
@@ -367,6 +407,17 @@ const AlertRow = ({ alert, onAcknowledge, onResolve, onEscalate }: {
         <p className="mt-0.5 truncate font-mono text-[9px] text-[#78919F]">{alert.ruleCode}</p>
         {patternSummary(alert) && (
           <p className="mt-0.5 truncate text-[9px] font-medium text-[#F5B942]">{patternSummary(alert)}</p>
+        )}
+        {chip && (
+          <p
+            data-testid="alert-level-chip"
+            className={`mt-1 inline-flex rounded border border-[#21415A] px-1.5 py-0.5 text-[9px] font-semibold ${chip.tone}`}
+          >
+            {chip.label}
+          </p>
+        )}
+        {chain && (
+          <p data-testid="alert-chain" className="mt-1 truncate text-[9px] text-[#B3C5D0]">{chain}</p>
         )}
       </td>
       <td className="px-3 py-3"><Badge status={alert.status} /></td>
@@ -391,6 +442,8 @@ const AlertMobileCard = ({ alert, onAcknowledge, onResolve, onEscalate }: {
   const Icon = icon.icon;
   const deadline = deadlineFor(alert);
   const dl = deadline ? deadlineLabel(deadline) : null;
+  const chip = levelChip(alert);
+  const chain = alert.status === 'escalated' ? chainSummary(alert) : null;
   return (
     <div className="rounded-xl border border-[#21415A] bg-[#0D1C28] p-3">
       <div className="flex items-start justify-between gap-2">
@@ -405,6 +458,12 @@ const AlertMobileCard = ({ alert, onAcknowledge, onResolve, onEscalate }: {
       <p className="mt-2 text-[11px] font-medium text-[#E8F0F3]">{ruleLabel(alert.ruleCode)}</p>
       <p className="mt-0.5 font-mono text-[10px] text-[#A9BBC4]">{alert.ruleCode} · {formatRelativeTime(alert.createdAt)}</p>
       {patternSummary(alert) && <p className="mt-0.5 text-[9px] font-medium text-[#F5B942]">{patternSummary(alert)}</p>}
+      {chip && (
+        <p data-testid="alert-level-chip" className={`mt-1 inline-flex rounded border border-[#21415A] px-1.5 py-0.5 text-[9px] font-semibold ${chip.tone}`}>
+          {chip.label}
+        </p>
+      )}
+      {chain && <p data-testid="alert-chain" className="mt-1 truncate text-[9px] text-[#B3C5D0]">{chain}</p>}
       <p className="mt-2 text-[10px] text-[#78919F]">{alert.sourceType} · {alert.siteId}</p>
       <p className={`mt-2 text-xs ${dl?.tone ?? ''}`}>{dl?.text ?? ''}</p>
       <div className="mt-3 border-t border-[#21415A] pt-3">

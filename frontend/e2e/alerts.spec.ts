@@ -45,4 +45,32 @@ test.describe('alerts — workflow lifecycle', () => {
     await expect(page.getByRole('heading', { name: 'Alerts' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Escalate' }).first()).toBeVisible();
   });
+
+  test('manual escalation surfaces the ladder chip + full chain', async ({ page }) => {
+    await login(page, 'mineOfficial');
+    await page.goto('/app/alerts');
+    await expect(page.getByRole('heading', { name: 'Alerts' })).toBeVisible();
+
+    // Drive the first open alert to escalated via the existing action.
+    const escalatedValue = page
+      .locator('section[aria-label="Alert summary"] article', { hasText: 'Escalated' })
+      .locator('p.text-2xl');
+    const escalatedBefore = await escalatedValue.textContent();
+    await page.getByRole('button', { name: 'Escalate' }).first().click();
+    await expect
+      .poll(() => escalatedValue.textContent().then((t) => Number(t)))
+      .toBeGreaterThan(Number(escalatedBefore));
+
+    // Feature 02 — the escalated row now renders the rung chip with the chain
+    // TOP role ("Level n/n · Regulator | Corporate manager") and the full
+    // ladder line (open rows stay at "Mine official", so the top-role chip +
+    // chain are unique to the escalated alert).
+    await expect(
+      page
+        .getByTestId('alert-level-chip')
+        .filter({ hasText: /Level \d+\/\d+ · (Regulator|Corporate manager)/ })
+        .first()
+    ).toBeVisible();
+    await expect(page.getByTestId('alert-chain').filter({ hasText: '→' }).first()).toBeVisible();
+  });
 });

@@ -29,6 +29,23 @@ export type AlertSeverity = 'low' | 'medium' | 'high' | 'critical';
 
 export type AlertStatus = 'open' | 'acknowledged' | 'escalated' | 'closed';
 
+/** Escalation role — a rung on the SLA ladder (subset of UserRole). */
+export type EscalationRole = 'mine_official' | 'corporate_manager' | 'regulator';
+
+/** One rung of the SLA escalation ladder, as serialized by GET /alerts. */
+export interface AlertSlaChainLevel {
+  level: number;
+  role: EscalationRole;
+  waitMinutes: number;
+}
+
+/** SLA snapshot stamped on the alert at creation (feature 02, serialized). */
+export interface AlertSlaSnapshot {
+  ackSla: number;
+  resolutionSla: number;
+  escalationChain: AlertSlaChainLevel[];
+}
+
 export type WorkflowState =
   | 'assigned'
   | 'reminded'
@@ -168,6 +185,15 @@ export interface Alert {
   severity: AlertSeverity;
   status: AlertStatus;
   assignedTo: string;
+  // ── Feature 02: escalation ladder surfaced by GET /alerts ────────────────
+  assignedRole?: EscalationRole | null;
+  currentLevel?: number;
+  escalationCount?: number;
+  lastEscalatedAt?: string | null;
+  acknowledgedAt?: string | null;
+  ackDeadline?: string | null;
+  resolutionDeadline?: string | null;
+  slaSnapshot?: AlertSlaSnapshot | null;
   createdAt: string;
   resolvedAt?: string;
   workflow?: WorkflowLog[];
