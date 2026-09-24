@@ -1,4 +1,4 @@
-import { Types } from "mongoose";
+import { Types, type ClientSession } from "mongoose";
 import Hazard from "../models/Hazard.js";
 import Alert from "../models/Alert.js";
 import { normalizeHazardCategory } from "./recurringHazards.js";
@@ -128,27 +128,36 @@ export function assessEffectiveness(
   };
 }
 
-// ── Register a hazard (manual or raised from an open pattern alert) ──────────
+// ── Register a hazard (manual, alert-raised, or OCR auto-captured) ───────────
 // Category is derived server-side with the same canonicalizer as feature 04, so
 // a register entry and a RECURRING_HAZARD alert for the same hazard share a key
 // — the Phase D sweep and the risk dashboard both rely on that. When
 // sourceAlertId is given, the alert must (a) exist and (b) reference the same
-// site; otherwise the registration is rejected (edge case B).
+// site; otherwise the registration is rejected (edge case B). When
+// sourceDocumentId is given the entry is typed sourceType "ocr" (auto-captured
+// from a scanned hazard form). `session` joins an outer transaction (OCR ingest
+// commits document + evidence + hazard + outbox atomically) and `deferAudit`
+// hands the audit-log write to the caller so it runs after commit, never inside.
 export async function registerHazard(input: {
   siteId: Types.ObjectId;
   title: string;
   description: string;
   location?: { lat: number; lng: number };
   sourceAlertId?: Types.ObjectId;
+  sourceDocumentId?: Types.ObjectId;
   likelihood: number;
   consequence: number;
   actor: Types.ObjectId;
+  session?: ClientSession | null;
+  deferAudit?: boolean;
 }): Promise<IHazard> {
   const category = normalizeHazardCategory(`${input.title} ${input.description}`);
   const { riskScore, riskLevel } = riskLevelFor(input.likelihood, input.consequence);
 
   let sourceType: HazardRegisterSource = "manual";
-  if (input.sourceAlertId) {
+  if (input.sourceDocumentId) {
+    sourceType = "ocr";
+  } else if (input.sourceAlertId) {
     const alert = await Alert.findById(input.sourceAlertId).select("siteId ruleCode status").lean();
     if (!alert) throw new Error("Source alert not found.");
     if (alert.ruleCode !== "RECURRING_HAZARD") {
@@ -160,38 +169,49 @@ export async function registerHazard(input: {
     sourceType = "alert";
   }
 
-  const hazard = await Hazard.create({
-    siteId: input.siteId,
-    category,
-    title: input.title,
-    description: input.description,
-    ...(input.location ? { location: input.location } : {}),
-    sourceType,
-    ...(input.sourceAlertId ? { sourceAlertId: input.sourceAlertId } : {}),
-    registeredBy: input.actor,
-    registeredAt: new Date(),
-    likelihood: input.likelihood,
-    consequence: input.consequence,
-    riskScore,
-    riskLevel,
-    status: "open",
-    controls: [],
-    // effectiveness omitted — the schema defaults it to null until assessed.
-  });
+  const [hazard] = await Hazard.create(
+    [
+      {
+        siteId: input.siteId,
+        category,
+        title: input.title,
+        description: input.description,
+        ...(input.location ? { location: input.location } : {}),
+        sourceType,
+        ...(input.sourceAlertId ? { sourceAlertId: input.sourceAlertId } : {}),
+        ...(input.sourceDocumentId ? { sourceDocumentId: input.sourceDocumentId } : {}),
+        registeredBy: input.actor,
+        registeredAt: new Date(),
+        likelihood: input.likelihood,
+        consequence: input.consequence,
+        riskScore,
+        riskLevel,
+        status: "open",
+        controls: [],
+        // effectiveness omitted — the schema defaults it to null until assessed.
+      },
+    ],
+    // Join an outer transaction when the caller is composing the hazard with
+    // other writes (OCR ingest); the spread keeps the key out when absent.
+    { ...(input.session ? { session: input.session } : {}) }
+  );
+  if (!hazard) throw new Error("Hazard creation returned no result.");
 
-  await logAction({
-    entityType: "hazard",
-    entityId: hazard._id,
-    action: "registered",
-    actorId: input.actor,
-    payload: {
-      siteId: input.siteId.toString(),
-      category,
-      riskScore,
-      riskLevel,
-      sourceType,
-    },
-  });
+  if (!input.deferAudit) {
+    await logAction({
+      entityType: "hazard",
+      entityId: hazard._id,
+      action: "registered",
+      actorId: input.actor,
+      payload: {
+        siteId: input.siteId.toString(),
+        category,
+        riskScore,
+        riskLevel,
+        sourceType,
+      },
+    });
+  }
 
   return hazard.toObject();
 }

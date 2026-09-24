@@ -138,7 +138,8 @@ export type HazardControlType =
 // Where the register entry came from:
 //   manual — a mine official registers a known hazard directly
 //   alert  — raised from an OPEN RECURRING_HAZARD pattern alert (sourceAlertId)
-export type HazardRegisterSource = "manual" | "alert";
+//   ocr    — auto-captured from an OCR-scanned hazard form (sourceDocumentId)
+export type HazardRegisterSource = "manual" | "alert" | "ocr";
 
 export interface IHazardControl {
   _id: Types.ObjectId;
@@ -177,6 +178,7 @@ export interface IHazard {
   };
   sourceType: HazardRegisterSource;
   sourceAlertId?: Types.ObjectId;  // RECURRING_HAZARD alert the entry was raised from
+  sourceDocumentId?: Types.ObjectId; // OCR-scanned Document the entry was auto-captured from
   registeredBy: Types.ObjectId;
   registeredAt: Date;
   likelihood: number;              // 1-5 (probability of occurrence)

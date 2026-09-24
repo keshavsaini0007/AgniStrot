@@ -88,6 +88,7 @@ function hazardDto(doc: HazardLean) {
     location: doc.location ?? null,
     sourceType: doc.sourceType,
     sourceAlertId: doc.sourceAlertId ? String(doc.sourceAlertId) : null,
+    sourceDocumentId: doc.sourceDocumentId ? String(doc.sourceDocumentId) : null,
     registeredBy: refId(doc.registeredBy),
     registeredByName: refName(doc.registeredBy) ?? doc.registeredByName ?? null,
     registeredAt: doc.registeredAt,

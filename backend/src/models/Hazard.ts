@@ -157,7 +157,7 @@ const hazardSchema = new Schema<IHazard>(
       type: String,
       required: [true, "sourceType is required."],
       enum: {
-        values: ["manual", "alert"],
+        values: ["manual", "alert", "ocr"],
         message: "{VALUE} is not a valid register source.",
       },
       default: "manual",
@@ -166,6 +166,13 @@ const hazardSchema = new Schema<IHazard>(
       type: Schema.Types.ObjectId,
       ref: "Alert",
       default: null,
+    },
+    sourceDocumentId: {
+      type: Schema.Types.ObjectId,
+      ref: "Document",
+      default: null,
+      // OCR-scanned Document this register entry was auto-captured from
+      // (sourceType "ocr") — provenance for the "Extracted from document" UI.
     },
     registeredBy: {
       type: Schema.Types.ObjectId,

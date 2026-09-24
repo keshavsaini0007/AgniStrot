@@ -4,7 +4,8 @@ import multer from "multer";
 import { cloudinary } from "../config/cloudinary.js";
 import Document from "../models/Document.js";
 import Site from "../models/Site.js";
-import { extractFormFields } from "../services/ocrService.js";
+import { deriveHazardFromOcr, extractFormFields } from "../services/ocrService.js";
+import { registerHazard } from "../services/hazardService.js";
 import { logAction } from "../services/auditLogger.js";
 import {
   buildCloudinaryOriginalUrl,
@@ -174,7 +175,7 @@ export const ingestDocument = async (
     // Create document record + domain event transactionally (Transactional
     // Outbox — a document that exists must never lose its automation event).
     // The upload dedupes on the OCR confidence payload via DOCUMENT_UPLOADED.
-    const { document } = await runInTransaction(async (session) => {
+    const { document, autoRegisteredHazardId } = await runInTransaction(async (session) => {
       const [doc] = await Document.create(
         [
           {
@@ -224,7 +225,35 @@ export const ingestDocument = async (
         session
       );
 
-      return { document: doc };
+      // Feature 06 OCR: a hazard-form scan auto-captures a register row —
+      // same transaction, so document + evidence + hazard + the outbox event
+      // commit (or roll back) atomically. deriveHazardFromOcr is the
+      // deterministic boundary: thin / low-confidence scans return null and
+      // stay pending for manual review instead of minting a junk row.
+      let autoRegisteredHazardId: Types.ObjectId | null = null;
+      if (ocrResult.extractedFields?.formType === "hazard") {
+        const hazardData = deriveHazardFromOcr(
+          ocrResult.rawText,
+          ocrResult.extractedFields,
+          ocrResult.confidence
+        );
+        if (hazardData) {
+          const hazard = await registerHazard({
+            siteId: new Types.ObjectId(siteId),
+            title: hazardData.title,
+            description: hazardData.description,
+            likelihood: hazardData.likelihood,
+            consequence: hazardData.consequence,
+            actor: new Types.ObjectId(req.user.id),
+            sourceDocumentId: doc._id,
+            session,
+            deferAudit: true, // audit written after commit, below
+          });
+          autoRegisteredHazardId = hazard._id;
+        }
+      }
+
+      return { document: doc, autoRegisteredHazardId };
     });
 
     // Kick the outbox worker so the DOCUMENT_UPLOADED consumer runs promptly.
@@ -241,6 +270,32 @@ export const ingestDocument = async (
       payload: { confidence: ocrResult.confidence },
     });
 
+    // Feature 06 OCR audit — written AFTER commit so a rolled-back transaction
+    // can never leave an orphaned "registered" row on the tamper-proof chain.
+    // The skipped case is audited too: the document stayed pending for manual
+    // review, which is itself a decision that must be traceable.
+    if (autoRegisteredHazardId) {
+      await logAction({
+        entityType: "hazard",
+        entityId: autoRegisteredHazardId,
+        action: "registered_via_ocr",
+        actorId: new Types.ObjectId(req.user.id),
+        payload: {
+          documentId: document._id,
+          siteId,
+          sourceType: "ocr",
+        },
+      });
+    } else if (ocrResult.extractedFields?.formType === "hazard") {
+      await logAction({
+        entityType: "document",
+        entityId: document._id,
+        action: "hazard_auto_register_skipped",
+        actorId: new Types.ObjectId(req.user.id),
+        payload: { siteId, reason: "insufficient OCR evidence" },
+      });
+    }
+
     res.status(201).json({
       data: {
         id: document._id,
@@ -249,6 +304,7 @@ export const ingestDocument = async (
         extractedFields: document.extractedFields,
         confidence: document.confidence,
         reviewStatus: document.reviewStatus,
+        ...(autoRegisteredHazardId ? { hazardId: autoRegisteredHazardId } : {}),
       },
       warning: ocrResult.confidence < 0.5
         ? "Low OCR confidence detected. Manual review recommended."

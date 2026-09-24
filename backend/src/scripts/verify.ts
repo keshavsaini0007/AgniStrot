@@ -24,6 +24,7 @@ import { computeThisHash, GENESIS_HASH } from "../services/auditLogger.js";
 import {
   buildCloudinaryOriginalUrl,
   sha256Hex,
+  UPLOADS_DIR,
   UPLOAD_FAILED_SENTINEL,
 } from "../services/evidenceService.js";
 import {
@@ -2876,6 +2877,136 @@ async function exportBattery(
   check("audit logs exported entries (users + attendance)", exported >= 2, `count=${exported}`);
 }
 
+// ── [F25] Register JSON export battery ───────────────────────────────────────
+// Feature 09 — JSON twins of the CSV register exports. users.json keeps the
+// corporate-only gate (field_officer / mine_official / regulator → 403);
+// attendance.json keeps the same buildScope site pinning and optional window.
+// Row keys mirror the CSV columns 1:1 so both formats serialize the same
+// register DTO, and every JSON export writes an audit entry with format:"json".
+// Read-only — no fixtures to clean.
+
+async function exportJsonBattery(
+  t: { amit: string; priya: string; meena: string; rahul: string },
+  sites: { SJ: string }
+): Promise<void> {
+  console.log("\n== [F25] Register JSON export ==");
+  void sites;
+
+  const asArray = (body: unknown): Array<Record<string, unknown>> => {
+    // The api helper JSON-parses successful responses; guard against a raw
+    // string body (network edge) and coerce to an array for uniform asserts.
+    const parsed =
+      typeof body === "string"
+        ? (() => {
+            try {
+              return JSON.parse(body);
+            } catch {
+              return null;
+            }
+          })()
+        : body;
+    return Array.isArray(parsed) ? (parsed as Array<Record<string, unknown>>) : [];
+  };
+
+  // ── 1. users.json — corporate owns the JSON register too ─────────────
+  const users = await get(t.amit, "/exports/users.json");
+  const usersRows = asArray(users.body);
+  check(
+    "users.json: corporate → 200 + application/json",
+    users.status === 200 &&
+      String(users.headers["content-type"] ?? "").includes("application/json"),
+    `${users.status} / ${users.headers["content-type"] ?? ""}`
+  );
+  check(
+    "users.json: attachment + filename header",
+    String(users.headers["content-disposition"] ?? "").includes("attachment") &&
+      String(users.headers["content-disposition"] ?? "").includes("users-register.json"),
+    `${users.headers["content-disposition"] ?? ""}`
+  );
+  check("users.json: Content-Length set", Number(users.headers["content-length"] ?? 0) > 0, `${users.headers["content-length"] ?? "?"}`);
+  check("users.json: parses to a non-empty array", usersRows.length > 0, `rows=${usersRows.length}`);
+  check(
+    "users.json: rows carry the CSV register keys",
+    usersRows.every((r) => ["Name", "Email", "Role", "Site", "Status", "Created"].every((k) => k in r)),
+    Object.keys(usersRows[0] ?? {}).join(",")
+  );
+  check(
+    "users.json: seeded emails present",
+    usersRows.some((r) => r.Email === "priya@agnistrot.com") &&
+      usersRows.some((r) => r.Email === "amit@agnistrot.com"),
+    "emails"
+  );
+  check(
+    "users.json: role + status values rendered",
+    usersRows.every((r) => r.Role && (r.Status === "active" || r.Status === "inactive")),
+    "role/status"
+  );
+
+  // ── 2. users.json — RBAC negatives ──────────────────────────────────
+  const foUsers = await get(t.rahul, "/exports/users.json");
+  check("users.json: field_officer → 403", foUsers.status === 403, `${foUsers.status}`);
+  const regUsers = await get(t.meena, "/exports/users.json");
+  check("users.json: regulator → 403", regUsers.status === 403, `${regUsers.status}`);
+  const moUsers = await get(t.priya, "/exports/users.json");
+  check("users.json: mine_official → 403", moUsers.status === 403, `${moUsers.status}`);
+
+  // ── 3. attendance.json — mine_official own-site only ────────────────
+  const moAtt = await get(t.priya, "/exports/attendance.json");
+  const moRows = asArray(moAtt.body);
+  const moTxt = JSON.stringify(moRows);
+  check(
+    "attendance.json: mine_official → 200 + application/json",
+    moAtt.status === 200 &&
+      String(moAtt.headers["content-type"] ?? "").includes("application/json"),
+    `${moAtt.status}`
+  );
+  check(
+    "attendance.json: rows carry the CSV column keys",
+    moRows.every((r) => ["Site ID", "Site", "Worker", "Check Type", "Captured At", "Synced At"].every((k) => k in r)),
+    Object.keys(moRows[0] ?? {}).join(",")
+  );
+  check("attendance.json: own site (Jharia) rows present", moTxt.includes("Jharia Underground Mine"), "site");
+  check("attendance.json: no cross-site rows", !moTxt.includes("Dhanbad Coal Mine"), "scope");
+
+  // ── 4. attendance.json — field_officer own-site only ─────────────────
+  const foAtt = await get(t.rahul, "/exports/attendance.json");
+  const foTxt = JSON.stringify(asArray(foAtt.body));
+  check(
+    "attendance.json: field_officer → 200 + scoped",
+    foAtt.status === 200 && !foTxt.includes("Dhanbad Coal Mine"),
+    `${foAtt.status}`
+  );
+
+  // ── 5. attendance.json — corporate/regulator all-sites + window ──────
+  const regAtt = await get(t.meena, "/exports/attendance.json");
+  const regTxt = JSON.stringify(asArray(regAtt.body));
+  check(
+    "attendance.json: regulator sees all sites",
+    regAtt.status === 200 && regTxt.includes("Dhanbad Coal Mine"),
+    `${regAtt.status}`
+  );
+
+  const from = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString();
+  const to = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+  const winAtt = await get(
+    t.amit,
+    `/exports/attendance.json?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`
+  );
+  check(
+    "attendance.json: corporate date window → 200 + rows",
+    winAtt.status === 200 && asArray(winAtt.body).length > 0,
+    `${winAtt.status}`
+  );
+
+  // ── 6. audit trail — JSON exports carry format: "json" ───────────────
+  const jsonAudits = await AuditLog.countDocuments({
+    entityType: "export",
+    action: "exported",
+    "payload.format": "json",
+  });
+  check("audit logs JSON export entries with format=json", jsonAudits >= 2, `count=${jsonAudits}`);
+}
+
 // ── [F23] Geofencing battery ─────────────────────────────────────────────────
 // Feature — hand-rolled point-in-polygon geofencing. Pure geometry probes run
 // first (rectangle, concave notch, edge/vertex tolerance, degenerate ring),
@@ -3158,6 +3289,238 @@ async function riskLayerBattery(
   check("F24: malformed siteId → 400", (await get(t.amit, "/gis/risk-layers?siteId=bad-id")).status === 400);
 }
 
+// ── [F26] OCR → hazard auto-capture battery ──────────────────────────────────
+// Feature 06 (OCR ingest) — a scanned hazard form auto-registers a hazard row
+// in the SAME ingestion transaction, carrying OCR provenance. Determinism is
+// contained at the deriveHazardFromOcr seam (unit-checked with fixed inputs,
+// no OCR); the end-to-end leg then runs the real Tesseract pipeline against the
+// committed hazard-form fixture (frontend/e2e/assets) and asserts the WIRING
+// with OCR-tolerant checks: document starts pending, hazard auto-registered
+// (sourceType "ocr", sourceDocumentId set, category canonicalized), riskScore
+// matches the 5×5 matrix, evidence row + DOCUMENT_UPLOADED outbox event commit
+// atomically, and the post-commit audit rows land on the chain. Self-cleans in
+// finally; the terminal reseed wipes whatever remains either way.
+
+async function ocrHazardBattery(
+  t: { priya: string; amit: string; meena: string; rahul: string },
+  sites: { SJ: string; SD: string }
+): Promise<void> {
+  console.log("\n== [F26] OCR → hazard auto-capture ==");
+  void t.amit;
+  void t.meena;
+  void t.rahul;
+  void sites.SD;
+
+  const { default: OutboxEventModel } = await import("../models/OutboxEvent.js");
+  const { default: Document } = await import("../models/Document.js");
+  const { deriveHazardFromOcr } = await import("../services/ocrService.js");
+
+  // ── 0. Deterministic derivation seams (fixed inputs, no OCR) ───────────
+  const thin = deriveHazardFromOcr("HAZARD REGISTER FORM", { formType: "hazard" }, 0.9);
+  check("derive: header-only scan → skip (null)", thin === null, `${JSON.stringify(thin)}`);
+
+  const lowConf = deriveHazardFromOcr(
+    "HAZARD REGISTER FORM\nCritical hazard on conveyor",
+    { formType: "hazard", severity: "critical" },
+    0.2
+  );
+  check("derive: low confidence → skip (null)", lowConf === null, `${JSON.stringify(lowConf)}`);
+
+  const critical = deriveHazardFromOcr(
+    "HAZARD REGISTER FORM\nSafety barrier missing",
+    { formType: "hazard", severity: "critical", remarks: "Safety barrier removed at transfer point" },
+    0.9
+  );
+  check(
+    "derive: critical severity → drivers (4,5)",
+    critical?.likelihood === 4 && critical?.consequence === 5,
+    `${critical?.likelihood}/${critical?.consequence}`
+  );
+  check(
+    "derive: remarks become the description",
+    typeof critical?.description === "string" && critical.description.includes("Safety barrier"),
+    `${critical?.description}`
+  );
+
+  const moderate = deriveHazardFromOcr(
+    "HAZARD REPORT\nTrip hazard near walkway",
+    { formType: "hazard", severity: "moderate" },
+    0.9
+  );
+  check(
+    "derive: moderate severity → drivers (3,3)",
+    moderate?.likelihood === 3 && moderate?.consequence === 3,
+    `${moderate?.likelihood}/${moderate?.consequence}`
+  );
+
+  const baseline = deriveHazardFromOcr(
+    "HAZARD REPORT\nUnsafe condition on haulage road",
+    { formType: "hazard", remarks: "Trip hazard near the walkway at the haulage road" },
+    0.9
+  );
+  check(
+    "derive: no severity → baseline drivers (2,2)",
+    baseline?.likelihood === 2 && baseline?.consequence === 2,
+    `${baseline?.likelihood}/${baseline?.consequence}`
+  );
+
+  // ── 1. Ingest a real hazard form (local OCR from the upload buffer) ────
+  const fixturePath = path.resolve(
+    process.cwd(),
+    "..",
+    "frontend",
+    "e2e",
+    "assets",
+    "hazard-form-sample.png"
+  );
+  let fixtureBytes: Buffer | null = null;
+  try {
+    fixtureBytes = await fs.readFile(fixturePath);
+  } catch {
+    check("F26: fixture present at frontend/e2e/assets/hazard-form-sample.png", false, fixturePath);
+    return;
+  }
+
+  const beforeDocs = await Document.countDocuments({ siteId: new Types.ObjectId(sites.SJ) });
+
+  let docId: string | null = null;
+  let evId: string | null = null;
+  let hazardId: string | null = null;
+  try {
+    const ingest = await multipartUpload(
+      t.priya,
+      "/documents/ingest",
+      "image",
+      "hazard-form-sample.png",
+      "image/png",
+      fixtureBytes
+    );
+    const ingestBody = (ingest.body ?? {}) as { data?: Record<string, unknown> };
+    const data = ingestBody.data ?? {};
+    check(
+      "ingest: mine_official hazard form → 201",
+      ingest.status === 201,
+      `${ingest.status}: ${JSON.stringify(ingestBody).slice(0, 160)}`
+    );
+    docId = typeof data.id === "string" ? data.id : typeof data.documentId === "string" ? data.documentId : null;
+    check("ingest: returns a document id", !!docId, `${docId}`);
+    check("ingest: document starts pending", data.reviewStatus === "pending", `${data.reviewStatus}`);
+    hazardId = typeof data.hazardId === "string" ? data.hazardId : null;
+    check("ingest: hazard auto-captured (hazardId returned)", !!hazardId, `${hazardId}`);
+
+    if (!docId) return;
+    const docCount = await Document.countDocuments({ siteId: new Types.ObjectId(sites.SJ) });
+    check("ingest: document persisted at own site", docCount === beforeDocs + 1, `${beforeDocs}→${docCount}`);
+    if (!hazardId) return;
+
+    // ── 2. The hazard row carries OCR provenance + deterministic fields ──
+    const hazard = await Hazard.findById(new Types.ObjectId(hazardId)).lean();
+    check("hazard: row exists", !!hazard, `${hazardId}`);
+    if (!hazard) return;
+    check("hazard: sourceType = ocr", hazard.sourceType === "ocr", `${hazard.sourceType}`);
+    check(
+      "hazard: sourceDocumentId links the scanned doc",
+      hazard.sourceDocumentId?.toString() === docId,
+      `${String(hazard.sourceDocumentId)}`
+    );
+    check("hazard: status open", hazard.status === "open", `${hazard.status}`);
+    check(
+      "hazard: category canonicalized to SAFETY_BARRICADE",
+      hazard.category === "SAFETY_BARRICADE",
+      `${hazard.category}`
+    );
+    check(
+      "hazard: title/description non-empty",
+      typeof hazard.title === "string" && hazard.title.length >= 3 &&
+        typeof hazard.description === "string" && hazard.description.length >= 5,
+      `${hazard.title} / ${hazard.description}`
+    );
+    check(
+      "hazard: drivers within the 1-5 range",
+      hazard.likelihood >= 1 && hazard.likelihood <= 5 &&
+        hazard.consequence >= 1 && hazard.consequence <= 5,
+      `${hazard.likelihood}/${hazard.consequence}`
+    );
+    const expected = riskLevelFor(hazard.likelihood, hazard.consequence);
+    check(
+      "hazard: riskScore === likelihood × consequence (5×5 matrix)",
+      hazard.riskScore === expected.riskScore && hazard.riskLevel === expected.riskLevel,
+      `${hazard.likelihood}×${hazard.consequence}=${hazard.riskScore}/${hazard.riskLevel}`
+    );
+    check(
+      "hazard: registeredBy recorded",
+      typeof String(hazard.registeredBy) === "string" && /^[a-f\d]{24}$/i.test(String(hazard.registeredBy)),
+      `${hazard.registeredBy}`
+    );
+
+    // ── 3. Evidence + outbox committed with the document ──────────────────
+    const ev = await Evidence.findOne({ sourceType: "document", sourceRecordId: new Types.ObjectId(docId) }).lean();
+    check("ingest: evidence row committed for the document", !!ev, `${ev?._id}`);
+    if (ev) {
+      evId = String(ev._id);
+      check("ingest: evidence integrity unverified", ev.integrityStatus === "unverified", `${ev.integrityStatus}`);
+    }
+    const outEv = await OutboxEventModel.exists({
+      aggregateType: "document",
+      aggregateId: new Types.ObjectId(docId),
+      type: "DOCUMENT_UPLOADED",
+    });
+    check("ingest: DOCUMENT_UPLOADED outbox event emitted in-txn", !!outEv, `${outEv}`);
+
+    // ── 4. Audit rows land on the chain (post-commit) ─────────────────────
+    const ingestAudit = await AuditLog.countDocuments({
+      entityType: "document",
+      entityId: new Types.ObjectId(docId),
+      action: "ingested",
+    });
+    check("audit: document ingested row", ingestAudit >= 1, `${ingestAudit}`);
+    const ocrAudit = await AuditLog.countDocuments({
+      entityType: "hazard",
+      entityId: new Types.ObjectId(hazardId),
+      action: "registered_via_ocr",
+    });
+    check("audit: hazard registered_via_ocr row", ocrAudit >= 1, `${ocrAudit}`);
+
+    // ── 5. Read surface: mine_official sees the auto row with provenance ──
+    const list = await get(t.priya, `/hazards?siteId=${sites.SJ}`);
+    const rows = ((list.body as { data?: Array<Record<string, unknown>> }).data ?? []) as Array<Record<string, unknown>>;
+    const found = rows.some(
+      (r) => r.id === hazardId && r.sourceType === "ocr" && typeof r.sourceDocumentId === "string"
+    );
+    check("api: mine_official hazard list shows the OCR row", found, `rows=${rows.length}`);
+  } finally {
+    // Remove the fixture rows + the local upload file for THIS document.
+    if (hazardId) await Hazard.deleteOne({ _id: new Types.ObjectId(hazardId) });
+    if (docId) {
+      await Document.deleteOne({ _id: new Types.ObjectId(docId) });
+      await Evidence.deleteMany({ sourceRecordId: new Types.ObjectId(docId) });
+      await OutboxEventModel.deleteMany({
+        aggregateType: "document",
+        aggregateId: new Types.ObjectId(docId),
+      });
+    }
+    if (evId) {
+      try {
+        const files = await fs.readdir(UPLOADS_DIR);
+        for (const f of files) {
+          if (f.startsWith(`${evId}-`)) {
+            try {
+              await fs.unlink(path.join(UPLOADS_DIR, f));
+            } catch {
+              /* best effort */
+            }
+          }
+        }
+      } catch {
+        /* uploads dir may not exist */
+      }
+    }
+    const hazLeft = hazardId ? await Hazard.countDocuments({ _id: new Types.ObjectId(hazardId) }) : 0;
+    const docLeft = docId ? await Document.countDocuments({ _id: new Types.ObjectId(docId) }) : 0;
+    check("CLEANUP: OCR hazard + document fixtures removed", hazLeft === 0 && docLeft === 0, `h=${hazLeft} d=${docLeft}`);
+  }
+}
+
 async function main(): Promise<void> {
   killPort(PORT);
   runSeed();
@@ -3269,6 +3632,11 @@ async function main(): Promise<void> {
       { amit: tokens.amit, priya: tokens.priya, meena: tokens.meena, rahul: tokens.rahul },
       { SJ }
     );
+    // Feature 09 JSON twin — same gates/scope; read-only, no fixtures.
+    await exportJsonBattery(
+      { amit: tokens.amit, priya: tokens.priya, meena: tokens.meena, rahul: tokens.rahul },
+      { SJ }
+    );
     // Geofencing battery — probe site + records self-clean in finally.
     await geofenceBattery({ rahul: tokens.rahul });
     // Risk heatmap layers battery — read-only aggregation of the canonical
@@ -3276,6 +3644,12 @@ async function main(): Promise<void> {
     // determinism against /ai/risk-score/:siteId.
     await riskLayerBattery(
       { priya: tokens.priya, meena: tokens.meena, amit: tokens.amit, rahul: tokens.rahul },
+      { SJ, SD }
+    );
+    // OCR → hazard auto-capture — terminal battery (runs last; its fixtures
+    // self-clean in finally and the reseed below wipes any residual noise).
+    await ocrHazardBattery(
+      { priya: tokens.priya, amit: tokens.amit, meena: tokens.meena, rahul: tokens.rahul },
       { SJ, SD }
     );
   } finally {
