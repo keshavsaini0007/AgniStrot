@@ -22,3 +22,11 @@ export function buildCsv(rows: Array<Array<unknown>>): Buffer {
   const lines = rows.map(csvRow).join("\r\n");
   return Buffer.from(`\uFEFF${lines}\r\n`, "utf8");
 }
+
+/**
+ * Build a JSON Buffer from rows of keyed objects (RFC 8259, pretty-printed
+ * with a 2-space indent so downloaded register files stay human-readable).
+ */
+export function buildJson(rows: Array<Record<string, unknown>>): Buffer {
+  return Buffer.from(JSON.stringify(rows, null, 2), "utf8");
+}

@@ -1,5 +1,10 @@
 import { Router } from "express";
-import { exportUsersCsv, exportAttendanceCsv } from "../controllers/export.controller.js";
+import {
+  exportAttendanceCsv,
+  exportAttendanceJson,
+  exportUsersCsv,
+  exportUsersJson,
+} from "../controllers/export.controller.js";
 import { authorize } from "../middleware/auth.js";
 import { validateQuery } from "../middleware/validate.js";
 import { listAttendanceSchema } from "../validators/query.validator.js";
@@ -19,6 +24,19 @@ router.get(
   authorize(...ATTENDANCE_READ_ROLES),
   validateQuery(listAttendanceSchema),
   exportAttendanceCsv
+);
+
+// ── GET /exports/users.json ──────────────────────────────────────────────────
+// JSON twin of users.csv — same corporate-only gate for the same fields.
+router.get("/users.json", authorize("corporate_manager"), exportUsersJson);
+
+// ── GET /exports/attendance.json ─────────────────────────────────────────────
+// JSON twin of attendance.csv — same role scoping and windowing.
+router.get(
+  "/attendance.json",
+  authorize(...ATTENDANCE_READ_ROLES),
+  validateQuery(listAttendanceSchema),
+  exportAttendanceJson
 );
 
 export default router;

@@ -3022,7 +3022,7 @@ const collection: PostmanCollection = {
     {
       name: "15. Register CSV Export",
       description:
-        "Feature 09 — register export as CSV with attachment headers (Content-Type: text/csv, Content-Disposition: attachment, UTF-8 BOM). Corporate manager downloads the full user register; attendance export is role-scoped (mine_official sees only own-site rows). RBAC negatives close the folder.",
+        "Feature 09 — register export: CSV with attachment headers (Content-Type: text/csv, Content-Disposition: attachment, UTF-8 BOM) plus JSON twins with identical gates, scope and row keys. Corporate manager downloads the full user register; attendance export is role-scoped (mine_official sees only own-site rows). RBAC negatives close the folder.",
       item: [
         {
           name: "Export Users CSV - Corporate Manager",
@@ -3146,6 +3146,91 @@ const collection: PostmanCollection = {
                   "    const txt = pm.response.text();",
                   "    pm.expect(txt).to.include('Site ID,Site,Worker');",
                   "    pm.expect(txt.split('\\r\\n').length).to.be.above(2);",
+                  "});",
+                ],
+              },
+            },
+          ],
+        },
+        {
+          name: "Export Users JSON - Corporate Manager",
+          request: {
+            method: "GET",
+            auth: bearerAuth("{{token_cm}}"),
+            header: [],
+            url: parseUrl("{{baseUrl}}/exports/users.json"),
+          },
+          event: [
+            {
+              listen: "test",
+              script: {
+                type: "text/javascript",
+                exec: [
+                  "pm.test('Status code is 200 with application/json', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    pm.expect(pm.response.headers.get('content-type')).to.include('application/json');",
+                  "});",
+                  "pm.test('Attachment disposition + filename', function () {",
+                  "    const cd = pm.response.headers.get('content-disposition') || '';",
+                  "    pm.expect(cd).to.include('attachment');",
+                  "    pm.expect(cd).to.include('users-register.json');",
+                  "});",
+                  "pm.test('Body is a JSON array with register keys + seeded email', function () {",
+                  "    const arr = pm.response.json();",
+                  "    pm.expect(Array.isArray(arr)).to.be.true;",
+                  "    pm.expect(arr.length).to.be.above(0);",
+                  "    const emails = arr.map(function (r) { return r.Email; });",
+                  "    pm.expect(emails).to.include('amit@agnistrot.com');",
+                  "    pm.expect(Object.keys(arr[0])).to.include.members(['Name','Email','Role','Site','Status','Created']);",
+                  "});",
+                ],
+              },
+            },
+          ],
+        },
+        {
+          name: "Export Users JSON - Field Officer Denied (403)",
+          request: {
+            method: "GET",
+            auth: bearerAuth("{{token_fo}}"),
+            header: [],
+            url: parseUrl("{{baseUrl}}/exports/users.json"),
+          },
+          event: [
+            {
+              listen: "test",
+              script: {
+                type: "text/javascript",
+                exec: [
+                  "pm.test('Field officer denied with 403', function () {",
+                  "    pm.response.to.have.status(403);",
+                  "});",
+                ],
+              },
+            },
+          ],
+        },
+        {
+          name: "Export Attendance JSON - Corporate Date Window",
+          request: {
+            method: "GET",
+            auth: bearerAuth("{{token_cm}}"),
+            header: [],
+            url: parseUrl("{{baseUrl}}/exports/attendance.json?from=2026-01-01T00:00:00.000Z&to=2031-01-01T00:00:00.000Z"),
+          },
+          event: [
+            {
+              listen: "test",
+              script: {
+                type: "text/javascript",
+                exec: [
+                  "pm.test('Corporate windowed export is JSON with rows', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    pm.expect(pm.response.headers.get('content-type')).to.include('application/json');",
+                  "    const arr = pm.response.json();",
+                  "    pm.expect(Array.isArray(arr)).to.be.true;",
+                  "    pm.expect(arr.length).to.be.above(0);",
+                  "    pm.expect(Object.keys(arr[0])).to.include.members(['Site ID','Site','Worker','Check Type','Captured At','Synced At']);",
                   "});",
                 ],
               },
